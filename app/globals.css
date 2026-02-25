@@ -7,15 +7,15 @@
 }
 
 :root {
-  --black: #080808;
-  --dark: #0f0f0f;
-  --card: #141414;
-  --border: #1e1e1e;
-  --border-light: #2a2a2a;
+  --black: #1a1814;
+  --dark: #1f1d19;
+  --card: #252320;
+  --border: #2e2b27;
+  --border-light: #3a3732;
   --orange: #ff5500;
   --orange-dim: rgba(255, 85, 0, 0.1);
   --white: #f0ede8;
-  --muted: #666;
+  --muted: #7a7570;
   --green: #00e676;
   --yellow: #ffd600;
   --red: #ff1744;
