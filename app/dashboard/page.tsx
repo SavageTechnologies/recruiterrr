@@ -21,13 +21,17 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: false })
     .limit(20)
 
-  // Fetch recent prometheus scans
-  const { data: scans } = await supabase
-    .from('prometheus_scans')
-    .select('id, domain, score, verdict, vendor_tier, is_shared_lead, created_at')
-    .eq('clerk_id', user?.id || '')
-    .order('created_at', { ascending: false })
-    .limit(10)
+  // Fetch recent prometheus scans — wrapped so a missing table/column doesn't crash the page
+  let scans: any[] = []
+  try {
+    const { data: scansData, error: scansError } = await supabase
+      .from('prometheus_scans')
+      .select('id, domain, score, verdict, vendor_tier, is_shared_lead, created_at')
+      .eq('clerk_id', user?.id || '')
+      .order('created_at', { ascending: false })
+      .limit(10)
+    if (!scansError && scansData) scans = scansData
+  } catch (_) {}
 
   const totalSearches = searches?.length || 0
   const totalAgents = searches?.reduce((sum, s) => sum + (s.results_count || 0), 0) || 0
@@ -141,8 +145,7 @@ export default async function DashboardPage() {
                     marginBottom: 2, textDecoration: 'none',
                     transition: 'border-color 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-light)')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+
                 >
                   <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     {scan.domain}

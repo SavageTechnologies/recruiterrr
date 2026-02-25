@@ -65,7 +65,7 @@ YouTube detection only runs for agents with 50+ reviews or a website — low-sig
 
 ### Step 5 — AI Scoring
 
-Every agent is scored 0–100 by Claude (Anthropic), which analyzes all collected signals in a single pass:
+Every agent is scored 0–100 by Claude Haiku (Anthropic), which analyzes all collected signals in a single pass:
 
 | Signal | Impact |
 |---|---|
@@ -122,3 +122,12 @@ Costs: SerpAPI (local + jobs + YouTube calls) and Anthropic (Haiku per agent). W
 - **CSV export** — Coming soon.
 - **CRM sync** — HubSpot, Salesforce. On the roadmap.
 - **Email / direct dial enrichment** — Not currently included.
+
+---
+
+## See Also
+
+**Prometheus — TCPA Intelligence**
+Before you call the agents you find, make sure the leads you're buying are legally clean. Prometheus scans lead vendor domains for TCPA compliance and scores them across 7 criteria.
+
+See `PROMETHEUS_HOW_IT_WORKS.md` for full details.
