@@ -2,7 +2,8 @@ import { currentUser } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import USMap from '@/components/USMap'
-import SearchRow from '@/components/SearchRow'
+import PrometheusScansTable from '@/components/PrometheusScansTable'
+import SearchesTable from '@/components/SearchesTable'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,7 +20,7 @@ export default async function DashboardPage() {
     .select('*')
     .eq('clerk_id', user?.id || '')
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(100)
 
   // Fetch recent prometheus scans — wrapped so a missing table/column doesn't crash the page
   let scans: any[] = []
@@ -29,7 +30,7 @@ export default async function DashboardPage() {
       .select('id, domain, score, verdict, vendor_tier, is_shared_lead, created_at')
       .eq('clerk_id', user?.id || '')
       .order('created_at', { ascending: false })
-      .limit(10)
+      .limit(100)
     if (!scansError && scansData) scans = scansData
   } catch (_) {}
 
@@ -109,67 +110,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {!scans?.length ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#2a2a2a', marginBottom: 12 }}>
-              NO SCANS YET
-            </div>
-            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 24 }}>
-              Scan a lead vendor domain to check TCPA compliance.
-            </div>
-            <Link href="/dashboard/prometheus" style={{ padding: '12px 32px', background: 'transparent', border: '1px solid var(--orange)', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none', display: 'inline-block' }}>
-              Scan a Domain
-            </Link>
-          </div>
-        ) : (
-          <div>
-            {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 80px 100px 120px', gap: 16, padding: '8px 16px', marginBottom: 4, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
-              <div>Domain</div>
-              <div>Tier</div>
-              <div>Score</div>
-              <div>Verdict</div>
-              <div>Date</div>
-            </div>
-            {scans.map(scan => {
-              const scoreColor = scan.score >= 75 ? 'var(--green)' : scan.score >= 45 ? 'var(--yellow)' : 'var(--red)'
-              const verdictColor = scan.verdict === 'COMPLIANT' ? 'var(--green)' : scan.verdict === 'REVIEW NEEDED' ? 'var(--yellow)' : 'var(--red)'
-              return (
-                <Link
-                  key={scan.id}
-                  href={`/dashboard/prometheus?id=${scan.id}`}
-                  style={{
-                    display: 'grid', gridTemplateColumns: '1fr 120px 80px 100px 120px',
-                    gap: 16, padding: '14px 16px',
-                    background: 'var(--dark)', border: '1px solid var(--border)',
-                    marginBottom: 2, textDecoration: 'none',
-                    transition: 'border-color 0.15s',
-                  }}
-
-                >
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {scan.domain}
-                    {scan.is_shared_lead && (
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 6px', border: '1px solid var(--red)', color: 'var(--red)', letterSpacing: 1 }}>SHARED</span>
-                    )}
-                  </div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center' }}>
-                    {scan.vendor_tier || 'UNKNOWN'}
-                  </div>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: scoreColor, lineHeight: 1, alignSelf: 'center' }}>
-                    {scan.score}
-                  </div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: verdictColor, letterSpacing: 1, alignSelf: 'center' }}>
-                    {scan.verdict}
-                  </div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center' }}>
-                    {new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        )}
+        <PrometheusScansTable scans={scans} />
       </div>
 
       {/* RECENT SEARCHES */}
@@ -178,33 +119,7 @@ export default async function DashboardPage() {
           Recent Searches
         </div>
 
-        {!searches?.length ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#2a2a2a', marginBottom: 12 }}>
-              NO SEARCHES YET
-            </div>
-            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 24 }}>
-              Run your first market search to see results here.
-            </div>
-            <Link href="/dashboard/search" style={{ padding: '12px 32px', background: 'transparent', border: '1px solid var(--orange)', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none', display: 'inline-block' }}>
-              Search Now
-            </Link>
-          </div>
-        ) : (
-          <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 60px 60px 60px 120px', gap: 16, padding: '8px 16px', marginBottom: 4, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
-              <div>Market</div>
-              <div>Agents</div>
-              <div style={{ color: 'var(--green)' }}>Hot</div>
-              <div style={{ color: 'var(--yellow)' }}>Warm</div>
-              <div style={{ color: '#555' }}>Cold</div>
-              <div>Date</div>
-            </div>
-            {searches.map((s) => (
-              <SearchRow key={s.id} s={s} />
-            ))}
-          </div>
-        )}
+        <SearchesTable searches={searches || []} />
       </div>
 
     </div>
