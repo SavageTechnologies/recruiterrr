@@ -86,15 +86,15 @@ export default function HomePage() {
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
           {[
-            { icon: '🔍', title: 'Google Presence', body: 'Reviews, ratings, business type, and years in operation pulled from Google local listings.' },
-            { icon: '🌐', title: 'Website Crawl', body: 'We visit their site and identify carrier logos, independent signals, and product focus areas.' },
-            { icon: '💼', title: 'Job Postings', body: 'Actively hiring insurance agents? Growing agencies with budget are prime recruiting targets.' },
-            { icon: '🎬', title: 'YouTube Presence', body: 'Content creators with Medicare or senior insurance channels are tech-forward independents.' },
-            { icon: '🏢', title: 'Carrier Mix', body: 'Multi-carrier agents are far more recruitable than single-carrier captives. We tell the difference.' },
-            { icon: '🔥', title: 'HOT / WARM / COLD', body: 'Every agent gets a 0-100 recruitability score. Stop guessing who to call.' },
+            { icon: '01', title: 'Google Presence', body: 'Reviews, ratings, business type, and years in operation pulled from Google local listings.' },
+            { icon: '02', title: 'Website Crawl', body: 'We visit their site and identify carrier logos, independent signals, and product focus areas.' },
+            { icon: '03', title: 'Job Postings', body: 'Actively hiring insurance agents? Growing agencies with budget are prime recruiting targets.' },
+            { icon: '04', title: 'YouTube Presence', body: 'Content creators with Medicare or senior insurance channels are tech-forward independents.' },
+            { icon: '05', title: 'Carrier Mix', body: 'Multi-carrier agents are far more recruitable than single-carrier captives. We tell the difference.' },
+            { icon: '06', title: 'HOT / WARM / COLD', body: 'Every agent gets a 0-100 recruitability score. Stop guessing who to call.' },
           ].map(s => (
             <div key={s.title} style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 24px' }}>
-              <div style={{ fontSize: 28, marginBottom: 12 }}>{s.icon}</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--orange)', letterSpacing: 2, marginBottom: 14 }}>{s.icon}</div>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 8, color: 'var(--white)' }}>{s.title}</div>
               <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>{s.body}</div>
             </div>
