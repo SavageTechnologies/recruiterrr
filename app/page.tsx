@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { SignInButton, SignUpButton, useUser } from '@clerk/nextjs'
+import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import PageFooter from '@/components/PageFooter'
@@ -22,16 +22,12 @@ export default function HomePage() {
           RECRUITERRR<span style={{ color: 'var(--orange)' }}>.</span>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <SignInButton mode="modal">
-            <button style={{ padding: '10px 24px', background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, cursor: 'pointer', textTransform: 'uppercase' }}>
-              Sign In
-            </button>
-          </SignInButton>
-          <SignUpButton mode="modal">
-            <button style={{ padding: '10px 24px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 2, cursor: 'pointer' }}>
-              Start Free Trial
-            </button>
-          </SignUpButton>
+          <Link href="/sign-in" style={{ padding: '10px 24px', background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, cursor: 'pointer', textTransform: 'uppercase', textDecoration: 'none' }}>
+            Sign In
+          </Link>
+          <Link href="/sign-up" style={{ padding: '10px 24px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 2, cursor: 'pointer', textDecoration: 'none' }}>
+            Start Free Trial
+          </Link>
         </div>
       </nav>
 
@@ -50,11 +46,9 @@ export default function HomePage() {
           Stop cold calling blind. We scrape, research, and score every independent life, health, and senior insurance agent in any market — so you know exactly who to call first.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <SignUpButton mode="modal">
-            <button style={{ padding: '18px 48px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 3, cursor: 'pointer' }}>
-              START FREE — NO CARD NEEDED
-            </button>
-          </SignUpButton>
+          <Link href="/sign-up" style={{ padding: '18px 48px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 3, cursor: 'pointer', textDecoration: 'none' }}>
+            START FREE — NO CARD NEEDED
+          </Link>
           <Link href="/about" style={{ padding: '18px 32px', background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
             HOW IT WORKS
           </Link>
@@ -144,11 +138,9 @@ export default function HomePage() {
           STOP COLD<br />
           CALLING<span style={{ color: 'var(--orange)' }}>.</span>
         </div>
-        <SignUpButton mode="modal">
-          <button style={{ padding: '18px 48px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 3, cursor: 'pointer' }}>
-            START YOUR FREE TRIAL
-          </button>
-        </SignUpButton>
+        <Link href="/sign-up" style={{ padding: '18px 48px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 3, cursor: 'pointer', textDecoration: 'none' }}>
+          START YOUR FREE TRIAL
+        </Link>
       </section>
 
       <PageFooter />
