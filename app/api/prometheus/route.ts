@@ -91,61 +91,71 @@ async function fetchSerpIntel(domain: string): Promise<string> {
 }
 
 async function runClaudeAnalysis(domain: string, pages: { homepage: string; privacy: string; leadForm: string; foundPages: string[] }, serpIntel: string): Promise<any> {
+  const pagesAvailable = !!(pages.homepage || pages.privacy || pages.leadForm)
+
   const prompt = `You are a TCPA compliance expert analyzing a lead generation website for an independent insurance agent who wants to know if it is safe to buy leads from this vendor.
 
 DOMAIN: ${domain}
 PAGES SCANNED: ${pages.foundPages.join(', ')}
+PAGES ACCESSIBLE: ${pagesAvailable ? 'YES — content retrieved' : 'NO — pages could not be fetched (blocked, gated, or unavailable)'}
 
 HOMEPAGE TEXT:
-${pages.homepage || 'Could not fetch homepage.'}
+${pages.homepage || 'Could not fetch — page blocked or unavailable.'}
 
 PRIVACY POLICY TEXT:
-${pages.privacy || 'No privacy policy page found.'}
+${pages.privacy || 'No privacy policy page found or accessible.'}
 
 LEAD FORM / CONTACT PAGE TEXT:
-${pages.leadForm || 'No lead capture page found.'}
+${pages.leadForm || 'No lead capture page found or accessible.'}
 
 SERP INTELLIGENCE (complaints, lawsuits, reputation):
 ${serpIntel || 'No external intelligence gathered.'}
 
-Analyze this website for TCPA compliance across these 7 criteria. For each, determine if it PASSES, FAILS, or is UNCLEAR, and provide a specific finding citing actual text found (or noting its absence).
+Analyze this domain for TCPA compliance. Use whatever data is available — page content, SERP intelligence, or both.
 
-CRITERIA:
-1. PRIOR_EXPRESS_WRITTEN_CONSENT (30pts): Does the opt-in form have explicit PEWC language where the consumer consents to be contacted by phone/text? Look for phrases like "prior express written consent", "I agree to be contacted", "By submitting", consent checkboxes.
-2. SELLER_IDENTIFICATION (15pts): Is the actual company or agent who will be calling clearly named in the consent language? "A licensed agent may contact you" is NOT enough — a specific named entity is required.
-3. CONTACT_METHOD_DISCLOSURE (15pts): Does the consent specify HOW they'll be contacted — calls, texts, autodialer, prerecorded messages?
-4. CLEAR_CONSPICUOUS_PLACEMENT (15pts): Is the disclaimer near the submit button and visible, not buried in fine print or a separate page nobody reads?
-5. PRIVACY_POLICY_PRESENT (10pts): Does a privacy policy exist, is it accessible, and does it address phone/text contact and data sharing?
-6. SHARED_LEAD_WARNING (10pts — NEGATIVE if shared): Does the form indicate leads are sold to multiple buyers? Look for "up to X partners", "marketing partners", multiple company logos, or shared/aggregator language. This is a RED FLAG per 2024 FCC ruling.
-7. OPT_OUT_LANGUAGE (5pts): Is there clear opt-out language — "Reply STOP", unsubscribe instructions, or similar?
+IMPORTANT SCORING RULES:
+- If pages are inaccessible but SERP intel shows lawsuits, class actions, or regulatory complaints → score 10–25 (HIGH RISK)
+- If pages are inaccessible but SERP intel shows no complaints and domain appears legitimate → score 35–50 (REVIEW NEEDED) — inaccessibility itself is not a pass, but absence of red flags matters
+- If pages are inaccessible AND SERP shows active litigation or known shared lead model → score 5–20 (HIGH RISK)
+- If pages ARE accessible: score based on what the 7 checks reveal (0–100)
+- NEVER return a score of 0 unless there is truly zero information available. If SERP intel exists, use it.
+- A score of 0 means "no data at all" — not "high risk." Use 5–25 for high risk with evidence.
+- Mark checks as null (UNCLEAR) when pages are inaccessible, not as false/fail — UNLESS SERP intel reveals the failure (e.g. known shared lead vendor = shared_lead_warning fails)
 
-Also analyze the SERP INTELLIGENCE for any complaint patterns, lawsuit history, or BBB issues.
+CRITERIA TO EVALUATE:
+1. PRIOR_EXPRESS_WRITTEN_CONSENT (30pts): Explicit PEWC language in opt-in form.
+2. SELLER_IDENTIFICATION (15pts): Actual company named in consent language.
+3. CONTACT_METHOD_DISCLOSURE (15pts): Calls, texts, autodialer explicitly stated.
+4. CLEAR_CONSPICUOUS_PLACEMENT (15pts): Disclaimer visible near submit button.
+5. PRIVACY_POLICY_PRESENT (10pts): Accessible policy addressing telephone contact.
+6. SHARED_LEAD_WARNING (-15pts penalty if shared): Multi-buyer indicators per 2024 FCC ruling.
+7. OPT_OUT_LANGUAGE (5pts): Clear STOP/unsubscribe instructions.
 
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON:
 {
-  "score": <0-100 number>,
+  "score": <number 5-100, never 0 unless absolutely no data>,
   "verdict": "COMPLIANT" | "REVIEW NEEDED" | "HIGH RISK",
-  "domain_age_signal": "<any signals about how established this domain/company appears>",
+  "domain_age_signal": "<signals about how established this domain/company appears>",
   "is_shared_lead_vendor": <true|false>,
   "checks": {
-    "prior_express_written_consent": { "pass": <true|false|null>, "points": <0 or 30>, "finding": "<specific finding with quoted text if found>" },
+    "prior_express_written_consent": { "pass": <true|false|null>, "points": <0 or 30>, "finding": "<specific finding or note that page was inaccessible>" },
     "seller_identification": { "pass": <true|false|null>, "points": <0 or 15>, "finding": "<specific finding>" },
     "contact_method_disclosure": { "pass": <true|false|null>, "points": <0 or 15>, "finding": "<specific finding>" },
     "clear_conspicuous_placement": { "pass": <true|false|null>, "points": <0 or 15>, "finding": "<specific finding>" },
     "privacy_policy_present": { "pass": <true|false|null>, "points": <0 or 10>, "finding": "<specific finding>" },
-    "shared_lead_warning": { "pass": <true|false|null>, "points": <0 or -15>, "finding": "<specific finding — flag if shared lead indicators found>" },
+    "shared_lead_warning": { "pass": <true|false|null>, "points": <0 or -15>, "finding": "<specific finding — use SERP intel if pages unavailable>" },
     "opt_out_language": { "pass": <true|false|null>, "points": <0 or 5>, "finding": "<specific finding>" }
   },
-  "reputation_intel": "<2-3 sentences summarizing what the SERP intelligence revealed — complaints, lawsuits, BBB issues, or clean record>",
+  "reputation_intel": "<2-3 sentences on SERP intelligence — complaints, lawsuits, BBB issues, or clean record>",
   "recommendations": [
     { "priority": "CRITICAL" | "HIGH" | "MEDIUM", "title": "<short title>", "detail": "<specific actionable recommendation>" }
   ],
   "generated_language": {
-    "tcpa_disclaimer": "<A complete, ready-to-use TCPA compliant disclaimer they can send to this vendor or use on their own site. Must include PEWC language, seller identification placeholder [COMPANY NAME], contact method, and opt-out.>",
-    "vendor_demand_letter": "<A short professional paragraph they can send to this vendor demanding specific fixes before purchasing more leads.>",
-    "opt_out_line": "<A single ready-to-use opt-out disclosure line.>"
+    "tcpa_disclaimer": "<Complete ready-to-use TCPA disclaimer with PEWC language, [COMPANY NAME] placeholder, contact method, and opt-out>",
+    "vendor_demand_letter": "<Short professional paragraph to send to this vendor demanding specific fixes>",
+    "opt_out_line": "<Single ready-to-use opt-out disclosure line>"
   },
-  "summary": "<3-4 sentences plain English summary of the overall compliance picture and key risks for an independent insurance agent.>"
+  "summary": "<3-4 sentences plain English summary of compliance picture and key risks for an independent insurance agent>"
 }`
 
   const response = await anthropic.messages.create({
@@ -171,16 +181,10 @@ export async function POST(req: NextRequest) {
     const baseUrl = normalizeUrl(domain)
     const cleanDomain = baseUrl.replace('https://', '')
 
-    // Fetch all pages
     const pages = await tryFetchPages(baseUrl)
-
-    // Fetch SERP intelligence
     const serpIntel = await fetchSerpIntel(cleanDomain)
-
-    // Run Claude TCPA analysis
     const analysis = await runClaudeAnalysis(cleanDomain, pages, serpIntel)
 
-    // Save to Supabase
     await supabase.from('prometheus_scans').insert({
       clerk_id: userId,
       domain: cleanDomain,
