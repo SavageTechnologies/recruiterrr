@@ -49,6 +49,8 @@ async function fetchAgentsFromSerp(city: string, state: string): Promise<any[]> 
         const key = item.title + item.address
         if (!seen.has(key)) {
           seen.add(key)
+          // Website lives in links.website in google_local responses
+          item.website = item.links?.website || null
           results.push(item)
         }
       }
@@ -67,7 +69,6 @@ async function fetchWebsiteText(url: string): Promise<string> {
       signal: AbortSignal.timeout(5000),
     })
     const html = await res.text()
-    // Strip HTML tags crudely for AI consumption
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -80,40 +81,53 @@ async function fetchWebsiteText(url: string): Promise<string> {
 }
 
 async function scoreAgent(raw: any, websiteText: string): Promise<AgentResult> {
-  const prompt = `You are an expert Medicare insurance industry analyst helping FMO recruiters identify recruitable agents.
+  const name = raw.title || 'Unknown'
+  const type = raw.type || ''
+  const description = raw.description || ''
+  const extensions = (raw.extensions || []).join(' ')
+  const reviews = raw.reviews || 0
+  const rating = raw.rating || 0
+  const hasWebsite = !!raw.website
 
-Analyze this agent's data and return a JSON object with recruitment intelligence.
+  const prompt = `You are an expert Medicare insurance industry analyst helping FMO recruiters identify recruitable independent agents.
 
-AGENT DATA:
-Name: ${raw.title || 'Unknown'}
-Type: ${raw.type || 'Unknown'}
+Analyze ALL available data and return recruitment intelligence. Use every signal available.
+
+GOOGLE LISTING DATA:
+Name: ${name}
+Business Type: ${type}
+Description: ${description}
+Tags/Extensions: ${extensions}
 Phone: ${raw.phone || 'None'}
 Address: ${raw.address || 'Unknown'}
-Rating: ${raw.rating || 0}
-Reviews: ${raw.reviews || 0}
-Website: ${raw.website || 'None'}
+Rating: ${rating} stars
+Review Count: ${reviews} reviews
+Has Website: ${hasWebsite ? 'YES — ' + raw.website : 'NO'}
 
-WEBSITE TEXT (first 3000 chars):
-${websiteText || 'No website data available'}
+WEBSITE TEXT:
+${websiteText || 'No website available — rely on name, type, description, and review signals'}
 
-Return ONLY valid JSON with these exact fields:
+SCORING RULES — READ CAREFULLY:
+1. Business NAME is a primary signal. "Medicare" or "Senior" in the name = Medicare-focused independent = higher score
+2. Review count signals establishment: 50+ = established, 100+ = well-established, 200+ = dominant local player
+3. High reviews + no website = strong referral-based independent agent. Do NOT penalize for missing website if reviews are high
+4. CAPTIVE indicators (score 15-35): "Bankers Life", "State Farm", "Farmers", "Allstate", "GEICO" in name
+5. INDEPENDENT indicators (score 65-95): multiple carriers mentioned, "independent" in description, Medicare/Senior focus
+6. Agents with 100+ reviews and Medicare focus but no website = score 65-75 (established independent, just not digital)
+7. Agents with website + multiple carriers + Medicare focus = score 80-95
+8. Unknown carrier mix + moderate reviews = score 50-65
+
+SCALE: HOT = 75+, WARM = 50-74, COLD = 0-49
+
+Return ONLY valid JSON:
 {
-  "carriers": ["list of insurance carriers mentioned, e.g. Aetna, Humana, UHC, Cigna, WellCare, Anthem, BCBS. Use 'Unknown' if none found"],
-  "captive": boolean (true if they appear to only sell one carrier),
-  "years": number or null (years in business if found),
-  "score": number 0-100 (recruitability score),
+  "carriers": ["carriers found or 'Unknown'"],
+  "captive": boolean,
+  "years": number or null,
+  "score": number 0-100,
   "flag": "hot" or "warm" or "cold",
-  "notes": "2-3 sentence analyst note on why this agent is or isn't recruitable"
-}
-
-SCORING RULES:
-- Independent + multiple carriers + 2-7 years in business = HIGH score (75-95)
-- Independent + 1-2 carriers + newer agent = MEDIUM score (50-74)  
-- Captive single carrier OR 15+ year tenure (very loyal) OR no web presence = LOW score (0-49)
-- HOT = score >= 75, WARM = score 50-74, COLD = score < 50
-- More carriers = more open to change = higher score
-- New agents (under 3 years) score 60-75 — open to better deals but unproven
-- Captives score 15-40 — very hard to recruit`
+  "notes": "2-3 sentences using SPECIFIC data points from this listing — name, review count, rating, carriers found"
+}`
 
   try {
     const response = await anthropic.messages.create({
@@ -128,12 +142,12 @@ SCORING RULES:
     const parsed = JSON.parse(jsonMatch[0])
 
     return {
-      name: raw.title || 'Unknown',
-      type: raw.type || 'Insurance Agency',
+      name,
+      type: type || 'Insurance Agency',
       phone: raw.phone || '',
       address: raw.address || '',
-      rating: raw.rating || 0,
-      reviews: raw.reviews || 0,
+      rating,
+      reviews,
       website: raw.website || null,
       carriers: parsed.carriers || ['Unknown'],
       captive: parsed.captive || false,
@@ -143,28 +157,31 @@ SCORING RULES:
       notes: parsed.notes || 'No analysis available.',
     }
   } catch {
-    // Fallback scoring if AI fails
-    const hasWebsite = !!raw.website
-    const reviews = raw.reviews || 0
-    const rating = raw.rating || 0
-    const baseScore = hasWebsite ? 55 : 35
-    const reviewBonus = Math.min(20, Math.floor(reviews / 10))
-    const score = Math.min(85, baseScore + reviewBonus)
+    const nameLower = name.toLowerCase()
+    const isMedicareNamed = nameLower.includes('medicare') || nameLower.includes('senior') || nameLower.includes('health')
+    const isCaptive = ['bankers life', 'state farm', 'farmers', 'allstate'].some(c => nameLower.includes(c))
+    let score = 45
+    if (isCaptive) score = 25
+    else if (isMedicareNamed && reviews >= 100) score = 70
+    else if (isMedicareNamed && reviews >= 50) score = 62
+    else if (isMedicareNamed) score = 55
+    else if (reviews >= 100) score = 60
+    else if (hasWebsite) score = 52
 
     return {
-      name: raw.title || 'Unknown',
-      type: raw.type || 'Insurance Agency',
+      name,
+      type: type || 'Insurance Agency',
       phone: raw.phone || '',
       address: raw.address || '',
       rating,
       reviews,
       website: raw.website || null,
       carriers: ['Unknown'],
-      captive: false,
+      captive: isCaptive,
       years: null,
       score,
       flag: score >= 75 ? 'hot' : score >= 50 ? 'warm' : 'cold',
-      notes: 'AI scoring unavailable. Manual review recommended.',
+      notes: 'AI scoring unavailable. Fallback score based on name and review signals.',
     }
   }
 }
@@ -173,8 +190,7 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Rate limit: 10 searches per user per hour
-  const { success, limit, remaining, reset } = await ratelimit.limit(userId)
+  const { success, limit, reset } = await ratelimit.limit(userId)
   if (!success) {
     return NextResponse.json({
       error: `Rate limit exceeded. You have ${limit} searches per hour. Resets at ${new Date(reset).toLocaleTimeString()}.`
@@ -185,17 +201,14 @@ export async function POST(req: NextRequest) {
     const { city, state } = await req.json()
     if (!city || !state) return NextResponse.json({ error: 'City and state required' }, { status: 400 })
 
-    // 1. Fetch from SerpAPI
     const rawAgents = await fetchAgentsFromSerp(city, state)
 
     if (!rawAgents.length) {
       return NextResponse.json({ agents: [] })
     }
 
-    // 2. Limit to top 10 results to control API costs
     const top = rawAgents.slice(0, 10)
 
-    // 3. Fetch websites + score in parallel
     const scored = await Promise.all(
       top.map(async (raw) => {
         const websiteText = raw.website ? await fetchWebsiteText(raw.website) : ''
@@ -203,7 +216,6 @@ export async function POST(req: NextRequest) {
       })
     )
 
-    // 4. Sort by score descending
     const sorted = scored.sort((a, b) => b.score - a.score)
 
     return NextResponse.json({ agents: sorted })
