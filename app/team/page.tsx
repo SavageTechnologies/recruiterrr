@@ -17,13 +17,13 @@ export default function TeamPage() {
           <div style={{ background: 'var(--card)', border: '1px solid var(--orange)', padding: '36px 32px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
               <div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: 'var(--white)', marginBottom: 4 }}>Brad Wesley</div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2, textTransform: 'uppercase' }}>Founder & Owner, Jasper, MO</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: 'var(--white)', marginBottom: 4 }}>Aaron Sims</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2, textTransform: 'uppercase' }}>Founder & Builder — Topeka, KS</div>
               </div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid var(--orange)', color: 'var(--orange)', letterSpacing: 1 }}>FOUNDER</div>
             </div>
             <div style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.8 }}>
-              Former businessman and community fixture out of Jasper, Missouri. After some career turbulence in the early 2000s — long story, involves a bouncer — Brad pivoted hard into insurance distribution and never looked back. He built Recruiterrr because he got tired of not knowing who the players were in every market. Brad Wesley always knows who the players are. Nobody gets recruited in this county without his say-so. If the platform feels like it was built by someone who takes control very seriously, that's because it was.
+              Insurance distribution lifer turned builder. Aaron spent years inside the FMO world watching recruiters work blind — cold calling agents they knew nothing about, buying leads from vendors they'd never vetted. He built Recruiterrr to fix it. Every feature exists because he needed it himself. The platform is opinionated because he is. Somewhere along the way he was inspired by a businessman out of Jasper, Missouri — a man named Brad Wesley — who always knew exactly who the players were in any market. Aaron decided that was the right way to operate.
             </div>
           </div>
         </div>
