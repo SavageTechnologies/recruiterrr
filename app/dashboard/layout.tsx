@@ -34,10 +34,8 @@ export default function DashboardLayout({
           </Link>
           <Link href="/dashboard/prometheus" style={{
             fontFamily: "'DM Mono', monospace", fontSize: 11,
-            color: '#00e5ff', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
-            display: 'flex', alignItems: 'center', gap: 6,
+            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
           }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00e5ff', display: 'inline-block', boxShadow: '0 0 6px #00e5ff' }} />
             Prometheus
           </Link>
           <UserButton

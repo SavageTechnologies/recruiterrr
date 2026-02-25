@@ -7,9 +7,8 @@ export default function PageNav() {
         RECRUITERRR<span style={{ color: 'var(--orange)' }}>.</span>
       </Link>
       <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-        <Link href="/prometheus" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#00e5ff', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#00e5ff', display: 'inline-block', boxShadow: '0 0 5px #00e5ff' }} />
-          Prometheus
+        <Link href="/prometheus" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none' }}>
+          PROMETHEUS
         </Link>
         <Link href="/dashboard" style={{ padding: '10px 24px', background: 'var(--orange)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, letterSpacing: 2, color: 'var(--black)', textDecoration: 'none' }}>
           OPEN APP
