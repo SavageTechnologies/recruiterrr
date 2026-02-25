@@ -28,15 +28,15 @@ export default function AboutPage() {
           </p>
 
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: 32 }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20 }}>What We Use</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20 }}>How We Do It</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
               {[
-                ['Google Local Data', 'Real-time business listings with ratings and reviews'],
-                ['Website Crawling', 'Identifies carrier mix and independence signals'],
-                ['Google Jobs API', 'Detects agents actively hiring producers'],
-                ['YouTube Detection', 'Finds agents building brands with video content'],
-                ['Claude AI Scoring', 'Trained on Medicare and senior insurance signals'],
-                ['Live Every Search', 'No stale databases — every search is fresh'],
+                ['Market Intelligence Layer', 'Proprietary data aggregation across public business registries, review platforms, and local directories — updated live on every search.'],
+                ['Presence Analysis Engine', 'Automated deep crawl of agent web properties to extract carrier relationships, independence signals, and product focus areas.'],
+                ['Labor Signal Detection', 'Real-time monitoring of employment activity to identify agencies actively expanding their producer headcount.'],
+                ['Digital Footprint Scoring', 'Cross-platform content analysis that surfaces agents building public-facing brands — a strong proxy for independence and tech adoption.'],
+                ['Proprietary Scoring Model', 'An insurance-industry-trained AI model that synthesizes all available signals into a single recruitability score, calibrated specifically for FMO and IMO use cases.'],
+                ['Live Data Architecture', 'No static databases. No purchased lists. Every search executes the full pipeline in real time — so the intelligence you get is always current.'],
               ].map(([title, desc]) => (
                 <div key={title} style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '20px' }}>
                   <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1, marginBottom: 6 }}>{title}</div>
