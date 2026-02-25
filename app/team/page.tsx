@@ -17,13 +17,13 @@ export default function TeamPage() {
           <div style={{ background: 'var(--card)', border: '1px solid var(--orange)', padding: '36px 32px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
               <div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: 'var(--white)', marginBottom: 4 }}>Aaron Sims</div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2, textTransform: 'uppercase' }}>Founder</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: 'var(--white)', marginBottom: 4 }}>Brad Wesley</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2, textTransform: 'uppercase' }}>Founder & Owner, Jasper, MO</div>
               </div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid var(--orange)', color: 'var(--orange)', letterSpacing: 1 }}>FOUNDER</div>
             </div>
             <div style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.8 }}>
-              Insurance industry operator. Built Recruiterrr to solve a recruiting problem he lived with for years — too many markets, not enough intel on who was actually worth calling. If it feels like it was built by someone who's been in the trenches, that's because it was.
+              Former businessman and community fixture out of Jasper, Missouri. After some career turbulence in the early 2000s — long story, involves a bouncer — Brad pivoted hard into insurance distribution and never looked back. He built Recruiterrr because he got tired of not knowing who the players were in every market. Brad Wesley always knows who the players are. Nobody gets recruited in this county without his say-so. If the platform feels like it was built by someone who takes control very seriously, that's because it was.
             </div>
           </div>
         </div>
