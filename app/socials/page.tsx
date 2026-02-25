@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import PageNav from '@/components/PageNav'
 import PageFooter from '@/components/PageFooter'
