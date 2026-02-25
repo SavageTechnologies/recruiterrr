@@ -2,6 +2,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import USMap from '@/components/USMap'
+import SearchRow from '@/components/SearchRow'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -149,40 +150,8 @@ export default async function DashboardPage() {
               <div>Date</div>
             </div>
 
-            {searches.map((s, i) => (
-              <Link
-                key={s.id}
-                href={`/dashboard/search?city=${encodeURIComponent(s.city)}&state=${s.state}`}
-                style={{
-                  display: 'grid', gridTemplateColumns: '1fr 80px 60px 60px 60px 120px',
-                  gap: 16, padding: '14px 16px',
-                  borderTop: '1px solid var(--border)',
-                  textDecoration: 'none',
-                  transition: 'background 0.15s',
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(e: any) => e.currentTarget.style.background = '#1a1a1a'}
-                onMouseLeave={(e: any) => e.currentTarget.style.background = 'transparent'}
-              >
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--white)' }}>
-                  {s.city}, {s.state}
-                </div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--white)' }}>
-                  {s.results_count}
-                </div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--green)' }}>
-                  {s.hot_count}
-                </div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--yellow)' }}>
-                  {s.warm_count}
-                </div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: '#555' }}>
-                  {s.cold_count}
-                </div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)' }}>
-                  {new Date(s.created_at).toLocaleDateString()}
-                </div>
-              </Link>
+            {searches.map((s) => (
+              <SearchRow key={s.id} s={s} />
             ))}
           </div>
         )}
