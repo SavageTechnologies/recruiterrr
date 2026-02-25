@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
 
@@ -34,23 +35,11 @@ function ScoreCircle({ score }: { score: number }) {
   return (
     <div style={{
       width: 64, height: 64, borderRadius: '50%',
-      border: `2px solid ${color}`,
-      background: `${color}0d`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexDirection: 'column',
+      border: `2px solid ${color}`, background: `${color}0d`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
     }}>
-      <div style={{
-        fontFamily: "'Bebas Neue', sans-serif", fontSize: 22,
-        color, lineHeight: 1,
-      }}>
-        {score}
-      </div>
-      <div style={{
-        fontFamily: "'DM Mono', monospace", fontSize: 8,
-        color, letterSpacing: 1, textTransform: 'uppercase',
-      }}>
-        SCORE
-      </div>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color, lineHeight: 1 }}>{score}</div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color, letterSpacing: 1, textTransform: 'uppercase' }}>SCORE</div>
     </div>
   )
 }
@@ -66,8 +55,7 @@ function RecruitBadge({ flag }: { flag: 'hot' | 'warm' | 'cold' }) {
     <div style={{
       fontFamily: "'DM Mono', monospace", fontSize: 9,
       padding: '3px 8px', border: `1px solid ${color}`,
-      color, letterSpacing: 1, textTransform: 'uppercase',
-      textAlign: 'center',
+      color, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center',
     }}>
       {label}
     </div>
@@ -76,7 +64,6 @@ function RecruitBadge({ flag }: { flag: 'hot' | 'warm' | 'cold' }) {
 
 function AgentCard({ agent, index }: { agent: Agent; index: number }) {
   const [expanded, setExpanded] = useState(false)
-
   return (
     <div
       onClick={() => setExpanded(!expanded)}
@@ -97,32 +84,12 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'start' }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--white)', marginBottom: 4 }}>
-            {agent.name}
-          </div>
-          <div style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 10,
-            color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase',
-            marginBottom: 12,
-          }}>
-            {agent.type}
-          </div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--white)', marginBottom: 4 }}>{agent.name}</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>{agent.type}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 14 }}>
-            {agent.phone && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--muted)' }}>
-                📞 {agent.phone}
-              </div>
-            )}
-            {agent.rating > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--muted)' }}>
-                ⭐ {agent.rating} ({agent.reviews} reviews)
-              </div>
-            )}
-            {agent.address && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--muted)' }}>
-                📍 {agent.address}
-              </div>
-            )}
+            {agent.phone && <div style={{ fontSize: 13, color: 'var(--muted)' }}>📞 {agent.phone}</div>}
+            {agent.rating > 0 && <div style={{ fontSize: 13, color: 'var(--muted)' }}>⭐ {agent.rating} ({agent.reviews} reviews)</div>}
+            {agent.address && <div style={{ fontSize: 13, color: 'var(--muted)' }}>📍 {agent.address}</div>}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {agent.carriers.map(c => (
@@ -131,34 +98,23 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
                 padding: '3px 8px', border: '1px solid var(--border-light)',
                 color: c === 'Unknown' ? '#333' : 'var(--muted)',
                 letterSpacing: 1, textTransform: 'uppercase',
-              }}>
-                {c}
-              </span>
+              }}>{c}</span>
             ))}
           </div>
           {expanded && agent.notes && (
             <div style={{
               marginTop: 16, padding: '12px 16px',
               background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)',
-              color: 'var(--muted)', lineHeight: 1.6,
               fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5,
+              color: 'var(--muted)', lineHeight: 1.6,
             }}>
               {agent.notes}
             </div>
           )}
           {agent.website && expanded && (
-            <a
-              href={agent.website}
-              target="_blank"
-              rel="noopener noreferrer"
+            <a href={agent.website} target="_blank" rel="noopener noreferrer"
               onClick={e => e.stopPropagation()}
-              style={{
-                display: 'inline-block', marginTop: 12,
-                fontFamily: "'DM Mono', monospace", fontSize: 10,
-                color: 'var(--orange)', letterSpacing: 1,
-                textDecoration: 'none',
-              }}
-            >
+              style={{ display: 'inline-block', marginTop: 12, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1 }}>
               {agent.website} ↗
             </a>
           )}
@@ -173,6 +129,7 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
 }
 
 export default function SearchPage() {
+  const searchParams = useSearchParams()
   const [city, setCity] = useState('')
   const [state, setState] = useState('KS')
   const [loading, setLoading] = useState(false)
@@ -182,6 +139,28 @@ export default function SearchPage() {
   const [searchLabel, setSearchLabel] = useState('')
   const [error, setError] = useState('')
 
+  // Load from DB if id param present
+  useEffect(() => {
+    const id = searchParams.get('id')
+    if (id) loadSavedSearch(id)
+  }, [])
+
+  async function loadSavedSearch(id: string) {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/searches?id=${id}`)
+      const data = await res.json()
+      if (data.search) {
+        setAgents(data.search.agents_json || [])
+        setCity(data.search.city)
+        setState(data.search.state)
+        setSearchLabel(`${data.search.city.toUpperCase()}, ${data.search.state}`)
+        setSearched(true)
+      }
+    } catch {}
+    setLoading(false)
+  }
+
   async function runSearch() {
     if (!city.trim() || !state) return
     setLoading(true)
@@ -190,7 +169,6 @@ export default function SearchPage() {
     setError('')
     setCurrentStep(0)
 
-    // Animate steps
     for (let i = 0; i < LOADING_STEPS.length; i++) {
       setCurrentStep(i)
       await new Promise(r => setTimeout(r, 600))
@@ -218,39 +196,21 @@ export default function SearchPage() {
   return (
     <div style={{ padding: '60px 40px', maxWidth: 1100 }}>
       <style>{`
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes loadSlide {
-          0% { left: -40%; }
-          100% { left: 100%; }
-        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes loadSlide { 0% { left: -40%; } 100% { left: 100%; } }
       `}</style>
 
-      {/* HEADER */}
       <div style={{ marginBottom: 40 }}>
-        <div style={{
-          fontFamily: "'DM Mono', monospace", fontSize: 11,
-          color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase',
-          marginBottom: 12,
-        }}>
-          Market Search
-        </div>
-        <h1 style={{
-          fontFamily: "'Bebas Neue', sans-serif", fontSize: 56,
-          letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9,
-        }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>Market Search</div>
+        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>
           FIND AGENTS<span style={{ color: 'var(--orange)' }}>.</span>
         </h1>
       </div>
 
-      {/* SEARCH BOX */}
       <div style={{
         display: 'flex', gap: 0, marginBottom: 48,
         border: `1px solid ${loading ? 'var(--orange)' : 'var(--border-light)'}`,
-        background: 'var(--card)',
-        transition: 'border-color 0.2s',
+        background: 'var(--card)', transition: 'border-color 0.2s',
         boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none',
       }}>
         <input
@@ -259,24 +219,14 @@ export default function SearchPage() {
           onKeyDown={e => e.key === 'Enter' && runSearch()}
           placeholder="City (e.g. Topeka)"
           disabled={loading}
-          style={{
-            flex: 1, padding: '18px 24px',
-            background: 'transparent', border: 'none', outline: 'none',
-            color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14,
-            letterSpacing: 1,
-          }}
+          style={{ flex: 1, padding: '18px 24px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
         />
         <div style={{ width: 1, background: 'var(--border-light)' }} />
         <select
           value={state}
           onChange={e => setState(e.target.value)}
           disabled={loading}
-          style={{
-            width: 100, padding: '18px 16px',
-            background: 'transparent', border: 'none', outline: 'none',
-            color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14,
-            cursor: 'pointer', appearance: 'none',
-          }}
+          style={{ width: 100, padding: '18px 16px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, cursor: 'pointer', appearance: 'none' }}
         >
           {STATES.map(s => <option key={s} value={s} style={{ background: 'var(--dark)' }}>{s}</option>)}
         </select>
@@ -284,8 +234,7 @@ export default function SearchPage() {
           onClick={runSearch}
           disabled={loading || !city.trim()}
           style={{
-            padding: '18px 32px',
-            background: loading ? '#333' : 'var(--orange)',
+            padding: '18px 32px', background: loading ? '#333' : 'var(--orange)',
             border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2,
             color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap',
@@ -295,30 +244,20 @@ export default function SearchPage() {
         </button>
       </div>
 
-      {/* LOADING */}
-      {loading && (
+      {loading && currentStep >= 0 && (
         <div style={{ marginBottom: 48 }}>
-          <div style={{
-            height: 2, background: 'var(--border)',
-            position: 'relative', overflow: 'hidden', marginBottom: 20,
-          }}>
-            <div style={{
-              position: 'absolute', left: '-40%', width: '40%', height: '100%',
-              background: 'var(--orange)',
-              animation: 'loadSlide 1s ease-in-out infinite',
-            }} />
+          <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 20 }}>
+            <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--orange)', animation: 'loadSlide 1s ease-in-out infinite' }} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {LOADING_STEPS.map((step, i) => (
               <div key={step} style={{
-                fontFamily: "'DM Mono', monospace", fontSize: 11,
-                letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 10,
+                fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1,
+                display: 'flex', alignItems: 'center', gap: 10,
                 color: i < currentStep ? 'var(--green)' : i === currentStep ? 'var(--orange)' : '#333',
                 transition: 'color 0.3s',
               }}>
-                <span style={{ fontSize: 8 }}>
-                  {i < currentStep ? '●' : i === currentStep ? '◐' : '○'}
-                </span>
+                <span style={{ fontSize: 8 }}>{i < currentStep ? '●' : i === currentStep ? '◐' : '○'}</span>
                 {step}
               </div>
             ))}
@@ -326,59 +265,31 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* ERROR */}
       {error && (
-        <div style={{
-          padding: '16px 20px', border: '1px solid var(--red)',
-          background: 'rgba(255,23,68,0.05)', color: 'var(--red)',
-          fontFamily: "'DM Mono', monospace", fontSize: 12,
-          letterSpacing: 1, marginBottom: 32,
-        }}>
+        <div style={{ padding: '16px 20px', border: '1px solid var(--red)', background: 'rgba(255,23,68,0.05)', color: 'var(--red)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 1, marginBottom: 32 }}>
           {error}
         </div>
       )}
 
-      {/* RESULTS */}
       {searched && !loading && (
         <>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            marginBottom: 24,
-          }}>
-            <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 11,
-              color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase',
-            }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
               {searchLabel} — Medicare Agents
             </div>
-            <div style={{
-              fontFamily: "'Bebas Neue', sans-serif", fontSize: 20,
-              color: 'var(--orange)',
-            }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--orange)' }}>
               {agents.length} FOUND
             </div>
           </div>
 
           {agents.length === 0 ? (
-            <div style={{
-              textAlign: 'center', padding: '80px 0',
-              background: 'var(--card)', border: '1px solid var(--border)',
-            }}>
-              <div style={{
-                fontFamily: "'Bebas Neue', sans-serif", fontSize: 48,
-                color: '#222', marginBottom: 12,
-              }}>
-                NO AGENTS FOUND
-              </div>
-              <div style={{ fontSize: 14, color: 'var(--muted)' }}>
-                Try a different city or check your SerpAPI key.
-              </div>
+            <div style={{ textAlign: 'center', padding: '80px 0', background: 'var(--card)', border: '1px solid var(--border)' }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#222', marginBottom: 12 }}>NO AGENTS FOUND</div>
+              <div style={{ fontSize: 14, color: 'var(--muted)' }}>Try a different city.</div>
             </div>
           ) : (
             <div style={{ display: 'grid', gap: 2 }}>
-              {agents.map((agent, i) => (
-                <AgentCard key={i} agent={agent} index={i} />
-              ))}
+              {agents.map((agent, i) => <AgentCard key={i} agent={agent} index={i} />)}
             </div>
           )}
         </>

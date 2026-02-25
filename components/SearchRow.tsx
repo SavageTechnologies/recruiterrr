@@ -16,7 +16,7 @@ type Search = {
 export default function SearchRow({ s }: { s: Search }) {
   return (
     <Link
-      href={`/dashboard/search?city=${encodeURIComponent(s.city)}&state=${s.state}`}
+      href={`/dashboard/search?id=${s.id}`}
       style={{
         display: 'grid', gridTemplateColumns: '1fr 80px 60px 60px 60px 120px',
         gap: 16, padding: '14px 16px',
