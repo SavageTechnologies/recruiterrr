@@ -12,6 +12,8 @@
     "@anthropic-ai/sdk": "^0.78.0",
     "@clerk/nextjs": "^6.38.2",
     "@supabase/supabase-js": "^2.97.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.36.2",
     "ai": "^6.0.99",
     "next": "16.1.6",
     "react": "19.2.3",

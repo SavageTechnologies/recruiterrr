@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, '1 h'),
+  analytics: true,
+})
 
 type AgentResult = {
   name: string
@@ -164,6 +172,14 @@ SCORING RULES:
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Rate limit: 10 searches per user per hour
+  const { success, limit, remaining, reset } = await ratelimit.limit(userId)
+  if (!success) {
+    return NextResponse.json({
+      error: `Rate limit exceeded. You have ${limit} searches per hour. Resets at ${new Date(reset).toLocaleTimeString()}.`
+    }, { status: 429 })
+  }
 
   try {
     const { city, state } = await req.json()
