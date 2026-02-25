@@ -3,7 +3,8 @@ import PageNav from '@/components/PageNav'
 import PageFooter from '@/components/PageFooter'
 
 const ITEMS = [
-  { status: 'live', label: 'Google Local search with 3-8 parallel queries' },
+  // Agent Search — live
+  { status: 'live', label: 'Agent search across any US market' },
   { status: 'live', label: 'AI recruitability scoring (HOT / WARM / COLD)' },
   { status: 'live', label: 'Website crawling and carrier identification' },
   { status: 'live', label: 'Job posting enrichment (Hiring badge)' },
@@ -11,16 +12,36 @@ const ITEMS = [
   { status: 'live', label: 'Adjustable result limits (10 / 20 / 30 / 40 / 50)' },
   { status: 'live', label: 'Search history saved to dashboard' },
   { status: 'live', label: 'US coverage map showing search history by state' },
+
+  // Prometheus — live
+  { status: 'live', label: 'Prometheus — TCPA compliance scanning for lead vendors' },
+  { status: 'live', label: 'Prometheus — Vendor tier classification (Enterprise / Established / Unknown / Suspicious)' },
+  { status: 'live', label: 'Prometheus — 7-point compliance scoring with confidence score' },
+  { status: 'live', label: 'Prometheus — External reputation intelligence (complaints, lawsuits, BBB)' },
+  { status: 'live', label: 'Prometheus — Ready-to-use TCPA disclaimer and vendor demand language' },
+  { status: 'live', label: 'Prometheus — Scan history saved to dashboard' },
+
+  // Platform — live
+  { status: 'live', label: 'Invite-only access control' },
+  { status: 'live', label: 'Per-account rate limiting on all tools' },
+  { status: 'live', label: 'Account data isolated and protected per user' },
+
+  // Up next
   { status: 'next', label: 'CSV export of agent results' },
   { status: 'next', label: 'Saved agent lists and pipeline tracking' },
   { status: 'next', label: 'Filter by score, flag, and carrier type' },
   { status: 'next', label: 'Direct dialer integration (one-click call)' },
   { status: 'next', label: 'Email template generator per agent type' },
+  { status: 'next', label: 'Prometheus — PDF compliance report export' },
+
+  // Planned
   { status: 'later', label: 'NIPR license database integration (Phase 2)' },
   { status: 'later', label: 'Multi-user team accounts' },
   { status: 'later', label: 'Market comparison reports (city vs city)' },
   { status: 'later', label: 'Line-specific scoring (ACA, life, Medicare, senior)' },
   { status: 'later', label: 'CRM sync (HubSpot, Salesforce)' },
+  { status: 'later', label: 'Prometheus — Vendor watchlist with automatic re-scans' },
+  { status: 'later', label: 'Prometheus — Scan history search and filtering' },
 ]
 
 const STATUS = {

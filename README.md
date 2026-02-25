@@ -67,6 +67,7 @@ recruiterrr/
 │       ├── search/route.ts              # POST — full agent search + enrichment pipeline
 │       ├── searches/route.ts            # GET — fetch saved search by ID
 │       ├── prometheus/route.ts          # GET (history/by ID) + POST (run scan)
+│       ├── verify-invite/route.ts       # POST — server-side invite code verification
 │       └── webhook/clerk/route.ts       # Clerk webhook → syncs users to Supabase
 ├── components/
 │   ├── PageNav.tsx                      # Shared nav for all public pages
@@ -76,12 +77,14 @@ recruiterrr/
 ├── docs/
 │   ├── HOW_IT_WORKS.md                  # Agent search pipeline — full details
 │   ├── PROMETHEUS_HOW_IT_WORKS.md       # Prometheus TCPA pipeline — full details
-│   └── SECURITY_TODO.md                 # Known security issues — fix before scaling
+│   └── SECURITY_TODO.md                 # Security audit reference
+├── lib/
+│   └── supabase.server.ts               # Centralized Supabase client (server-only)
 ├── public/
 │   └── favicon.svg
 ├── types/
 │   └── react-simple-maps.d.ts
-└── proxy.ts                             # Clerk middleware — RENAME TO middleware.ts
+└── proxy.ts                             # Clerk middleware
 ```
 
 ---
@@ -114,8 +117,8 @@ SERPAPI_KEY=
 # Anthropic
 ANTHROPIC_API_KEY=
 
-# Invite gate (controls who can sign up)
-NEXT_PUBLIC_INVITE_CODE=HEARTLAND2026
+# Invite gate (controls who can sign up — server-side only, no NEXT_PUBLIC prefix)
+INVITE_CODE=
 ```
 
 ---
@@ -191,28 +194,36 @@ See `docs/PROMETHEUS_HOW_IT_WORKS.md` for full pipeline details.
 ## Rate Limiting
 
 - Agent search: 10 searches per user per hour (sliding window via Upstash)
-- Prometheus scans: no rate limit currently — add before scaling
+- Prometheus scans: 10 scans per user per hour (sliding window via Upstash)
 
 ---
 
 ## Auth & Access Control
 
-- All `/dashboard/*` routes protected by Clerk middleware (`proxy.ts` — needs rename to `middleware.ts`)
-- Sign-up is invite-code gated (client-side — see security notes)
+- All `/dashboard/*` routes protected by Clerk middleware (`proxy.ts`)
+- Sign-up is invite-code gated — verified server-side via `/api/verify-invite`
 - Clerk custom pages at `/sign-in` and `/sign-up` with full site branding
 
 ---
 
-## Known Security Issues (Fix Before Scaling)
+## Security
 
-See `docs/SECURITY_TODO.md` for prioritized list. Summary:
+Security hardening completed February 2026. Current state:
 
-- **P0** — `proxy.ts` must be renamed `middleware.ts` for route protection to work
-- **P0** — No CSRF protection on `/api/search` or `/api/prometheus` POST endpoints
-- **P0** — Invite code is client-side (NEXT_PUBLIC) — not real security
-- **P1** — `fetchWebsiteText()` and Prometheus page fetcher need URL validation to prevent SSRF
-- **P1** — Supabase service role key should be centralized behind `server-only`
-- **P2** — Webhook needs replay protection and `user.deleted` handling
+- CSRF origin check on all POST endpoints (`/api/search`, `/api/prometheus`)
+- SSRF protection on all external URL fetches (blocked hosts, private IP ranges, 500KB size cap)
+- Supabase service role key centralized behind `server-only` (`lib/supabase.server.ts`)
+- Invite code moved server-side — no longer exposed in client bundle
+- Clerk webhook svix signature verification on every request
+- Webhook replay protection via Upstash Redis (30-minute dedup window)
+- `user.deleted` webhook handler cleans up Supabase records
+- Rate limiting on all AI routes — 10 requests/hour per user
+- Security headers on all routes (X-Frame-Options, HSTS, nosniff, Referrer-Policy)
+- Generic error responses — no internal errors or stack traces leaked to client
+
+**Still required (manual):**
+- Run RLS audit SQL on `searches` and `users` tables in Supabase
+- Set $50/month spend alerts in Anthropic and SerpAPI dashboards
 
 ---
 
