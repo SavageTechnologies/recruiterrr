@@ -5,19 +5,30 @@ import { SignUp } from '@clerk/nextjs'
 import PageNav from '@/components/PageNav'
 import PageFooter from '@/components/PageFooter'
 
-const INVITE_CODE = process.env.NEXT_PUBLIC_INVITE_CODE || 'HEARTLAND2026'
-
 export default function SignUpPage() {
   const [code, setCode] = useState('')
   const [unlocked, setUnlocked] = useState(false)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  function checkCode() {
-    if (code.trim().toUpperCase() === INVITE_CODE.toUpperCase()) {
-      setUnlocked(true)
-      setError('')
-    } else {
-      setError('Invalid invite code.')
+  async function checkCode() {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/verify-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      })
+      if (res.ok) {
+        setUnlocked(true)
+      } else {
+        setError('Invalid invite code.')
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -87,14 +98,16 @@ export default function SignUpPage() {
 
             <button
               onClick={checkCode}
+              disabled={loading}
               style={{
                 width: '100%', padding: '16px', background: 'var(--orange)',
-                border: 'none', cursor: 'pointer', marginTop: 16,
+                border: 'none', cursor: loading ? 'not-allowed' : 'pointer', marginTop: 16,
                 fontFamily: "'Bebas Neue', sans-serif", fontSize: 20,
                 letterSpacing: 3, color: 'var(--black)',
+                opacity: loading ? 0.7 : 1,
               }}
             >
-              UNLOCK ACCESS
+              {loading ? 'CHECKING...' : 'UNLOCK ACCESS'}
             </button>
 
             <div style={{ marginTop: 28, fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#2a2a2a', letterSpacing: 1, lineHeight: 1.7 }}>

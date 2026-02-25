@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Webhook } from 'svix'
-import { createClient } from '@supabase/supabase-js'
+import { Redis } from '@upstash/redis'
+import { supabase } from '@/lib/supabase.server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const redis = Redis.fromEnv()
 
 export async function POST(req: NextRequest) {
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET
@@ -38,27 +36,55 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
+  // Replay protection — deduplicate on svix-id for 30 minutes
+  const eventKey = `webhook:${svix_id}`
+  try {
+    const already = await redis.get(eventKey)
+    if (already) return NextResponse.json({ received: true })
+    await redis.set(eventKey, '1', { ex: 1800 })
+  } catch (err) {
+    console.error('[webhook] Redis dedup error:', err)
+    // Non-fatal — continue processing
+  }
+
   const { type, data } = event
 
   if (type === 'user.created') {
     const email = data.email_addresses?.[0]?.email_address || null
 
-    await supabase.from('users').upsert({
-      clerk_id: data.id,
-      email,
-      first_name: data.first_name || null,
-      last_name: data.last_name || null,
-    }, { onConflict: 'clerk_id' })
+    try {
+      await supabase.from('users').upsert({
+        clerk_id: data.id,
+        email,
+        first_name: data.first_name || null,
+        last_name: data.last_name || null,
+      }, { onConflict: 'clerk_id' })
+    } catch (err) {
+      console.error('[webhook] user.created upsert error:', err)
+    }
   }
 
   if (type === 'user.updated') {
     const email = data.email_addresses?.[0]?.email_address || null
 
-    await supabase.from('users').update({
-      email,
-      first_name: data.first_name || null,
-      last_name: data.last_name || null,
-    }).eq('clerk_id', data.id)
+    try {
+      await supabase.from('users').update({
+        email,
+        first_name: data.first_name || null,
+        last_name: data.last_name || null,
+      }).eq('clerk_id', data.id)
+    } catch (err) {
+      console.error('[webhook] user.updated error:', err)
+    }
+  }
+
+  if (type === 'user.deleted') {
+    try {
+      await supabase.from('searches').delete().eq('clerk_id', data.id)
+      await supabase.from('users').delete().eq('clerk_id', data.id)
+    } catch (err) {
+      console.error('[webhook] user.deleted cleanup error:', err)
+    }
   }
 
   return NextResponse.json({ received: true })

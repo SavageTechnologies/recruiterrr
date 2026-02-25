@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@supabase/supabase-js'
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
+import { supabase } from '@/lib/supabase.server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, '1 h'),
+  analytics: true,
+})
 
 function normalizeUrl(domain: string): string {
   let d = domain.trim().toLowerCase()
@@ -251,7 +255,7 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(20)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json({ scans: data || [] })
 }
 
@@ -259,9 +263,14 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { success, reset } = await ratelimit.limit(userId)
+  if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
+
   try {
     const { domain } = await req.json()
-    if (!domain) return NextResponse.json({ error: 'Domain required' }, { status: 400 })
+    if (!domain || typeof domain !== 'string' || domain.length > 253) {
+      return NextResponse.json({ error: 'Invalid domain' }, { status: 400 })
+    }
 
     const baseUrl = normalizeUrl(domain)
     const cleanDomain = baseUrl.replace('https://', '')
@@ -285,7 +294,7 @@ export async function POST(req: NextRequest) {
       .select('id')
       .single()
 
-    if (saveError) console.error('Supabase save error:', saveError)
+    if (saveError) console.error('[/api/prometheus] Supabase save error:', saveError)
 
     return NextResponse.json({
       id: saved?.id || null,
@@ -293,8 +302,8 @@ export async function POST(req: NextRequest) {
       pages: pages.foundPages,
       analysis,
     })
-  } catch (err: any) {
-    console.error('Prometheus scan error:', err)
-    return NextResponse.json({ error: err.message || 'Scan failed' }, { status: 500 })
+  } catch (err) {
+    console.error('[/api/prometheus] error:', err)
+    return NextResponse.json({ error: 'Scan failed' }, { status: 500 })
   }
 }

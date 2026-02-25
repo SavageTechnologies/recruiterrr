@@ -1,14 +1,9 @@
 import { currentUser } from '@clerk/nextjs/server'
-import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import USMap from '@/components/USMap'
 import PrometheusScansTable from '@/components/PrometheusScansTable'
 import SearchesTable from '@/components/SearchesTable'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { supabase } from '@/lib/supabase.server'
 
 export default async function DashboardPage() {
   const user = await currentUser()

@@ -3,19 +3,18 @@ import { auth } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase.server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
   limiter: Ratelimit.slidingWindow(10, '1 h'),
   analytics: true,
 })
+
+const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
+const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', '::1']
 
 type AgentResult = {
   name: string; type: string; phone: string; address: string
@@ -75,13 +74,39 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
   return results
 }
 
-async function fetchWebsiteText(url: string): Promise<string> {
+async function fetchWebsiteText(rawUrl: string): Promise<string> {
   try {
-    const res = await fetch(url, {
+    const parsed = new URL(rawUrl)
+
+    // Only allow http and https
+    if (!['http:', 'https:'].includes(parsed.protocol)) return ''
+
+    // Block internal/metadata hosts
+    if (BLOCKED_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith('.local'))) return ''
+
+    // Block private IP ranges
+    if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(parsed.hostname)) return ''
+
+    const res = await fetch(rawUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruiterrr/1.0)' },
       signal: AbortSignal.timeout(5000),
+      redirect: 'follow',
     })
-    const html = await res.text()
+
+    // Cap response size — read max 500KB
+    const reader = res.body?.getReader()
+    if (!reader) return ''
+    let html = ''
+    let bytes = 0
+    const MAX = 500_000
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      bytes += value.length
+      html += new TextDecoder().decode(value)
+      if (bytes > MAX) { reader.cancel(); break }
+    }
+
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -238,6 +263,12 @@ Return ONLY valid JSON:
 }
 
 export async function POST(req: NextRequest) {
+  // CSRF check
+  const origin = req.headers.get('origin')
+  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -276,8 +307,8 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ agents: sorted })
-  } catch (err: any) {
-    console.error('Search error:', err)
-    return NextResponse.json({ error: err.message || 'Search failed' }, { status: 500 })
+  } catch (err) {
+    console.error('[/api/search] error:', err)
+    return NextResponse.json({ error: 'Search failed' }, { status: 500 })
   }
 }
