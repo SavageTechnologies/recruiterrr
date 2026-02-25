@@ -32,7 +32,7 @@ async function fetchAgentsFromSerp(city: string, state: string): Promise<any[]> 
 
   await Promise.all(queries.map(async (q) => {
     try {
-      const url = `https://serpapi.com/search.json?engine=google_maps&q=${encodeURIComponent(q)}&type=search&api_key=${process.env.SERPAPI_KEY}`
+      const url = `https://serpapi.com/search.json?engine=google_local&q=${encodeURIComponent(q)}&api_key=${process.env.SERPAPI_KEY}`
       const res = await fetch(url)
       if (!res.ok) return
       const data = await res.json()
