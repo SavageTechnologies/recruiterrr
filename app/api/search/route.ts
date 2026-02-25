@@ -26,21 +26,31 @@ type AgentResult = {
   youtube_channel: string | null; youtube_subscribers: string | null; youtube_video_count: number
 }
 
-async function fetchAgentsFromSerp(city: string, state: string, limit: number): Promise<any[]> {
-  const queries = [
-    `Medicare insurance agent ${city} ${state}`,
-    `health insurance agent ${city} ${state}`,
-    `Medicare supplement agent ${city} ${state}`,
-  ]
-  if (limit >= 20) queries.push(`independent insurance agent ${city} ${state}`)
-  if (limit >= 30) {
-    queries.push(`life health insurance agent ${city} ${state}`)
-    queries.push(`senior health insurance ${city} ${state}`)
+async function fetchAgentsFromSerp(city: string, state: string, limit: number, mode: string): Promise<any[]> {
+  const base: string[] = []
+
+  if (mode === 'medicare' || mode === 'all') {
+    base.push(`Medicare insurance agent ${city} ${state}`)
+    base.push(`Medicare supplement agent ${city} ${state}`)
+    if (limit >= 20 || mode === 'all') base.push(`Medicare advantage broker ${city} ${state}`)
+    if (limit >= 30 || mode === 'all') base.push(`senior health insurance ${city} ${state}`)
   }
-  if (limit >= 40) {
-    queries.push(`ACA health insurance broker ${city} ${state}`)
-    queries.push(`Medicare advantage broker ${city} ${state}`)
+  if (mode === 'life' || mode === 'all') {
+    base.push(`life insurance agent ${city} ${state}`)
+    base.push(`final expense insurance agent ${city} ${state}`)
+    if (limit >= 20 || mode === 'all') base.push(`term life insurance agent ${city} ${state}`)
   }
+  if (mode === 'aca' || mode === 'all') {
+    base.push(`health insurance agent ${city} ${state}`)
+    base.push(`ACA insurance broker ${city} ${state}`)
+    if (limit >= 20 || mode === 'all') base.push(`marketplace insurance agent ${city} ${state}`)
+  }
+  if (mode === 'all') {
+    base.push(`independent insurance agent ${city} ${state}`)
+  }
+
+  // Scale up for larger limits
+  const queries = limit >= 30 ? base : base.slice(0, Math.max(3, Math.ceil(base.length * 0.6)))
 
   const seen = new Set<string>()
   const results: any[] = []
@@ -124,7 +134,7 @@ async function fetchYouTube(name: string, city: string): Promise<{ channel: stri
   } catch { return { channel: null, subscribers: null, videoCount: 0 } }
 }
 
-async function scoreAgent(raw: any, websiteText: string, jobData: { hiring: boolean; roles: string[] }, ytData: { channel: string | null; subscribers: string | null; videoCount: number }): Promise<AgentResult> {
+async function scoreAgent(raw: any, websiteText: string, jobData: { hiring: boolean; roles: string[] }, ytData: { channel: string | null; subscribers: string | null; videoCount: number }, mode: string = 'all'): Promise<AgentResult> {
   const name = raw.title || 'Unknown'
   const type = raw.type || ''
   const reviews = raw.reviews || 0
@@ -152,14 +162,20 @@ ${jobData.hiring ? `ACTIVELY HIRING — Roles: ${jobData.roles.join(', ')}` : 'N
 YOUTUBE PRESENCE:
 ${ytData.channel ? `HAS YOUTUBE CHANNEL — ${ytData.subscribers || 'unknown subscribers'}, ${ytData.videoCount} Medicare-related video(s) found` : 'No YouTube presence found'}
 
+SEARCH MODE: ${mode.toUpperCase()}
+
 SCORING RULES:
-1. NAME is primary signal: "Medicare","Senior","Health" in name = independent focus
+1. NAME is primary signal — look for focus keywords matching the search mode:
+   - Medicare/Senior mode: "Medicare","Senior","Supplement","Advantage" = strong positive
+   - Life/Final Expense mode: "Life","Final Expense","Burial","Legacy","Family" = strong positive
+   - ACA/Health mode: "Health","Benefits","Marketplace","Group","ACA" = strong positive
+   - All Lines mode: any insurance focus keyword = positive
 2. Reviews: 50+=established, 100+=well-established, 200+=dominant
 3. High reviews + no website = strong referral-based independent, do NOT penalize
-4. CAPTIVE (score 15-35): "Bankers Life","State Farm","Farmers","Allstate","GEICO" in name
-5. INDEPENDENT (score 65-95): multiple carriers, "independent" in description, Medicare focus
+4. CAPTIVE (score 15-35): "Bankers Life","State Farm","Farmers","Allstate","GEICO","New York Life","Northwestern" in name
+5. INDEPENDENT (score 65-95): multiple carriers, "independent" in description, broker language
 6. ACTIVELY HIRING for agents = +5 to +10 points
-7. HAS YOUTUBE with Medicare content = +5 points
+7. HAS YOUTUBE with relevant insurance content = +5 points
 8. HOT=75+, WARM=50-74, COLD=0-49
 
 Return ONLY valid JSON:
@@ -229,11 +245,11 @@ export async function POST(req: NextRequest) {
   if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
 
   try {
-    const { city, state, limit: resultLimit = 10 } = await req.json()
+    const { city, state, limit: resultLimit = 10, mode = 'all' } = await req.json()
     if (!city || !state) return NextResponse.json({ error: 'City and state required' }, { status: 400 })
 
     const clampedLimit = Math.min(50, Math.max(10, Number(resultLimit)))
-    const rawAgents = await fetchAgentsFromSerp(city, state, clampedLimit)
+    const rawAgents = await fetchAgentsFromSerp(city, state, clampedLimit, mode)
 
     if (!rawAgents.length) {
       await supabase.from('searches').insert({ clerk_id: userId, city, state, results_count: 0, hot_count: 0, warm_count: 0, cold_count: 0, agents_json: [] })
@@ -246,7 +262,7 @@ export async function POST(req: NextRequest) {
       const websiteText = raw.website ? await fetchWebsiteText(raw.website) : ''
       const jobData = await fetchJobPostings(raw.title, city, state)
       const ytData = (reviews >= 50 || !!raw.website) ? await fetchYouTube(raw.title, city) : { channel: null, subscribers: null, videoCount: 0 }
-      return scoreAgent(raw, websiteText, jobData, ytData)
+      return scoreAgent(raw, websiteText, jobData, ytData, mode)
     }))
 
     const sorted = scored.sort((a, b) => b.score - a.score)

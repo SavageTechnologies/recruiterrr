@@ -12,6 +12,13 @@ const SEARCH_TIPS = [
   { label: 'Retirement hub', example: 'Sarasota, FL', tip: 'High Medicare-eligible population = more agents' },
 ]
 
+const MODES = [
+  { value: 'all', label: 'All Lines', desc: 'Widest net — every insurance agent' },
+  { value: 'medicare', label: 'Medicare / Senior', desc: 'Medicare Advantage, Supplement, PDP' },
+  { value: 'life', label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
+  { value: 'aca', label: 'ACA / Health', desc: 'Marketplace, group health, ACA brokers' },
+]
+
 type Agent = {
   name: string; type: string; phone: string; address: string
   rating: number; reviews: number; website: string | null
@@ -127,6 +134,7 @@ function SearchPageInner() {
   const [city, setCity] = useState('')
   const [state, setState] = useState('KS')
   const [limit, setLimit] = useState(10)
+  const [mode, setMode] = useState('all')
   const [loading, setLoading] = useState(false)
   const [currentStep, setCurrentStep] = useState(-1)
   const [agents, setAgents] = useState<Agent[]>([])
@@ -173,7 +181,7 @@ function SearchPageInner() {
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city: searchCity.trim(), state: searchState, limit }),
+        body: JSON.stringify({ city: searchCity.trim(), state: searchState, limit, mode }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
@@ -222,6 +230,11 @@ function SearchPageInner() {
           {STATES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <div style={{ width: 1, background: 'var(--border-light)' }} />
+        <select value={mode} onChange={e => setMode(e.target.value)} disabled={loading}
+          style={{ width: 160, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1 }}>
+          {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+        </select>
+        <div style={{ width: 1, background: 'var(--border-light)' }} />
         <select value={limit} onChange={e => setLimit(Number(e.target.value))} disabled={loading}
           style={{ width: 80, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, cursor: 'pointer', appearance: 'none', textAlign: 'center' }}>
           <option value={10}>10</option>
@@ -239,7 +252,7 @@ function SearchPageInner() {
       {/* Result count hint */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 1 }}>
-          RESULTS: {limit} agents · includes job posting + youtube enrichment
+          RESULTS: {limit} agents · {MODES.find(m => m.value === mode)?.desc} · job posting + youtube enrichment
         </div>
       </div>
 
