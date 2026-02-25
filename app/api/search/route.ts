@@ -21,13 +21,35 @@ type AgentResult = {
 }
 
 async function fetchAgentsFromSerp(city: string, state: string): Promise<any[]> {
-  const query = encodeURIComponent(`Medicare insurance agent ${city} ${state}`)
-  const url = `https://serpapi.com/search.json?engine=google_maps&q=${query}&type=search&api_key=${process.env.SERPAPI_KEY}`
+  const queries = [
+    `Medicare insurance agent ${city} ${state}`,
+    `health insurance agent ${city} ${state}`,
+    `Medicare supplement agent ${city} ${state}`,
+  ]
 
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`SerpAPI error: ${res.status}`)
-  const data = await res.json()
-  return data.local_results || []
+  const seen = new Set<string>()
+  const results: any[] = []
+
+  await Promise.all(queries.map(async (q) => {
+    try {
+      const url = `https://serpapi.com/search.json?engine=google_maps&q=${encodeURIComponent(q)}&type=search&api_key=${process.env.SERPAPI_KEY}`
+      const res = await fetch(url)
+      if (!res.ok) return
+      const data = await res.json()
+      const locals = data.local_results || []
+      for (const item of locals) {
+        const key = item.title + item.address
+        if (!seen.has(key)) {
+          seen.add(key)
+          results.push(item)
+        }
+      }
+    } catch {
+      // silently skip failed queries
+    }
+  }))
+
+  return results
 }
 
 async function fetchWebsiteText(url: string): Promise<string> {
