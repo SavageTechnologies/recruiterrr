@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
@@ -128,7 +128,7 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
   )
 }
 
-export default function SearchPage() {
+function SearchPageInner() {
   const searchParams = useSearchParams()
   const [city, setCity] = useState('')
   const [state, setState] = useState('KS')
@@ -295,5 +295,13 @@ export default function SearchPage() {
         </>
       )}
     </div>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: "60px 40px", color: "var(--muted)", fontFamily: "DM Mono, monospace", fontSize: 12 }}>Loading...</div>}>
+      <SearchPageInner />
+    </Suspense>
   )
 }
