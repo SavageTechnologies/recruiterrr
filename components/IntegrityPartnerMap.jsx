@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useEffect, useRef } from "react"
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "react-simple-maps"
 
