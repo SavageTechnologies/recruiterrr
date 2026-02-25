@@ -17,7 +17,7 @@ const NETWORKS = [
     url: 'amerilife.com',
     desc: 'One of the largest insurance distribution organizations in the US, focused on health, life, wealth and worksite markets.',
     count: 78,
-    status: 'coming',
+    status: 'live',
   },
 ]
 
