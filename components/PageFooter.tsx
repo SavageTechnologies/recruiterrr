@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-const LINKS = ['about','faq','wall','socials','roadmap','contact','team','network','privacy','terms']
+const LINKS = ['about','faq','prometheus','wall','socials','roadmap','contact','team','network','privacy','terms']
 
 export default function PageFooter() {
   return (
