@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type CheckResult = { pass: boolean | null; points: number; finding: string }
@@ -123,7 +124,8 @@ function CheckRow({ label, check, maxPoints, critical }: { label: string; check:
   )
 }
 
-export default function PrometheusPage() {
+function PrometheusPageInner() {
+  const searchParams = useSearchParams()
   const [domain, setDomain] = useState('')
   const [scanning, setScanning] = useState(false)
   const [currentStep, setCurrentStep] = useState(-1)
@@ -132,6 +134,22 @@ export default function PrometheusPage() {
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'checks' | 'intel' | 'language'>('checks')
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    const id = searchParams.get('id')
+    if (id) loadSavedScan(id)
+  }, [])
+
+  async function loadSavedScan(id: string) {
+    try {
+      const res = await fetch(`/api/prometheus?id=${id}`)
+      const data = await res.json()
+      if (data.scan) {
+        setDomain(data.scan.domain)
+        setResult({ domain: data.scan.domain, pages: data.scan.pages_scanned || [], analysis: data.scan.analysis_json })
+      }
+    } catch {}
+  }
 
   function addLog(line: string) {
     setLogLines(prev => [...prev.slice(-40), line])
@@ -433,5 +451,13 @@ export default function PrometheusPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function PrometheusPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: "60px 40px", color: "var(--muted)", fontFamily: "'DM Mono', monospace", fontSize: 12 }}>Loading...</div>}>
+      <PrometheusPageInner />
+    </Suspense>
   )
 }
