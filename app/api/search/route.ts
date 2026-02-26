@@ -39,29 +39,31 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
   const prefix = query.trim()
 
   if (prefix) {
-    // User-supplied query is always the primary search
     base.push(prefix)
     base.push(`${prefix} insurance agent`)
-    if (limit >= 20) base.push(`${prefix} broker`)
+    base.push(`${prefix} broker`)
+    base.push(`${prefix} independent agent`)
   } else {
     if (mode === 'medicare' || mode === 'all') {
       base.push(`Medicare insurance agent`)
       base.push(`Medicare supplement broker`)
-      if (limit >= 20 || mode === 'all') base.push(`Medicare advantage agent`)
-      if (limit >= 30 || mode === 'all') base.push(`senior health insurance agent`)
+      base.push(`Medicare advantage agent`)
+      base.push(`senior health insurance agent`)
+      base.push(`senior insurance broker`)
     }
     if (mode === 'life' || mode === 'all') {
       base.push(`life insurance agent`)
       base.push(`final expense insurance agent`)
-      if (limit >= 20 || mode === 'all') base.push(`term life insurance broker`)
+      base.push(`term life insurance broker`)
     }
     if (mode === 'aca' || mode === 'all') {
       base.push(`health insurance agent`)
       base.push(`ACA marketplace broker`)
-      if (limit >= 20 || mode === 'all') base.push(`marketplace insurance agent`)
+      base.push(`marketplace insurance agent`)
     }
     if (mode === 'all') {
       base.push(`independent insurance agent`)
+      base.push(`insurance broker`)
     }
   }
 
@@ -87,13 +89,17 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
         // Don't filter by city — Google often shows agents with abbreviated or
         // slightly different city formats (KC, K.C., suburb names, etc.)
         const addr = (item.address || '').toLowerCase()
+        const stateAbbr = state.toUpperCase()
         const stateLower = state.toLowerCase()
-        const stateMatch = addr.includes(stateLower) || 
-          addr.includes(`, ${state.toLowerCase()}`) ||
-          addr.includes(` ${state.toLowerCase()} `) ||
-          addr.endsWith(state.toLowerCase())
-        // Only filter if we have an address AND it clearly belongs to a different state
-        if (item.address && !stateMatch) return
+        // Match state abbreviation (KS) OR full name (kansas) — both formats appear in Google results
+        const stateMatch = addr.includes(`, ${stateLower}`) ||
+          addr.includes(` ${stateLower}`) ||
+          addr.endsWith(stateLower) ||
+          addr.includes(`, ${stateAbbr.toLowerCase()}`) ||
+          addr.match(new RegExp(`\\b${stateAbbr.toLowerCase()}\\b`)) ||
+          addr.match(new RegExp(`,\\s*${stateAbbr.toLowerCase()}\\s*(\\d{5})?$`))
+        // Only drop if address is present AND clearly wrong state — be permissive
+        if (item.address && item.address.length > 5 && !stateMatch) return
 
         const key = item.title + item.address
         if (!seen.has(key)) {
