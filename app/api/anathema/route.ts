@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
+import { getCandidatePartners, type NetworkPartner } from '@/lib/networks'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -84,6 +85,128 @@ function scoreText(text: string): { integrity: number; amerilife: number; sms: n
   return { integrity, amerilife, sms, signals }
 }
 
+// ─── CHAIN RESOLVER ──────────────────────────────────────────────────────────
+// Second-pass function that runs after tree prediction.
+// Takes the predicted tree + agent state, pulls geo-filtered candidate partners
+// from the network library, runs a single targeted SERP query against them,
+// and returns the best sub-IMO match with confidence + signals.
+// Only fires when tree confidence >= 40. Returns null if no match clears threshold.
+
+type ChainResult = {
+  predicted_sub_imo: string
+  predicted_sub_imo_confidence: number
+  predicted_sub_imo_signals: string[]
+  predicted_sub_imo_partner_id: number
+} | null
+
+async function resolveChain(
+  agentName: string,
+  agentState: string,
+  tree: 'integrity' | 'amerilife' | 'sms',
+  serpKey: string
+): Promise<ChainResult> {
+  try {
+    // Get geo-filtered candidates (same state first, then neighbors, fallback national)
+    const candidates = getCandidatePartners(tree, agentState).slice(0, 8)
+    if (candidates.length === 0) return null
+
+    // Build a single batched SERP query: agent name + OR list of candidate names/aliases
+    const partnerTerms = candidates.flatMap(p => [
+      `"${p.name}"`,
+      ...(p.aliases || []).map(a => `"${a}"`),
+    ]).join(' OR ')
+
+    const q = `"${agentName}" (${partnerTerms})`
+    const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&num=8&api_key=${serpKey}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(7000) })
+    if (!res.ok) return null
+
+    const data = await res.json()
+    const results = data.organic_results || []
+    if (results.length === 0) return null
+
+    // Score each candidate against the snippets
+    const snippetBlob = results
+      .map((r: any) => `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`)
+      .join(' ')
+      .toLowerCase()
+
+    type CandidateScore = { partner: NetworkPartner; score: number; signals: string[] }
+    const scored: CandidateScore[] = []
+
+    for (const partner of candidates) {
+      let score = 0
+      const signals: string[] = []
+      const nameLower = partner.name.toLowerCase()
+      const websiteLower = partner.website.toLowerCase().replace('www.', '')
+
+      // Name hit in snippets
+      if (snippetBlob.includes(nameLower)) {
+        score += 40
+        signals.push(`SERP: "${partner.name}" found in search results`)
+      }
+
+      // Alias hits
+      for (const alias of partner.aliases || []) {
+        if (snippetBlob.includes(alias.toLowerCase())) {
+          score += 35
+          signals.push(`SERP: alias "${alias}" found in results`)
+          break
+        }
+      }
+
+      // Website domain hit (strong signal — means agent is actually linked to them)
+      if (snippetBlob.includes(websiteLower)) {
+        score += 50
+        signals.push(`SERP: domain "${partner.website}" found in results`)
+      }
+
+      // Boost for same-state match (candidate's HQ state matches agent state)
+      if (partner.state === agentState.toUpperCase()) {
+        score += 15
+        signals.push(`Geographic: ${partner.name} headquartered in same state (${agentState.toUpperCase()})`)
+      }
+
+      // Check individual result pages for direct co-mentions
+      for (const r of results.slice(0, 4)) {
+        const combined = `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`.toLowerCase()
+        const nameHit = combined.includes(nameLower)
+        const agentHit = combined.includes(agentName.toLowerCase())
+        if (nameHit && agentHit) {
+          score += 25
+          signals.push(`SERP: "${r.title?.slice(0, 60)}" co-mentions agent + ${partner.name}`)
+          break
+        }
+      }
+
+      if (score > 0) scored.push({ partner, score, signals })
+    }
+
+    if (scored.length === 0) return null
+
+    // Sort by score, take the best
+    scored.sort((a, b) => b.score - a.score)
+    const best = scored[0]
+
+    // Minimum threshold — don't return noise
+    if (best.score < 40) return null
+
+    // Map raw score to a 0-100 confidence. Cap at 92 — we never claim certainty from SERP alone
+    const confidence = Math.min(92, Math.round((best.score / 130) * 100))
+
+    return {
+      predicted_sub_imo: best.partner.name,
+      predicted_sub_imo_confidence: confidence,
+      predicted_sub_imo_signals: best.signals.slice(0, 4),
+      predicted_sub_imo_partner_id: best.partner.id,
+    }
+  } catch {
+    return null
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -119,6 +242,11 @@ export async function GET(req: NextRequest) {
           reasoning: specimen.prediction_reasoning || '',
           facebook_profile_url: specimen.facebook_profile_url || null,
           facebook_about: specimen.facebook_about || null,
+          // Chain resolver fields — null-safe for specimens logged before this feature
+          predicted_sub_imo: specimen.predicted_sub_imo || null,
+          predicted_sub_imo_confidence: specimen.predicted_sub_imo_confidence || null,
+          predicted_sub_imo_signals: specimen.predicted_sub_imo_signals || [],
+          predicted_sub_imo_partner_id: specimen.predicted_sub_imo_partner_id || null,
         },
       }
     })
@@ -162,7 +290,9 @@ export async function POST(req: NextRequest) {
       predicted_tree, predicted_confidence, prediction_signals, prediction_reasoning,
       facebook_profile_url, facebook_about,
       confirmed_tree, confirmed_tree_other, confirmed_sub_imo, recruiter_notes,
-      agent_website, agent_address
+      agent_website, agent_address,
+      // Chain resolver fields — optional, present on scans after this feature shipped
+      predicted_sub_imo, predicted_sub_imo_confidence, predicted_sub_imo_signals, predicted_sub_imo_partner_id,
     } = body
 
     // Check for existing specimen (upsert by agent+user)
@@ -184,6 +314,11 @@ export async function POST(req: NextRequest) {
           predicted_tree, predicted_confidence, prediction_signals, prediction_reasoning,
           facebook_profile_url, facebook_about,
           confirmed_tree, confirmed_tree_other, confirmed_sub_imo, recruiter_notes,
+          // Chain fields — only update if present (don't overwrite with undefined)
+          ...(predicted_sub_imo !== undefined && { predicted_sub_imo }),
+          ...(predicted_sub_imo_confidence !== undefined && { predicted_sub_imo_confidence }),
+          ...(predicted_sub_imo_signals !== undefined && { predicted_sub_imo_signals }),
+          ...(predicted_sub_imo_partner_id !== undefined && { predicted_sub_imo_partner_id }),
         })
         .eq('id', existing.id)
     } else {
@@ -195,6 +330,11 @@ export async function POST(req: NextRequest) {
           predicted_tree, predicted_confidence, prediction_signals, prediction_reasoning,
           facebook_profile_url, facebook_about,
           confirmed_tree, confirmed_tree_other, confirmed_sub_imo, recruiter_notes,
+          // Chain fields — nullable, gracefully absent on pre-feature logs
+          predicted_sub_imo: predicted_sub_imo || null,
+          predicted_sub_imo_confidence: predicted_sub_imo_confidence || null,
+          predicted_sub_imo_signals: predicted_sub_imo_signals || null,
+          predicted_sub_imo_partner_id: predicted_sub_imo_partner_id || null,
         })
         .select('id')
         .single()
@@ -377,6 +517,24 @@ Respond with ONLY valid JSON, no markdown:
     prediction = parsed
   } catch {}
 
+  // ─── CHAIN RESOLVER ───────────────────────────────────────────────────────
+  // Only run if the tree prediction cleared the confidence threshold.
+  // Fires concurrently — doesn't block the response if it times out.
+  let chainResult: ChainResult = null
+  if (
+    prediction.predicted_tree !== 'unknown' &&
+    prediction.confidence >= 40 &&
+    agent.state &&
+    serpKey
+  ) {
+    chainResult = await resolveChain(
+      agent.name,
+      agent.state,
+      prediction.predicted_tree as 'integrity' | 'amerilife' | 'sms',
+      serpKey
+    )
+  }
+
   return NextResponse.json({
     predicted_tree: prediction.predicted_tree,
     confidence: prediction.confidence,
@@ -384,5 +542,10 @@ Respond with ONLY valid JSON, no markdown:
     reasoning: prediction.reasoning,
     facebook_profile_url: facebookProfileUrl,
     facebook_about: facebookAbout,
+    // Chain resolver results — null if tree confidence too low or no match found
+    predicted_sub_imo: chainResult?.predicted_sub_imo ?? null,
+    predicted_sub_imo_confidence: chainResult?.predicted_sub_imo_confidence ?? null,
+    predicted_sub_imo_signals: chainResult?.predicted_sub_imo_signals ?? [],
+    predicted_sub_imo_partner_id: chainResult?.predicted_sub_imo_partner_id ?? null,
   })
 }
