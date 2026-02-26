@@ -66,6 +66,12 @@ export default async function DashboardPage() {
           </span>
           <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2 }}>TCPA SCAN →</span>
         </Link>
+        <Link href="/dashboard/anathema" style={{ display: 'inline-flex', alignItems: 'center', gap: 16, padding: '20px 32px', background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.25)', textDecoration: 'none', transition: 'border-color 0.15s' }}>
+          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: 'var(--green)' }}>
+            ANATHEMA
+          </span>
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)', letterSpacing: 2, opacity: 0.6 }}>STRAIN SCAN →</span>
+        </Link>
       </div>
 
       {/* STATS GRID */}
