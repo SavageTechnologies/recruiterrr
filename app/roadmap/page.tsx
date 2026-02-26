@@ -13,13 +13,23 @@ const ITEMS = [
   { status: 'live', label: 'Search history saved to dashboard' },
   { status: 'live', label: 'US coverage map showing search history by state' },
 
-  // Prometheus — live
-  { status: 'live', label: 'Prometheus — TCPA compliance scanning for lead vendors' },
-  { status: 'live', label: 'Prometheus — Vendor tier classification (Enterprise / Established / Unknown / Suspicious)' },
-  { status: 'live', label: 'Prometheus — 7-point compliance scoring with confidence score' },
-  { status: 'live', label: 'Prometheus — External reputation intelligence (complaints, lawsuits, BBB)' },
-  { status: 'live', label: 'Prometheus — Ready-to-use TCPA disclaimer and vendor demand language' },
+  // Prometheus — live (retooled)
+  { status: 'live', label: 'Prometheus — FMO & IMO competitive intelligence scanner' },
+  { status: 'live', label: 'Prometheus — Auto-discovers FMO website from name alone' },
+  { status: 'live', label: 'Prometheus — Crawls up to 9 pages per FMO (agents, carriers, trips, leads, tech)' },
+  { status: 'live', label: 'Prometheus — Incentive trip intel (2025 / 2026 destinations and thresholds)' },
+  { status: 'live', label: 'Prometheus — Carrier stack extraction and gap analysis' },
+  { status: 'live', label: 'Prometheus — Agent complaint and weak point detection via SERP' },
+  { status: 'live', label: 'Prometheus — Custom counter-pitch script built from FMO vulnerabilities' },
   { status: 'live', label: 'Prometheus — Scan history saved to dashboard' },
+
+  // ANATHEMA — live
+  { status: 'live', label: 'ANATHEMA — Distribution tree prediction (Integrity / AmeriLife / SMS)' },
+  { status: 'live', label: 'ANATHEMA — 4-tier signal stack (carrier fingerprint, language, web intel, Facebook)' },
+  { status: 'live', label: 'ANATHEMA — Infection staging (Stage I through Stage IV)' },
+  { status: 'live', label: 'ANATHEMA — Field observation logging and specimen database' },
+  { status: 'live', label: 'ANATHEMA — Direct scan tool at /dashboard/anathema' },
+  { status: 'live', label: 'ANATHEMA — Specimen history saved to dashboard' },
 
   // Platform — live
   { status: 'live', label: 'Invite-only access control' },
@@ -27,21 +37,20 @@ const ITEMS = [
   { status: 'live', label: 'Account data isolated and protected per user' },
 
   // Up next
-  { status: 'next', label: 'CSV export of agent results' },
   { status: 'next', label: 'Saved agent lists and pipeline tracking' },
-  { status: 'next', label: 'Filter by score, flag, and carrier type' },
+  { status: 'next', label: 'Filter agents by score, flag, and carrier type' },
   { status: 'next', label: 'Direct dialer integration (one-click call)' },
   { status: 'next', label: 'Email template generator per agent type' },
-  { status: 'next', label: 'Prometheus — PDF compliance report export' },
+  { status: 'next', label: 'ANATHEMA — Accuracy reporting as specimen database grows' },
+  { status: 'next', label: 'Prometheus — PDF export of FMO intel briefing' },
 
   // Planned
-  { status: 'later', label: 'NIPR license database integration (Phase 2)' },
+  { status: 'later', label: 'NIPR license database integration' },
   { status: 'later', label: 'Multi-user team accounts' },
   { status: 'later', label: 'Market comparison reports (city vs city)' },
-  { status: 'later', label: 'Line-specific scoring (ACA, life, Medicare, senior)' },
   { status: 'later', label: 'CRM sync (HubSpot, Salesforce)' },
-  { status: 'later', label: 'Prometheus — Vendor watchlist with automatic re-scans' },
-  { status: 'later', label: 'Prometheus — Scan history search and filtering' },
+  { status: 'later', label: 'ANATHEMA — Predictive recruiting score based on tree + stage' },
+  { status: 'later', label: 'Prometheus — FMO watchlist with automatic re-scans on changes' },
 ]
 
 const STATUS = {
