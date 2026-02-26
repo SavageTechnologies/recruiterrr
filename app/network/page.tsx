@@ -24,7 +24,7 @@ const NETWORKS = [
     name: 'Senior Market Sales',
     url: 'seniormarketsales.com',
     desc: 'Omaha-based national FMO and one of the top three distribution networks in the senior market. Strong in Medicare, life, and annuity across the midwest and beyond.',
-    count: 32,
+    count: 27,
     status: 'live',
   },
 ]

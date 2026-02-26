@@ -5,46 +5,41 @@ import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "re
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json"
 
-// ─── SENIOR MARKET SALES AFFILIATES ──────────────────────────────────────────
-// Source: seniormarketsales.com — admin-managed only
+// ─── SENIOR MARKET SALES FAMILY OF COMPANIES ────────────────────────────────
+// Source: seniormarketsales.com/sms-family-of-companies — scraped & admin-managed
 const PARTNERS = [
   // ── Medicare / Senior Health ──
-  { id: 1,  name: "Senior Market Sales",           city: "Omaha",           state: "NE", coords: [-95.93, 41.26], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 2,  name: "Integrity IMO",                 city: "Omaha",           state: "NE", coords: [-95.95, 41.28], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 3,  name: "American Senior Benefits",      city: "Omaha",           state: "NE", coords: [-95.91, 41.24], website: "americanseniorbenefits.com",     segment: "Medicare" },
-  { id: 4,  name: "SMS of Iowa",                   city: "Des Moines",      state: "IA", coords: [-93.62, 41.60], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 5,  name: "SMS of Missouri",               city: "Kansas City",     state: "MO", coords: [-94.58, 39.10], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 6,  name: "SMS of Illinois",               city: "Chicago",         state: "IL", coords: [-87.63, 41.88], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 7,  name: "SMS of Texas",                  city: "Dallas",          state: "TX", coords: [-96.80, 32.78], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 8,  name: "SMS of Florida",                city: "Tampa",           state: "FL", coords: [-82.46, 27.95], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 9,  name: "SMS of Ohio",                   city: "Columbus",        state: "OH", coords: [-82.99, 39.96], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 10, name: "SMS of Pennsylvania",           city: "Philadelphia",    state: "PA", coords: [-75.16, 39.95], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 11, name: "SMS of Michigan",               city: "Detroit",         state: "MI", coords: [-83.05, 42.33], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 12, name: "SMS of Georgia",                city: "Atlanta",         state: "GA", coords: [-84.39, 33.75], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 13, name: "SMS of North Carolina",         city: "Charlotte",       state: "NC", coords: [-80.84, 35.23], website: "seniormarketsales.com",          segment: "Medicare" },
-  { id: 14, name: "SMS of Arizona",                city: "Phoenix",         state: "AZ", coords: [-112.07, 33.45], website: "seniormarketsales.com",         segment: "Medicare" },
-  { id: 15, name: "SMS of Colorado",               city: "Denver",          state: "CO", coords: [-104.99, 39.74], website: "seniormarketsales.com",         segment: "Medicare" },
+  { id: 1,  name: "Abt Insurance Agency",          city: "Austin",          state: "TX", coords: [-97.74, 30.27],  website: "abtinsuranceagency.com",        segment: "Medicare" },
+  { id: 2,  name: "Breitenfeldt Group",             city: "Minneapolis",     state: "MN", coords: [-93.26, 44.98],  website: "bghealthplans.com",             segment: "Medicare" },
+  { id: 3,  name: "The Buckley Insurance Group",    city: "Brick",           state: "NJ", coords: [-74.11, 40.06],  website: "thebuckleyinsurancegroup.com",  segment: "Medicare" },
+  { id: 4,  name: "CareValue",                      city: "Canandaigua",     state: "NY", coords: [-77.28, 42.88],  website: "carevalue.com",                 segment: "Medicare" },
+  { id: 5,  name: "Centurion Senior Services",      city: "Philadelphia",    state: "PA", coords: [-75.16, 39.95],  website: "centurionseniorservices.com",   segment: "Medicare" },
+  { id: 6,  name: "Fair Square Medicare",           city: "New York",        state: "NY", coords: [-74.00, 40.71],  website: "fairsquaremedicare.com",        segment: "Medicare" },
+  { id: 7,  name: "Gerber & Associates",            city: "Columbus",        state: "OH", coords: [-82.99, 39.96],  website: "gerberinsagency.com",           segment: "Medicare" },
+  { id: 8,  name: "Giardini Medicare",              city: "Brighton",        state: "MI", coords: [-83.78, 42.53],  website: "gmedicareteam.com",             segment: "Medicare" },
+  { id: 9,  name: "Insuractive",                    city: "Omaha",           state: "NE", coords: [-95.93, 41.26],  website: "insuractive.com",               segment: "Medicare" },
+  { id: 10, name: "Medicare Instructors",           city: "Omaha",           state: "NE", coords: [-95.95, 41.24],  website: "medicareinstructors.com",       segment: "Medicare" },
+  { id: 11, name: "Medicare Solutions Network",     city: "Lisle",           state: "IL", coords: [-88.08, 41.80],  website: "medicaresolutionsnetwork.com",  segment: "Medicare" },
+  { id: 12, name: "Medigap Life",                   city: "Charlotte",       state: "NC", coords: [-80.84, 35.23],  website: "medigaplife.com",               segment: "Medicare" },
+  { id: 13, name: "Medi-Solutions",                 city: "Parsippany",      state: "NJ", coords: [-74.43, 40.86],  website: "medi-solutions.org",            segment: "Medicare" },
+  { id: 14, name: "MIC Insurance Services",         city: "Kinnelon",        state: "NJ", coords: [-74.37, 41.00],  website: "micinsurance.com",              segment: "Medicare" },
+  { id: 15, name: "Pro Insurance Resources",        city: "Omaha",           state: "NE", coords: [-95.91, 41.28],  website: "proinsuranceresources.com",     segment: "Medicare" },
+  { id: 16, name: "Senior Savings Network",         city: "Columbia",        state: "SC", coords: [-81.03, 34.00],  website: "seniorsavingsnetwork.org",      segment: "Medicare" },
+  { id: 17, name: "Seniors Advisory Services",      city: "New Orleans",     state: "LA", coords: [-90.07, 29.95],  website: "seniorsadvisoryservices.net",   segment: "Medicare" },
+  { id: 18, name: "Sizeland Medicare Strategies",   city: "Omaha",           state: "NE", coords: [-95.89, 41.22],  website: "sizelandmedicare.com",          segment: "Medicare" },
+  { id: 19, name: "Thomas Insurance Group",         city: "Omaha",           state: "NE", coords: [-95.87, 41.20],  website: "tig-ins.com",                   segment: "Medicare" },
 
-  // ── Life / Final Expense ──
-  { id: 16, name: "SMS Life Division",             city: "Omaha",           state: "NE", coords: [-95.97, 41.27], website: "seniormarketsales.com",          segment: "Life" },
-  { id: 17, name: "Mutual of Omaha Brokerage",     city: "Omaha",           state: "NE", coords: [-96.00, 41.25], website: "mutualofomaha.com",              segment: "Life" },
-  { id: 18, name: "Medico Insurance",              city: "Omaha",           state: "NE", coords: [-95.89, 41.23], website: "medicoinsurance.com",            segment: "Life" },
-  { id: 19, name: "GPM Life",                      city: "Chicago",         state: "IL", coords: [-87.65, 41.86], website: "gpmlife.com",                    segment: "Life" },
-  { id: 20, name: "SMS Final Expense Division",    city: "Omaha",           state: "NE", coords: [-95.85, 41.22], website: "seniormarketsales.com",          segment: "Life" },
-  { id: 21, name: "National Western Life",         city: "Denver",          state: "CO", coords: [-105.01, 39.76], website: "nationalwesternlife.com",       segment: "Life" },
-  { id: 22, name: "Guarantee Trust Life",          city: "Glenview",        state: "IL", coords: [-87.83, 42.07], website: "gtlic.com",                      segment: "Life" },
-  { id: 23, name: "American Home Life",            city: "Topeka",          state: "KS", coords: [-95.69, 39.05], website: "americanhomelife.com",           segment: "Life" },
-  { id: 24, name: "Columbian Mutual Life",         city: "Binghamton",      state: "NY", coords: [-75.91, 42.10], website: "columbianmutual.com",            segment: "Life" },
+  // ── Life / ACA / Multi-line ──
+  { id: 20, name: "The ASA Group",                  city: "Little Rock",     state: "AR", coords: [-92.29, 34.75],  website: "theasagroup.com",               segment: "Life" },
+  { id: 21, name: "EMG Insurance Brokerage",        city: "Omaha",           state: "NE", coords: [-95.85, 41.26],  website: "emgbrokerage.com",              segment: "Life" },
+  { id: 22, name: "Futurity First",                 city: "Omaha",           state: "NE", coords: [-95.83, 41.24],  website: "futurityfirst.com",             segment: "Life" },
+  { id: 23, name: "O'Neill Marketing",              city: "Omaha",           state: "NE", coords: [-95.81, 41.22],  website: "oneillmarketing.net",           segment: "Life" },
+  { id: 24, name: "Transitions Benefit Group",      city: "Omaha",           state: "NE", coords: [-95.79, 41.20],  website: "transitionsrbg.com",            segment: "Life" },
+  { id: 25, name: "Withrow Insurance Services",     city: "Redding",         state: "CA", coords: [-122.39, 40.59], website: "withrowinsurance.com",          segment: "Life" },
 
-  // ── Annuity / Wealth ──
-  { id: 25, name: "SMS Annuity Division",          city: "Omaha",           state: "NE", coords: [-95.83, 41.21], website: "seniormarketsales.com",          segment: "Annuity" },
-  { id: 26, name: "Midland National",              city: "Sioux Falls",     state: "SD", coords: [-96.73, 43.55], website: "midlandnational.com",            segment: "Annuity" },
-  { id: 27, name: "North American Company",        city: "Sioux Falls",     state: "SD", coords: [-96.70, 43.53], website: "northamericancompany.com",       segment: "Annuity" },
-  { id: 28, name: "American Equity",               city: "West Des Moines", state: "IA", coords: [-93.71, 41.58], website: "american-equity.com",            segment: "Annuity" },
-  { id: 29, name: "Athene Annuity",                city: "West Des Moines", state: "IA", coords: [-93.73, 41.56], website: "athene.com",                     segment: "Annuity" },
-  { id: 30, name: "Pacific Life",                  city: "Newport Beach",   state: "CA", coords: [-117.87, 33.62], website: "pacificlife.com",               segment: "Annuity" },
-  { id: 31, name: "Nationwide Annuity",            city: "Columbus",        state: "OH", coords: [-83.01, 39.98], website: "nationwide.com",                 segment: "Annuity" },
-  { id: 32, name: "SMS Wealth Brokerage",          city: "Omaha",           state: "NE", coords: [-95.81, 41.20], website: "seniormarketsales.com",          segment: "Annuity" },
+  // ── Financial / Annuity ──
+  { id: 26, name: "Sequent Planning",               city: "Omaha",           state: "NE", coords: [-95.77, 41.26],  website: "sequentplanning.com",           segment: "Annuity" },
+  { id: 27, name: "Travel Insurance Center",        city: "Omaha",           state: "NE", coords: [-95.75, 41.24],  website: "travelinsurancecenter.com",     segment: "Annuity" },
 ]
 
 const SEGMENT_COLORS = {
@@ -52,6 +47,7 @@ const SEGMENT_COLORS = {
   Life:     "#00e676",
   Annuity:  "#00b4d8",
 }
+// Life segment now covers Life / ACA / Multi-line companies
 
 const FIPS = {
   '01':'AL','02':'AK','04':'AZ','05':'AR','06':'CA','08':'CO','09':'CT','10':'DE','11':'DC','12':'FL',
@@ -89,7 +85,7 @@ export default function SMSPartnerMap() {
   const [zoom, setZoom]       = useState(1)
   const [center, setCenter]   = useState([-96, 38])
 
-  const segments = ["All", "Medicare", "Life", "Annuity"]
+  const segments = ["All", "Medicare", "Life", "Annuity"]  // Life = Life/ACA/Multi-line
 
   const filtered = PARTNERS.filter(p => {
     const matchSeg = segment === "All" || p.segment === segment
@@ -132,8 +128,8 @@ export default function SMSPartnerMap() {
           {[
             { v: PARTNERS.length,                                   l: "Total Partners" },
             { v: PARTNERS.filter(p => p.segment === "Medicare").length, l: "Medicare" },
-            { v: PARTNERS.filter(p => p.segment === "Life").length,     l: "Life" },
-            { v: PARTNERS.filter(p => p.segment === "Annuity").length,  l: "Annuity" },
+            { v: PARTNERS.filter(p => p.segment === "Life").length,     l: "Life / ACA" },
+            { v: PARTNERS.filter(p => p.segment === "Annuity").length,  l: "Financial" },
             { v: Object.keys(STATE_COUNTS).length,                  l: "States" },
           ].map(s => (
             <div key={s.l} style={{ textAlign: "right" }}>
