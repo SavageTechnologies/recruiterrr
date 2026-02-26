@@ -87,17 +87,49 @@ function scoreText(text: string): { integrity: number; amerilife: number; sms: n
 
 // ─── CHAIN RESOLVER ──────────────────────────────────────────────────────────
 // Second-pass function that runs after tree prediction.
-// Takes the predicted tree + agent state, pulls geo-filtered candidate partners
-// from the network library, runs a single targeted SERP query against them,
-// and returns the best sub-IMO match with confidence + signals.
-// Only fires when tree confidence >= 40. Returns null if no match clears threshold.
+// Runs two SERP queries in parallel — one for partner name co-occurrence,
+// one for relationship/association language — and returns structured signals
+// organized by tier so they can be queried and analyzed over time.
+// Only fires when tree confidence >= 40.
 
-type ChainResult = {
-  predicted_sub_imo: string
-  predicted_sub_imo_confidence: number
-  predicted_sub_imo_signals: string[]
-  predicted_sub_imo_partner_id: number
+// ── Signal types ─────────────────────────────────────────────────────────────
+// tier:   HIGH = strong upline/contracting evidence
+//         MED  = association evidence (trips, leaderboards, awards, co-branding)
+//         LOW  = proximity/circumstantial (name appears nearby, geographic fit)
+// type:   the nature of the signal — used for future filtering and analysis
+// entity: the specific partner or tree name this signal points to
+// text:   human-readable description rendered in the UI
+// source: which query or data source produced it
+
+export type ChainSignal = {
+  tier: 'HIGH' | 'MED' | 'LOW'
+  type: 'domain' | 'name' | 'alias' | 'comention' | 'relationship' | 'association' | 'geographic'
+  entity: string
+  text: string
+  source: 'partner_query' | 'relationship_query' | 'geographic'
+}
+
+export type ChainResult = {
+  predicted_sub_imo: string | null
+  predicted_sub_imo_confidence: number | null
+  predicted_sub_imo_partner_id: number | null
+  chain_signals: ChainSignal[]
 } | null
+
+// Relationship keywords that suggest a contracting/upline relationship (HIGH tier)
+const UPLINE_KEYWORDS = [
+  'contracted through', 'appointed through', 'writing under', 'downline',
+  'contracts through', 'appointed with', 'contracted with', 'under contract',
+  'agent portal', 'producer portal', 'agent login',
+]
+
+// Association keywords that suggest affiliation without a clear upline (MED tier)
+const ASSOCIATION_KEYWORDS = [
+  'trip', 'leaderboard', 'award', 'top producer', 'conference', 'convention',
+  'achievement', 'partner', 'affiliated', 'proud member', 'proud partner',
+  'thank you', 'thanks to', 'grateful', 'honored', 'recognition',
+  'summit', 'incentive', 'qualifier', 'qualified', 'retreat',
+]
 
 async function resolveChain(
   agentName: string,
@@ -106,99 +138,197 @@ async function resolveChain(
   serpKey: string
 ): Promise<ChainResult> {
   try {
-    // Get geo-filtered candidates (same state first, then neighbors, fallback national)
     const candidates = getCandidatePartners(tree, agentState).slice(0, 8)
     if (candidates.length === 0) return null
 
-    // Build a single batched SERP query: agent name + OR list of candidate names/aliases
+    const treeName = tree === 'integrity'
+      ? 'Integrity Marketing Group'
+      : tree === 'amerilife'
+        ? 'AmeriLife'
+        : 'Senior Market Sales'
+
+    const treeShort = tree === 'integrity' ? 'Integrity' : tree === 'amerilife' ? 'AmeriLife' : 'SMS'
+
+    // ── Query 1: Partner name co-occurrence ───────────────────────────────────
+    // Batches all candidate names + aliases into one query.
+    // Catches any page that mentions the agent alongside a known partner.
     const partnerTerms = candidates.flatMap(p => [
       `"${p.name}"`,
       ...(p.aliases || []).map(a => `"${a}"`),
     ]).join(' OR ')
+    const q1 = `"${agentName}" (${partnerTerms})`
 
-    const q = `"${agentName}" (${partnerTerms})`
-    const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&num=8&api_key=${serpKey}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(7000) })
-    if (!res.ok) return null
+    // ── Query 2: Relationship + association language ───────────────────────────
+    // Catches leaderboards, trip posts, awards, appointments, social mentions.
+    // Intentionally broad — surface everything, let the recruiter tune.
+    const q2 = `"${agentName}" "${treeShort}" trip OR leaderboard OR award OR appointed OR contracted OR partner OR "top producer" OR conference OR achievement OR recognition OR summit OR qualifier`
 
-    const data = await res.json()
-    const results = data.organic_results || []
-    if (results.length === 0) return null
+    // Run both in parallel
+    const [res1, res2] = await Promise.all([
+      fetch(
+        `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q1)}&num=8&api_key=${serpKey}`,
+        { signal: AbortSignal.timeout(7000) }
+      ).catch(() => null),
+      fetch(
+        `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q2)}&num=8&api_key=${serpKey}`,
+        { signal: AbortSignal.timeout(7000) }
+      ).catch(() => null),
+    ])
 
-    // Score each candidate against the snippets
-    const snippetBlob = results
-      .map((r: any) => `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`)
-      .join(' ')
-      .toLowerCase()
+    const results1: any[] = res1?.ok ? (await res1.json()).organic_results || [] : []
+    const results2: any[] = res2?.ok ? (await res2.json()).organic_results || [] : []
 
-    type CandidateScore = { partner: NetworkPartner; score: number; signals: string[] }
-    const scored: CandidateScore[] = []
+    // Build searchable blobs from each query's results
+    const blob1 = results1.map((r: any) => `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`).join(' ').toLowerCase()
+    const blob2 = results2.map((r: any) => `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`).join(' ').toLowerCase()
+    const agentLower = agentName.toLowerCase()
+
+    // ── All signals collected across both queries ─────────────────────────────
+    const allSignals: ChainSignal[] = []
+
+    // ── Score each candidate against Query 1 results ──────────────────────────
+    type CandidateScore = { partner: NetworkPartner; score: number }
+    const candidateScores: CandidateScore[] = []
 
     for (const partner of candidates) {
       let score = 0
-      const signals: string[] = []
       const nameLower = partner.name.toLowerCase()
-      const websiteLower = partner.website.toLowerCase().replace('www.', '')
+      const domainLower = partner.website.toLowerCase().replace('www.', '')
 
-      // Name hit in snippets
-      if (snippetBlob.includes(nameLower)) {
-        score += 40
-        signals.push(`SERP: "${partner.name}" found in search results`)
+      // Domain hit — HIGH: agent is actually referenced alongside partner's web presence
+      if (blob1.includes(domainLower)) {
+        score += 50
+        allSignals.push({
+          tier: 'HIGH',
+          type: 'domain',
+          entity: partner.name,
+          text: `Domain ${partner.website} appears in search results alongside agent`,
+          source: 'partner_query',
+        })
       }
 
-      // Alias hits
-      for (const alias of partner.aliases || []) {
-        if (snippetBlob.includes(alias.toLowerCase())) {
-          score += 35
-          signals.push(`SERP: alias "${alias}" found in results`)
+      // Direct co-mention in same result snippet — HIGH
+      for (const r of results1.slice(0, 5)) {
+        const combined = `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`.toLowerCase()
+        if (combined.includes(nameLower) && combined.includes(agentLower)) {
+          score += 30
+
+          // Check if this co-mention also contains upline language
+          const hasUpline = UPLINE_KEYWORDS.some(k => combined.includes(k))
+          allSignals.push({
+            tier: hasUpline ? 'HIGH' : 'MED',
+            type: hasUpline ? 'relationship' : 'comention',
+            entity: partner.name,
+            text: `"${(r.title || '').slice(0, 70)}" — co-mentions agent and ${partner.name}${hasUpline ? ' with contracting language' : ''}`,
+            source: 'partner_query',
+          })
           break
         }
       }
 
-      // Website domain hit (strong signal — means agent is actually linked to them)
-      if (snippetBlob.includes(websiteLower)) {
-        score += 50
-        signals.push(`SERP: domain "${partner.website}" found in results`)
+      // Full name anywhere in blob1
+      if (blob1.includes(nameLower) && score === 0) {
+        score += 25
+        allSignals.push({
+          tier: 'LOW',
+          type: 'name',
+          entity: partner.name,
+          text: `"${partner.name}" appears in search results near agent`,
+          source: 'partner_query',
+        })
       }
 
-      // Boost for same-state match (candidate's HQ state matches agent state)
+      // Alias hit — weight depends on alias length (short aliases are noisier)
+      for (const alias of partner.aliases || []) {
+        const aliasLower = alias.toLowerCase()
+        if (blob1.includes(aliasLower)) {
+          const isShort = alias.length <= 4
+          score += isShort ? 15 : 30
+          allSignals.push({
+            tier: isShort ? 'LOW' : 'MED',
+            type: 'alias',
+            entity: partner.name,
+            text: `Alias "${alias}" (${partner.name}) appears in search results`,
+            source: 'partner_query',
+          })
+          break
+        }
+      }
+
+      // Geographic boost — same state HQ, doesn't add to signal list (just scoring)
       if (partner.state === agentState.toUpperCase()) {
         score += 15
-        signals.push(`Geographic: ${partner.name} headquartered in same state (${agentState.toUpperCase()})`)
+        allSignals.push({
+          tier: 'LOW',
+          type: 'geographic',
+          entity: partner.name,
+          text: `${partner.name} is headquartered in ${agentState.toUpperCase()} — same state as agent`,
+          source: 'geographic',
+        })
       }
 
-      // Check individual result pages for direct co-mentions
-      for (const r of results.slice(0, 4)) {
-        const combined = `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`.toLowerCase()
-        const nameHit = combined.includes(nameLower)
-        const agentHit = combined.includes(agentName.toLowerCase())
-        if (nameHit && agentHit) {
-          score += 25
-          signals.push(`SERP: "${r.title?.slice(0, 60)}" co-mentions agent + ${partner.name}`)
-          break
-        }
-      }
-
-      if (score > 0) scored.push({ partner, score, signals })
+      if (score > 0) candidateScores.push({ partner, score })
     }
 
-    if (scored.length === 0) return null
+    // ── Process Query 2 results — relationship + association language ──────────
+    for (const r of results2.slice(0, 6)) {
+      const combined = `${r.title || ''} ${r.snippet || ''}`.toLowerCase()
+      if (!combined.includes(agentLower)) continue
 
-    // Sort by score, take the best
-    scored.sort((a, b) => b.score - a.score)
-    const best = scored[0]
+      // Check for upline/contracting language — HIGH
+      const uplineMatch = UPLINE_KEYWORDS.find(k => combined.includes(k))
+      if (uplineMatch) {
+        allSignals.push({
+          tier: 'HIGH',
+          type: 'relationship',
+          entity: treeName,
+          text: `"${(r.title || '').slice(0, 70)}" — contains contracting language "${uplineMatch}"`,
+          source: 'relationship_query',
+        })
+        // Also boost any candidate whose name appears in this result
+        for (const cs of candidateScores) {
+          if (combined.includes(cs.partner.name.toLowerCase())) cs.score += 35
+        }
+        continue
+      }
 
-    // Minimum threshold — don't return noise
-    if (best.score < 40) return null
+      // Check for association language — MED
+      const assocMatch = ASSOCIATION_KEYWORDS.find(k => combined.includes(k))
+      if (assocMatch) {
+        allSignals.push({
+          tier: 'MED',
+          type: 'association',
+          entity: treeName,
+          text: `"${(r.title || '').slice(0, 70)}" — association signal: "${assocMatch}"`,
+          source: 'relationship_query',
+        })
+        // Boost any candidate co-mentioned in this result
+        for (const cs of candidateScores) {
+          if (combined.includes(cs.partner.name.toLowerCase())) cs.score += 20
+        }
+      }
+    }
 
-    // Map raw score to a 0-100 confidence. Cap at 92 — we never claim certainty from SERP alone
-    const confidence = Math.min(92, Math.round((best.score / 130) * 100))
+    // ── Determine best candidate ──────────────────────────────────────────────
+    candidateScores.sort((a, b) => b.score - a.score)
+    const best = candidateScores[0]
+
+    // Minimum threshold to name a predicted sub-IMO — keeps noise out of the top field
+    // but we still return all signals regardless
+    const hasBestCandidate = best && best.score >= 40
+    const confidence = hasBestCandidate
+      ? Math.min(92, Math.round((best.score / 145) * 100))
+      : null
+
+    // Always return chain_signals even if we couldn't pin a specific sub-IMO
+    // The signals are valuable intelligence regardless
+    if (allSignals.length === 0 && !hasBestCandidate) return null
 
     return {
-      predicted_sub_imo: best.partner.name,
+      predicted_sub_imo: hasBestCandidate ? best.partner.name : null,
       predicted_sub_imo_confidence: confidence,
-      predicted_sub_imo_signals: best.signals.slice(0, 4),
-      predicted_sub_imo_partner_id: best.partner.id,
+      predicted_sub_imo_partner_id: hasBestCandidate ? best.partner.id : null,
+      chain_signals: allSignals,
     }
   } catch {
     return null
@@ -245,7 +375,7 @@ export async function GET(req: NextRequest) {
           // Chain resolver fields — null-safe for specimens logged before this feature
           predicted_sub_imo: specimen.predicted_sub_imo || null,
           predicted_sub_imo_confidence: specimen.predicted_sub_imo_confidence || null,
-          predicted_sub_imo_signals: specimen.predicted_sub_imo_signals || [],
+          predicted_sub_imo_signals: specimen.predicted_sub_imo_signals || [],  // ChainSignal[] jsonb
           predicted_sub_imo_partner_id: specimen.predicted_sub_imo_partner_id || null,
         },
       }
@@ -294,6 +424,9 @@ export async function POST(req: NextRequest) {
       // Chain resolver fields — optional, present on scans after this feature shipped
       predicted_sub_imo, predicted_sub_imo_confidence, predicted_sub_imo_signals, predicted_sub_imo_partner_id,
     } = body
+
+    // predicted_sub_imo_signals is now a ChainSignal[] (jsonb) not a string[]
+    // Stored as-is — Supabase jsonb handles the array of objects natively
 
     // Check for existing specimen (upsert by agent+user)
     const { data: existing } = await supabase
@@ -545,7 +678,7 @@ Respond with ONLY valid JSON, no markdown:
     // Chain resolver results — null if tree confidence too low or no match found
     predicted_sub_imo: chainResult?.predicted_sub_imo ?? null,
     predicted_sub_imo_confidence: chainResult?.predicted_sub_imo_confidence ?? null,
-    predicted_sub_imo_signals: chainResult?.predicted_sub_imo_signals ?? [],
+    predicted_sub_imo_signals: chainResult?.chain_signals ?? [],
     predicted_sub_imo_partner_id: chainResult?.predicted_sub_imo_partner_id ?? null,
   })
 }
