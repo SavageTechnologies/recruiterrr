@@ -2,6 +2,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import Link from 'next/link'
 import USMap from '@/components/USMap'
 import PrometheusScansTable from '@/components/PrometheusScansTable'
+import AnathemaScansTable from '@/components/AnathemaScansTable'
 import SearchesTable from '@/components/SearchesTable'
 import { supabase } from '@/lib/supabase.server'
 
@@ -27,6 +28,18 @@ export default async function DashboardPage() {
       .order('created_at', { ascending: false })
       .limit(100)
     if (!scansError && scansData) scans = scansData
+  } catch (_) {}
+
+  // Fetch recent anathema specimens
+  let specimens: any[] = []
+  try {
+    const { data: specimensData, error: specimensError } = await supabase
+      .from('anathema_specimens')
+      .select('id, agent_name, city, state, predicted_tree, predicted_confidence, confirmed_tree, created_at')
+      .eq('clerk_id', user?.id || '')
+      .order('created_at', { ascending: false })
+      .limit(100)
+    if (!specimensError && specimensData) specimens = specimensData
   } catch (_) {}
 
   const totalSearches = searches?.length || 0
@@ -110,8 +123,20 @@ export default async function DashboardPage() {
             NEW SCAN →
           </Link>
         </div>
-
         <PrometheusScansTable scans={scans} />
+      </div>
+
+      {/* ANATHEMA RECENT SPECIMENS */}
+      <div style={{ background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.15)', padding: '32px', marginBottom: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--green)', letterSpacing: 2, textTransform: 'uppercase' }}>
+            ◈ Anathema — Recent Specimens
+          </div>
+          <Link href="/dashboard/anathema" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none' }}>
+            NEW SCAN →
+          </Link>
+        </div>
+        <AnathemaScansTable specimens={specimens} />
       </div>
 
       {/* RECENT SEARCHES */}
