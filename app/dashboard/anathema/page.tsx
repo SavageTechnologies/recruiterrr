@@ -3,21 +3,14 @@
 import { useState, useRef, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-type ScanResult = {
-  predicted_tree: 'integrity' | 'amerilife' | 'sms' | 'unknown'
-  confidence: number
-  signals_used: string[]
-  reasoning: string
-  facebook_profile_url: string | null
-  facebook_about: string | null
-}
-
-const TREE_LABELS: Record<string, string> = {
-  integrity: 'INTEGRITY',
-  amerilife: 'AMERILIFE',
-  sms: 'SMS',
-  unknown: 'UNCLASSIFIED',
-}
+import {
+  type ChainSignal,
+  type ScanResult,
+  TREE_LABELS,
+  TIER_CONFIG,
+  getStage,
+  groupSignals,
+} from '@/lib/anathema-types'
 
 const LOADING_STEPS = [
   'Resolving agency identity',
@@ -39,13 +32,6 @@ const STAGE_LOGS: Record<number, string[]> = {
   6: ['[OK] Compiling specimen report', '[OK] Staging confirmed', '[OK] Report ready'],
 }
 
-function getStage(confidence: number, tree: string): { roman: string; label: string } {
-  if (tree === 'unknown' || confidence < 35) return { roman: '—', label: 'INDETERMINATE' }
-  if (confidence >= 80) return { roman: 'IV', label: 'STAGE IV' }
-  if (confidence >= 55) return { roman: 'III', label: 'STAGE III' }
-  return { roman: 'II', label: 'STAGE II' }
-}
-
 function TerminalLog({ lines }: { lines: string[] }) {
   return (
     <div style={{ background: '#0a0a09', border: '1px solid rgba(0,230,118,0.15)', padding: '16px', height: 190, overflowY: 'auto', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, lineHeight: 2 }}>
@@ -59,6 +45,79 @@ function TerminalLog({ lines }: { lines: string[] }) {
         </div>
       ))}
       <div style={{ display: 'inline-block', width: 8, height: 12, background: 'var(--green)', animation: 'blink 1s step-end infinite', verticalAlign: 'middle' }} />
+    </div>
+  )
+}
+
+function ChainSignalRow({ signal }: { signal: ChainSignal }) {
+  const cfg = TIER_CONFIG[signal.tier]
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 10px', background: cfg.dimColor, borderLeft: `2px solid ${cfg.borderColor}`, marginBottom: 4 }}>
+      <span style={{ flexShrink: 0, marginTop: 1, fontSize: 8, color: cfg.color, letterSpacing: 1.5, fontFamily: "'DM Mono', monospace", border: `1px solid ${cfg.borderColor}`, padding: '1px 5px', lineHeight: 1.8 }}>
+        {cfg.label}
+      </span>
+      <span style={{ fontSize: 11, lineHeight: 1.5, fontFamily: "'DM Mono', monospace", color: signal.tier === 'LOW' ? '#555' : signal.tier === 'MED' ? '#888' : '#aaa' }}>
+        {signal.text}
+      </span>
+    </div>
+  )
+}
+
+function ChainSection({ result }: { result: ScanResult }) {
+  const [expanded, setExpanded] = useState(false)
+  const signals = result.predicted_sub_imo_signals || []
+  const grouped = groupSignals(signals)
+  const hasAny = signals.length > 0
+
+  if (!hasAny && !result.predicted_sub_imo) return null
+
+  return (
+    <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 9, color: '#555', letterSpacing: 3 }}>CHAIN INTELLIGENCE</div>
+        {hasAny && (
+          <button onClick={() => setExpanded(v => !v)}
+            style={{ background: 'transparent', border: '1px solid #2a2a2a', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>
+            {expanded ? 'COLLAPSE' : `SHOW ALL SIGNALS (${signals.length})`}
+          </button>
+        )}
+      </div>
+
+      {result.predicted_sub_imo && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: hasAny ? 14 : 0, padding: '10px 16px', background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.2)' }}>
+          <div>
+            <div style={{ fontSize: 8, color: '#555', letterSpacing: 2, marginBottom: 4 }}>PREDICTED SUB-IMO</div>
+            <div style={{ fontSize: 20, color: 'var(--green)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 3 }}>{result.predicted_sub_imo}</div>
+          </div>
+          {result.predicted_sub_imo_confidence != null && (
+            <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+              <div style={{ fontSize: 8, color: '#555', letterSpacing: 2, marginBottom: 6 }}>CHAIN CONFIDENCE</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 100, height: 3, background: '#1e1e1e', position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.predicted_sub_imo_confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.3), var(--green))', transition: 'width 0.8s ease' }} />
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--green)', letterSpacing: 1 }}>{result.predicted_sub_imo_confidence}%</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {hasAny && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: expanded ? 12 : 0, flexWrap: 'wrap' }}>
+          {grouped.high.length > 0 && <div style={{ fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.HIGH.borderColor}`, color: TIER_CONFIG.HIGH.color, fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{grouped.high.length} HIGH</div>}
+          {grouped.med.length > 0  && <div style={{ fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.MED.borderColor}`,  color: TIER_CONFIG.MED.color,  fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{grouped.med.length} MED</div>}
+          {grouped.low.length > 0  && <div style={{ fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.LOW.borderColor}`,  color: TIER_CONFIG.LOW.color,  fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{grouped.low.length} LOW</div>}
+        </div>
+      )}
+
+      {expanded && hasAny && (
+        <div style={{ marginTop: 6 }}>
+          {grouped.high.map((s, i) => <ChainSignalRow key={`h${i}`} signal={s} />)}
+          {grouped.med.map((s, i)  => <ChainSignalRow key={`m${i}`} signal={s} />)}
+          {grouped.low.map((s, i)  => <ChainSignalRow key={`l${i}`} signal={s} />)}
+        </div>
+      )}
     </div>
   )
 }
@@ -177,6 +236,8 @@ function AnathemaDashboardInner() {
         ? `[FOUND] STRAIN: ${tree} — CONFIDENCE: ${data.confidence}%`
         : `[WARN] STRAIN: UNCLASSIFIED — Insufficient markers`)
       if (data.facebook_profile_url) addLog(`[FOUND] Facebook profile located`)
+      if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence`)
+      else if (data.predicted_sub_imo_signals?.length > 0) addLog(`[OK] Chain signals collected — no confident sub-IMO match`)
       setResult(data)
     } catch (err: any) {
       if (timerRef.current) clearTimeout(timerRef.current)
@@ -207,6 +268,10 @@ function AnathemaDashboardInner() {
           prediction_reasoning: result.reasoning,
           facebook_profile_url: result.facebook_profile_url,
           facebook_about: result.facebook_about,
+          predicted_sub_imo: result.predicted_sub_imo || null,
+          predicted_sub_imo_confidence: result.predicted_sub_imo_confidence || null,
+          predicted_sub_imo_signals: result.predicted_sub_imo_signals || [],
+          predicted_sub_imo_partner_id: result.predicted_sub_imo_partner_id || null,
           confirmed_tree: confirmedTree || null,
           confirmed_tree_other: confirmedOther || null,
           confirmed_sub_imo: subImo || null,
@@ -419,6 +484,9 @@ function AnathemaDashboardInner() {
               </div>
             </div>
 
+            {/* Chain Intelligence */}
+            <ChainSection result={result} />
+
             {/* Field observation log */}
             <div style={{ padding: '16px 24px' }}>
               <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 14 }}>FIELD OBSERVATION LOG</div>
@@ -459,8 +527,8 @@ function AnathemaDashboardInner() {
                 <input
                   value={subImo}
                   onChange={e => setSubImo(e.target.value)}
-                  placeholder="Sub-IMO / affiliate (optional)..."
-                  style={{ padding: '8px 12px', background: '#0e0e0e', border: '1px solid #222', color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }}
+                  placeholder={result.predicted_sub_imo ? `Confirm or correct: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate (optional)...'}
+                  style={{ padding: '8px 12px', background: '#0e0e0e', border: `1px solid ${result.predicted_sub_imo && !subImo ? 'rgba(0,230,118,0.2)' : '#222'}`, color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }}
                 />
                 <input
                   value={recruiterNotes}
