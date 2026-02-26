@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 type ScanResult = {
   predicted_tree: 'integrity' | 'amerilife' | 'sms' | 'unknown'
@@ -81,6 +82,31 @@ export default function AnathemaDashboardPage() {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const searchParams = useSearchParams()
+
+  // Load saved scan if ?id= is in the URL
+  useEffect(() => {
+    const id = searchParams.get('id')
+    if (!id) return
+    async function loadScan() {
+      const res = await fetch(`/api/anathema?id=${id}`)
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.scan) {
+        const s = data.scan
+        setAgencyName(s.agent_name || '')
+        setWebsite(s.url || '')
+        setCity(s.city || '')
+        setState(s.state || '')
+        if (s.analysis_json) setResult(s.analysis_json)
+        if (s.confirmed_tree) setConfirmedTree(s.confirmed_tree)
+        if (s.sub_imo) setSubImo(s.sub_imo)
+        if (s.recruiter_notes) setRecruiterNotes(s.recruiter_notes)
+        setSaveState('saved')
+      }
+    }
+    loadScan()
+  }, [searchParams])
 
   function addLog(line: string) {
     setLogLines(prev => [...prev.slice(-40), line])

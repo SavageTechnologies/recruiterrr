@@ -84,6 +84,25 @@ function scoreText(text: string): { integrity: number; amerilife: number; sms: n
   return { integrity, amerilife, sms, signals }
 }
 
+export async function GET(req: NextRequest) {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const id = req.nextUrl.searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+  const { data, error } = await supabase
+    .from('anathema_scans')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .single()
+
+  if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  return NextResponse.json({ scan: data })
+}
+
 export async function POST(req: NextRequest) {
   // CSRF check
   const origin = req.headers.get('origin')
