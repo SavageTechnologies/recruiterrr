@@ -30,40 +30,43 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
   const base: string[] = []
 
   // Mode controls WHAT type of agent we're looking for.
-  // We intentionally omit city/state from the query string because we enforce location
-  // via the SerpAPI `location` param below — mixing both causes Google to widen the
-  // search area or return national directory results instead of true local listings.
+  // IMPORTANT: google_local engine needs the city IN the query string to produce local results.
+  // Using only the `location` param is not sufficient — Google local search requires the
+  // geographic context in `q` as well, or it returns zero/sparse results for smaller markets.
+  // We still use the `location` param for radius targeting, but always include city in q.
   //
   // If the user typed a free-text query (e.g. "Medicare supplement", "final expense"),
   // use that directly as the first and primary search term instead of the mode defaults.
   const prefix = query.trim()
+  // cityPrefix is appended to every query so SerpAPI google_local finds results
+  const cityPrefix = city.trim()
 
   if (prefix) {
-    base.push(prefix)
-    base.push(`${prefix} insurance agent`)
-    base.push(`${prefix} broker`)
-    base.push(`${prefix} independent agent`)
+    base.push(`${prefix} ${cityPrefix}`)
+    base.push(`${prefix} insurance agent ${cityPrefix}`)
+    base.push(`${prefix} broker ${cityPrefix}`)
+    base.push(`${prefix} independent agent ${cityPrefix}`)
   } else {
     if (mode === 'medicare' || mode === 'all') {
-      base.push(`Medicare insurance agent`)
-      base.push(`Medicare supplement broker`)
-      base.push(`Medicare advantage agent`)
-      base.push(`senior health insurance agent`)
-      base.push(`senior insurance broker`)
+      base.push(`Medicare insurance agent ${cityPrefix}`)
+      base.push(`Medicare supplement broker ${cityPrefix}`)
+      base.push(`Medicare advantage agent ${cityPrefix}`)
+      base.push(`senior health insurance agent ${cityPrefix}`)
+      base.push(`senior insurance broker ${cityPrefix}`)
     }
     if (mode === 'life' || mode === 'all') {
-      base.push(`life insurance agent`)
-      base.push(`final expense insurance agent`)
-      base.push(`term life insurance broker`)
+      base.push(`life insurance agent ${cityPrefix}`)
+      base.push(`final expense insurance agent ${cityPrefix}`)
+      base.push(`term life insurance broker ${cityPrefix}`)
     }
     if (mode === 'aca' || mode === 'all') {
-      base.push(`health insurance agent`)
-      base.push(`ACA marketplace broker`)
-      base.push(`marketplace insurance agent`)
+      base.push(`health insurance agent ${cityPrefix}`)
+      base.push(`ACA marketplace broker ${cityPrefix}`)
+      base.push(`marketplace insurance agent ${cityPrefix}`)
     }
     if (mode === 'all') {
-      base.push(`independent insurance agent`)
-      base.push(`insurance broker`)
+      base.push(`independent insurance agent ${cityPrefix}`)
+      base.push(`insurance broker ${cityPrefix}`)
     }
   }
 
