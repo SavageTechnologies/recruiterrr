@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import PageFooter from '@/components/PageFooter'
 import HomeNav from '@/components/HomeNav'
+import XenoEgg from '@/components/XenoEgg'
 
 export default function HomePage() {
   const { isSignedIn } = useUser()
@@ -20,7 +21,8 @@ export default function HomePage() {
       <HomeNav />
 
       {/* HERO */}
-      <section style={{ padding: '100px 40px 60px', maxWidth: 960 }}>
+      <section style={{ padding: '100px 40px 60px', maxWidth: 960, position: 'relative', overflow: 'hidden' }}>
+        <XenoEgg />
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--orange)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ width: 24, height: 1, background: 'var(--orange)', display: 'inline-block' }} />
           For FMOs &amp; IMOs
@@ -35,7 +37,7 @@ export default function HomePage() {
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <Link href="/sign-up" style={{ padding: '18px 48px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 3, cursor: 'pointer', textDecoration: 'none' }}>
-            START FREE — NO CARD NEEDED
+            START FREE TRIAL
           </Link>
           <Link href="/about" style={{ padding: '18px 32px', background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
             HOW IT WORKS
