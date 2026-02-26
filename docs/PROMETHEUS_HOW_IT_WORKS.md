@@ -2,131 +2,144 @@
 
 ## Overview
 
-Prometheus is Recruiterrr's TCPA intelligence tool. It scans any lead vendor domain or website and produces a scored compliance report — giving independent insurance agents documented due diligence before they purchase or use a single lead.
+Prometheus is Recruiterrr's FMO competitive intelligence engine. Enter any FMO or IMO name and Prometheus automatically discovers their website, crawls up to 9 pages, runs 5 targeted SERP searches, and returns a complete competitive briefing in under 60 seconds — including their carrier stack, incentive trips, lead program, recruiting pitch, weak points, and a custom counter-script written specifically to beat them.
 
-Every scan runs live. No cached data. The tool fetches current page content, queries external intelligence sources, and runs a full AI analysis in under 30 seconds.
+Every scan runs live. No cached data.
 
 ---
 
 ## The Pipeline
 
-### Step 1 — Domain Resolution
+### Step 1 — Website Discovery
 
-The submitted domain is normalized (strips `https://`, `www.`, trailing paths) and validated as reachable. The base URL is used for all subsequent fetches.
+If no URL is provided, Prometheus searches Google for the FMO's official website:
+
+- Query: `[FMO name] insurance FMO IMO official website`
+- Matches domain to FMO name
+- Falls back to first organic result if no clear match
+
+If a URL is provided directly, discovery is skipped.
 
 ---
 
-### Step 2 — Page Fetching
+### Step 2 — Multi-Page Crawl
 
-We attempt to retrieve three categories of pages directly:
+Prometheus attempts to crawl up to 9 page categories in parallel, trying multiple slug variations per category until one succeeds:
 
-**Homepage** (`/`)
-The primary page. We strip all scripts, styles, and HTML tags to extract visible text — what a consumer would actually read. Scanned for opt-in forms, consent language, disclaimer copy, and seller identification.
+| Category | Slugs Tried |
+|---|---|
+| Homepage | `/` |
+| About | `/about`, `/about-us`, `/our-story` |
+| Agents / Join | `/agents`, `/for-agents`, `/join`, `/join-us`, `/become-an-agent`, `/recruit` |
+| Carriers | `/carriers`, `/carrier-partners`, `/our-carriers` |
+| Trips / Incentives | `/trips`, `/incentives`, `/incentive-trips`, `/rewards` |
+| Leads | `/leads`, `/lead-program`, `/lead-generation` |
+| Technology | `/technology`, `/tech`, `/tools`, `/platform` |
+| Why Us | `/why-us`, `/why-join`, `/advantages` |
+| Contact | `/contact`, `/contact-us` |
 
-**Privacy Policy**
-We probe in order: `/privacy-policy`, `/privacy`, `/legal`, `/terms-of-service`, `/terms`. First successful fetch (200+ characters of text) is used. Scanned for telephone contact disclosures, data sharing language, and TCPA-specific provisions.
-
-**Lead Capture / Contact Pages**
-We probe in order: `/contact`, `/get-quote`, `/free-quote`, `/leads`, `/quote`, `/signup`, `/sign-up`, `/start`, `/apply`. First successful fetch is used. This is the most important page — where the actual opt-in form and consent language should live.
-
-> **Note on inaccessible pages:** Large enterprise sites (eHealth, GoHealth, SelectQuote, etc.) frequently block automated fetches via bot protection. This is NOT treated as a compliance failure. The vendor classification system (Step 4) accounts for this.
+Each page is fetched with an 8-second timeout and capped at 6,000 characters of extracted text. Scripts, styles, and HTML are stripped — only visible text content is passed to analysis.
 
 ---
 
 ### Step 3 — SERP Intelligence
 
-We run two targeted searches via SerpAPI to gather external reputation signals:
+5 targeted Google searches run in parallel to gather intelligence that may not appear on the FMO's own website:
 
-- `"[domain]" TCPA complaint lawsuit`
-- `"[company name]" lead generation complaint BBB`
+1. `[FMO name] incentive trip 2025 2026 destination`
+2. `[FMO name] carriers contracts appointments`
+3. `[FMO name] agent reviews complaints`
+4. `[FMO name] recruiting pitch why join`
+5. `[FMO name] news announcement`
 
-Results surface lawsuit history, class action filings, regulatory actions, BBB complaints, and any press coverage of TCPA-related issues. Snippets are compiled and passed directly to the AI analysis engine.
-
-This step catches risks that are invisible on the website itself — a vendor can have a clean homepage and a documented lawsuit history simultaneously.
+5 results per query, 6-second timeout. Title + snippet extracted for each result and passed to analysis.
 
 ---
 
-### Step 4 — Vendor Classification
+### Step 4 — AI Analysis (Claude Sonnet)
 
-Before scoring, Claude classifies the vendor into one of four tiers based on all available signals — domain name, SERP results, company reputation, age, and page content:
+All crawled page text and SERP intelligence — up to 18,000 characters total — is sent to Claude Sonnet with a structured competitive intelligence prompt. The model is instructed to be specific (name actual carriers, destinations, dollar amounts) and to return "unknown" rather than fabricate when data is insufficient.
 
-| Tier | Description | Page Inaccessibility Treatment |
+The analysis produces a structured JSON report across 6 sections:
+
+---
+
+## The Briefing
+
+### Section 1 — What They Offer
+- Carrier stack (array of named carriers)
+- Contract highlights (street-level vs. high contracts, ownership language)
+- Lead program details (cost, quality, exclusivity)
+- Technology stack (CRM, quoting tools, apps)
+- Training and onboarding
+- Marketing support
+
+### Section 2 — Incentive Trips
+- Current trip destination (2025/2026)
+- Past trip history
+- Qualification thresholds (production requirements)
+- Trip intel summary
+
+### Section 3 — Their Pitch
+- Headline claim (what they lead with)
+- Key selling points
+- Target agent type
+- Claimed differentiators
+
+### Section 4 — Weak Points
+- Agent complaints and negative reviews
+- Gaps in their offer
+- Red flags — contract ownership issues, captive language, release problems
+- Areas where they are vulnerable
+
+### Section 5 — Competitive Intel
+- Tree affiliation — Integrity / AmeriLife / SMS (if determinable)
+- Recent changes or announcements
+- Market position and size signal (LARGE / MID-SIZE / SMALL)
+
+### Section 6 — Your Counter
+- Opening line for recruiting calls
+- 3–5 specific angles based on their weak points
+- Trip angle (how to use their trip against them)
+- Carrier angle (gaps in their stack you can fill)
+- Close
+
+---
+
+## Confidence Scoring
+
+Every briefing returns a confidence level:
+
+| Level | Score Stored | Meaning |
 |---|---|---|
-| **ENTERPRISE** | Publicly traded, nationally recognized, 10+ years, dedicated compliance teams. Examples: eHealth, GoHealth, SelectQuote, EverQuote, MediaAlpha | Bot protection assumed — NOT a penalty. Score business model risk only. |
-| **ESTABLISHED** | Known regional or niche brand, 3+ years operating, clear web presence, no significant complaint history | Neutral — not penalized |
-| **UNKNOWN** | Little reputation data, newer or unrecognizable domain, limited SERP presence | Moderate penalty applied |
-| **SUSPICIOUS** | Active recent complaints, very new domain, multiple BBB issues, pages inaccessible with no reputation data | Significant penalty applied |
+| HIGH | 90 | Strong crawl + SERP data. Multiple pages retrieved, trips and carriers confirmed. |
+| MEDIUM | 60 | Partial data. Some pages blocked or sparse. Key fields confirmed but gaps exist. |
+| LOW | 30 | Minimal data. Website blocked, sparse content, or very small FMO with little web presence. |
 
-This classification prevents a legitimate enterprise vendor from being scored identically to an unknown fly-by-night operation just because both blocked the scraper.
-
----
-
-### Step 5 — TCPA Analysis (Claude Sonnet)
-
-All collected data — page text, SERP intelligence, and vendor tier — is sent to Claude Sonnet for analysis against 7 TCPA compliance criteria:
-
-| # | Check | Max Points | Notes |
-|---|---|---|---|
-| 1 | Prior Express Written Consent (PEWC) | +30 | The single most critical requirement. Explicit consent language near the submit button. |
-| 2 | Seller Identification | +15 | The specific company or agent who will call must be named. "A licensed agent" is not sufficient. |
-| 3 | Contact Method Disclosure | +15 | Calls, texts, autodialer, prerecorded messages must be explicitly stated. |
-| 4 | Clear & Conspicuous Placement | +15 | Disclaimer must be visible near the submit button — not buried in a footer. |
-| 5 | Privacy Policy Present | +10 | Must exist, be accessible, and address telephone contact and data sharing. |
-| 6 | Shared Lead Warning | -15 | PENALTY if confirmed. Multi-buyer model violates 2024 FCC one-to-one consent ruling. |
-| 7 | Opt-Out Language | +5 | Clear STOP/unsubscribe instructions. |
-
-Each check returns `true` (PASS), `false` (FAIL), or `null` (UNCLEAR — used when pages are inaccessible and no external signal confirms a result). Only marks FAIL when there is actual evidence of failure.
+A confidence note explains exactly what data was and wasn't available.
 
 ---
 
-### Step 6 — Scoring
+## Data Storage
 
-The raw point total from the 7 checks is combined with vendor tier and SERP intelligence to produce a final confidence score (0–100):
+Scans are saved to the `prometheus_scans` table in Supabase:
 
-| Score | Verdict | Meaning |
-|---|---|---|
-| 75–100 | **COMPLIANT** | Solid disclaimer language, PEWC present, seller named, clean reputation. Safe to use with standard diligence. |
-| 45–74 | **REVIEW NEEDED** | Some elements present but gaps exist. Request compliance documentation before scaling. |
-| 0–44 | **HIGH RISK** | Critical elements missing or confirmed red flags. Do not use until issues are resolved. |
-
-**Scoring by vendor tier when pages are inaccessible:**
-- ENTERPRISE shared marketplace → 45–60 (REVIEW NEEDED — structural risk, not rogue)
-- ENTERPRISE with exclusive lead product → 65–80
-- ENTERPRISE with active recent litigation → -15 to -20 points
-- ESTABLISHED, no complaints → 40–60
-- UNKNOWN, inaccessible → 20–40
-- SUSPICIOUS → 5–25 regardless of accessibility
-
-A score of 0 is reserved for zero available data of any kind. SERP intel alone is sufficient to produce a meaningful score.
-
----
-
-### Step 7 — Report Generation
-
-Claude generates three components alongside the scored findings:
-
-**Recommendations** — Prioritized CRITICAL / HIGH / MEDIUM actions tailored to the specific vendor and findings. Not generic advice — specific to what was found or missing.
-
-**Ready-To-Use Language** — Three pieces of copy the agent can use immediately:
-- A complete TCPA-compliant disclaimer they can send to their vendor or use on their own lead form
-- A vendor demand paragraph — professional language requesting specific compliance fixes before continuing to purchase leads
-- A single opt-out disclosure line for outbound communications
-
----
-
-### Step 8 — Save & History
-
-Every completed scan is saved to the `prometheus_scans` table in Supabase, linked to the user's Clerk ID. Scans are accessible from the main dashboard and can be reloaded at any time via `?id=[scan_id]` on the Prometheus tool page.
-
----
-
-## Data Sources
-
-| Source | What We Pull |
+| Field | Value |
 |---|---|
-| Target website (direct fetch) | Homepage, privacy policy, lead capture page text |
-| Google Search (SerpAPI) | TCPA complaints, lawsuits, BBB issues, reputation signals |
-| Claude Sonnet (Anthropic) | Vendor classification, 7-check analysis, score, recommendations, generated language |
+| `domain` | FMO name as entered |
+| `score` | Confidence mapping (HIGH=90, MEDIUM=60, LOW=30) |
+| `verdict` | Size signal (LARGE / MID-SIZE / SMALL / UNKNOWN) |
+| `vendor_tier` | Tree affiliation if detected |
+| `analysis_json` | Full structured briefing |
+
+Scans are accessible from the dashboard and reloadable via `?id=[scan_id]`.
+
+---
+
+## Rate Limits
+
+- 20 scans per hour per user (Upstash Redis)
+- CSRF protection via origin header check
 
 ---
 
@@ -134,26 +147,24 @@ Every completed scan is saved to the `prometheus_scans` table in Supabase, linke
 
 | Component | Approx. Cost |
 |---|---|
-| SerpAPI (2 Google searches) | ~$0.005 |
-| Direct page fetches (3 pages) | Free |
-| Claude Sonnet (analysis + report generation) | ~$0.03–0.06 |
-| **Total per scan** | **~$0.04–0.07** |
+| SerpAPI (5 Google searches) | ~$0.013 |
+| Direct page fetches (up to 9 pages) | Free |
+| Claude Sonnet (analysis) | ~$0.08–0.15 |
+| **Total per scan** | **~$0.10–0.17** |
 
 ---
 
 ## What Prometheus Is Not
 
-- **Not a legal opinion.** Scores and findings are informational due diligence tools. They do not constitute legal advice and do not guarantee protection from TCPA liability.
-- **Not a complete compliance solution.** True TCPA compliance requires reviewing actual consent records, lead capture flow, and data chain — not just the public website. Consult a qualified telecommunications attorney for legal decisions.
-- **Not real-time consent verification.** We analyze what is publicly visible today. A vendor can change their forms at any time.
-
-The value is documented due diligence — evidence that you made a reasonable, informed effort to vet your vendor before the first dial.
+- **Not a guarantee.** FMOs can change their offer, trips, and carriers at any time. Treat every briefing as a starting point for your own conversation — not a final source of truth.
+- **Not legal advice.** Contract language analysis is for recruiting intelligence only.
+- **Not real-time.** SERP results reflect what's currently indexed. Recent announcements may take days to surface.
 
 ---
 
 ## What's Not Included Yet
 
-- **PDF report export** — Downloadable, branded compliance report. Planned for the paid tier.
-- **Scan history search and filtering** — Search past scans by domain, verdict, or date range.
-- **Vendor watchlist** — Re-scan saved vendors automatically on a schedule.
-- **Consent record verification** — Direct integration with lead vendor APIs to verify individual consent records.
+- PDF export of the full briefing
+- FMO watchlist (re-scan saved FMOs on a schedule)
+- Scan history search and filtering
+- Direct comparison view (two FMOs side by side)

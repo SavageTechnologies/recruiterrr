@@ -2,15 +2,17 @@
 
 ## Overview
 
-Recruiterrr is a real-time agent intelligence platform. Every search runs live — no stale databases, no cached lists. When you enter a city and state, the platform fires a full research pipeline and returns a ranked list of insurance agents scored by recruitability within 30–90 seconds.
+Recruiterrr is a real-time agent intelligence platform for FMOs, IMOs, and insurance recruiters. Every search runs live — no stale databases, no cached lists. Enter a city and state and the platform fires a full research pipeline, returning a ranked list of insurance agents scored by recruitability within 30–90 seconds.
+
+The platform also includes two intelligence modules — **Prometheus** and **ANATHEMA** — that give recruiters competitive and strategic intelligence beyond raw agent lists.
 
 ---
 
-## The Pipeline
+## The Agent Search Pipeline
 
 ### Step 1 — Google Local Queries
 
-We fire 3–8 parallel search queries against Google's local business listings for your target market. The number of queries scales automatically with your selected result limit:
+We fire 3–8 parallel search queries against Google's local business listings for your target market. The number scales automatically with your selected result limit:
 
 - `Medicare insurance agent {city} {state}` — always
 - `health insurance agent {city} {state}` — always
@@ -58,14 +60,13 @@ We search YouTube for each agent by name and market. A channel with Medicare or 
 - They are tech-forward and comfortable with modern distribution
 - They have an active audience and established book of business
 
-Agents with a detected channel receive a YOUTUBE badge linking directly to the channel.
-YouTube detection only runs for agents with 50+ reviews or a website — low-signal leads are skipped to conserve API credits.
+Agents with a detected channel receive a YOUTUBE badge. YouTube detection only runs for agents with 50+ reviews or a website — low-signal leads are skipped to conserve API credits.
 
 ---
 
 ### Step 5 — AI Scoring
 
-Every agent is scored 0–100 by Claude Haiku (Anthropic), which analyzes all collected signals in a single pass:
+Every agent is scored 0–100 by Claude Haiku (Anthropic), analyzing all collected signals in a single pass:
 
 | Signal | Impact |
 |---|---|
@@ -79,15 +80,15 @@ Every agent is scored 0–100 by Claude Haiku (Anthropic), which analyzes all co
 | Captive branding (State Farm, Bankers Life, Allstate, etc.) | Strong negative |
 
 Score thresholds:
-- HOT (75–100) — Independent, established, multi-carrier. Call first.
-- WARM (50–74) — Worth a conversation, less certain on independence.
-- COLD (0–49) — Likely captive, inactive, or not a fit. Skip.
+- **HOT (75–100)** — Independent, established, multi-carrier. Call first.
+- **WARM (50–74)** — Worth a conversation, less certain on independence.
+- **COLD (0–49)** — Likely captive, inactive, or not a fit. Skip.
 
 ---
 
 ### Step 6 — Sort, Display, Save
 
-Results are sorted by score (highest first). Every search is automatically saved to your dashboard history. Past searches reload instantly without re-running the pipeline.
+Results are sorted by score (highest first). Every search is saved to dashboard history. Past searches reload instantly without re-running the pipeline.
 
 ---
 
@@ -112,22 +113,21 @@ Results are sorted by score (highest first). Every search is automatically saved
 | 30 agents | ~$0.40–0.65 |
 | 50 agents | ~$0.60–1.00 |
 
-Costs: SerpAPI (local + jobs + YouTube calls) and Anthropic (Haiku per agent). Website crawls are free direct fetches.
+---
+
+## Intelligence Modules
+
+**Prometheus — FMO Competitive Intelligence**
+Enter any FMO or IMO name. Prometheus crawls their website, runs SERP intelligence, extracts carrier stack, trip destinations, lead program, and recruiting pitch — then generates a custom counter-script. See `PROMETHEUS_HOW_IT_WORKS.md`.
+
+**ANATHEMA — Distribution Tree Analysis**
+Enter any agent website or name. ANATHEMA predicts which major consolidation tree (Integrity, AmeriLife, SMS) the agent belongs to, and how deeply embedded they are (Stage I–IV). See `ANATHEMA_HOW_IT_WORKS.md`.
 
 ---
 
 ## What's Not Included Yet
 
-- **NIPR license database** — Real-time license status, lines of authority, carrier appointments by state. Requires subscriber agreement. Planned Phase 2.
-- **CSV export** — Coming soon.
-- **CRM sync** — HubSpot, Salesforce. On the roadmap.
-- **Email / direct dial enrichment** — Not currently included.
-
----
-
-## See Also
-
-**Prometheus — TCPA Intelligence**
-Before you call the agents you find, make sure the leads you're buying are legally clean. Prometheus scans lead vendor domains for TCPA compliance and scores them across 7 criteria.
-
-See `PROMETHEUS_HOW_IT_WORKS.md` for full details.
+- NIPR license database — planned Phase 2
+- CSV export — coming soon
+- CRM sync (HubSpot, Salesforce) — roadmap
+- Email / direct dial enrichment — not currently included

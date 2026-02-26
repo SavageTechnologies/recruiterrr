@@ -4,8 +4,6 @@
 
 Find, score, and recruit independent life, health, Medicare, and senior insurance agents in any US market. Every search runs live — no stale lists, no cached data.
 
-Includes **Prometheus** — TCPA intelligence tool for vetting lead vendors and documenting compliance due diligence before the first dial.
-
 **Production:** [recruiterrr.com](https://recruiterrr.com)
 **Owner:** InsuraSafe, LLC
 
@@ -13,11 +11,14 @@ Includes **Prometheus** — TCPA intelligence tool for vetting lead vendors and 
 
 ## What It Does
 
-**Agent Search**
-Enter a city and state. The platform fires parallel Google local queries, crawls agent websites, checks job postings, scans YouTube, and runs every agent through an AI scoring model. Results come back ranked HOT / WARM / COLD within 30–90 seconds.
+### Agent Search
+Enter a city and state. The platform fires parallel Google local queries, crawls agent websites, checks job postings, scans YouTube, and runs every agent through an AI scoring model. Results come back ranked HOT / WARM / COLD within 30–90 seconds. Every agent gets a 0–100 recruitability score based on independence signals, review count, carrier mix, hiring activity, and content presence.
 
-**Prometheus — TCPA Intelligence**
-Enter any lead vendor domain or your own website. The tool fetches public pages, runs SERP intelligence queries for complaints and lawsuits, classifies the vendor by tier (ENTERPRISE / ESTABLISHED / UNKNOWN / SUSPICIOUS), and scores TCPA compliance across 7 criteria. Returns a confidence score, detailed findings, prioritized recommendations, and ready-to-use compliant language — all in under 30 seconds.
+### Prometheus — FMO Competitive Intelligence
+Enter any FMO or IMO name. Prometheus auto-discovers their website, crawls up to 9 pages in parallel, runs 5 SERP intelligence queries, and returns a full competitive briefing in under 60 seconds: carrier stack, incentive trips, lead program, recruiting pitch, weak points, and a custom counter-script written specifically to beat them. The tool that turns every recruiting call into a prepared conversation.
+
+### ANATHEMA — Distribution Tree Analysis
+Enter any agent's website or name. ANATHEMA analyzes behavioral signals, carrier language, social footprint, and SERP data to predict which of the three major consolidation trees — Integrity Marketing Group, AmeriLife, or Senior Market Sales — the agent belongs to. Returns a predicted strain (tree), infection stage (I–IV), and confidence score. Changes how you approach every recruiting conversation.
 
 ---
 
@@ -25,221 +26,104 @@ Enter any lead vendor domain or your own website. The tool fetches public pages,
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 16.1.6 (App Router, Turbopack) |
+| Framework | Next.js 15 (App Router, Turbopack) |
 | Language | TypeScript |
 | Auth | Clerk v6 |
 | Database | Supabase (PostgreSQL) |
-| Rate limiting | Upstash Redis — 10 searches/hour per user |
+| Rate limiting | Upstash Redis |
 | Search data | SerpAPI (google_local, google_jobs, youtube, google engines) |
-| AI scoring | Anthropic Claude Haiku (agent search), Claude Sonnet (Prometheus) |
-| Email | Resend (installed, not yet wired) |
+| AI scoring | Anthropic Claude Haiku (agent search), Claude Sonnet (Prometheus + ANATHEMA) |
+| Email | Resend |
 | Hosting | Vercel |
 | Fonts | Bebas Neue, DM Mono, DM Sans (Google Fonts) |
+
+---
+
+## Environment Variables
+
+```
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SERP_API_KEY=
+ANTHROPIC_API_KEY=
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+RESEND_API_KEY=
+```
 
 ---
 
 ## Project Structure
 
 ```
-recruiterrr/
-├── app/
-│   ├── page.tsx                          # Homepage (public)
-│   ├── layout.tsx                        # Root layout — ClerkProvider, favicon, metadata
-│   ├── globals.css                       # CSS variables, base styles
-│   ├── prometheus/page.tsx               # Prometheus public marketing page
-│   ├── about/page.tsx
-│   ├── faq/page.tsx
-│   ├── wall/page.tsx
-│   ├── socials/page.tsx
-│   ├── roadmap/page.tsx
-│   ├── contact/page.tsx
-│   ├── team/page.tsx
-│   ├── privacy/page.tsx
-│   ├── terms/page.tsx
-│   ├── sign-in/[[...sign-in]]/page.tsx  # Custom Clerk sign-in page
-│   ├── sign-up/[[...sign-up]]/page.tsx  # Custom Clerk sign-up — invite code gated
-│   ├── dashboard/
-│   │   ├── layout.tsx                   # Dashboard shell — nav with Search + Prometheus
-│   │   ├── page.tsx                     # Stats, US map, search history, Prometheus scan history
-│   │   ├── search/page.tsx             # Main agent search UI with agent cards
-│   │   └── prometheus/page.tsx         # Prometheus TCPA scanner tool
-│   └── api/
-│       ├── search/route.ts              # POST — full agent search + enrichment pipeline
-│       ├── searches/route.ts            # GET — fetch saved search by ID
-│       ├── prometheus/route.ts          # GET (history/by ID) + POST (run scan)
-│       ├── verify-invite/route.ts       # POST — server-side invite code verification
-│       └── webhook/clerk/route.ts       # Clerk webhook → syncs users to Supabase
-├── components/
-│   ├── PageNav.tsx                      # Shared nav for all public pages
-│   ├── PageFooter.tsx                   # Shared footer with all page links
-│   ├── SearchRow.tsx                    # Client component for search history rows
-│   └── USMap.tsx                        # US coverage map (react-simple-maps)
-├── docs/
-│   ├── HOW_IT_WORKS.md                  # Agent search pipeline — full details
-│   ├── PROMETHEUS_HOW_IT_WORKS.md       # Prometheus TCPA pipeline — full details
-│   └── SECURITY_TODO.md                 # Security audit reference
-├── lib/
-│   └── supabase.server.ts               # Centralized Supabase client (server-only)
-├── public/
-│   └── favicon.svg
-├── types/
-│   └── react-simple-maps.d.ts
-└── proxy.ts                             # Clerk middleware
+app/
+  page.tsx                    — Home / marketing page
+  dashboard/
+    page.tsx                  — Main dashboard (agent search history + module overview)
+    prometheus/page.tsx       — Prometheus FMO intel tool
+    anathema/page.tsx         — ANATHEMA distribution tree tool
+  api/
+    search/route.ts           — Agent search pipeline
+    prometheus/route.ts       — Prometheus intel pipeline
+    anathema/route.ts         — ANATHEMA analysis pipeline
+  prometheus/page.tsx         — Prometheus marketing/landing page
+  anathema/page.tsx           — ANATHEMA marketing/landing page
+  pricing/page.tsx            — Pricing tiers
+  roadmap/page.tsx            — Public roadmap
+
+components/
+  HomeNav.tsx                 — Public navigation
+  DashNav.tsx                 — Dashboard navigation
+  AgentCard.tsx               — Search result agent card
+  PrometheusScansTable.tsx    — Dashboard Prometheus scan history
+  AnathemaScansTable.tsx      — Dashboard ANATHEMA specimen history
+  XenoEgg.tsx                 — Easter egg (you'll know it when you find it)
+  PageFooter.tsx              — Site footer
+
+docs/
+  HOW_IT_WORKS.md             — Agent search pipeline documentation
+  PROMETHEUS_HOW_IT_WORKS.md  — Prometheus pipeline documentation
+  ANATHEMA_HOW_IT_WORKS.md    — ANATHEMA pipeline documentation
+  BILLING_PERMISSIONS_SCAFFOLDING.md
 ```
 
 ---
 
-## Environment Variables
+## Intelligence Module Summary
 
-Create `.env.local` at the project root. All of these are required:
-
-```env
-# Clerk
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
-CLERK_WEBHOOK_SECRET=
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
-
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
-
-# Upstash Redis
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-
-# SerpAPI
-SERPAPI_KEY=
-
-# Anthropic
-ANTHROPIC_API_KEY=
-
-# Invite gate (controls who can sign up — server-side only, no NEXT_PUBLIC prefix)
-INVITE_CODE=
-```
+| Module | Input | Output | Model | Cost/Scan |
+|---|---|---|---|---|
+| Agent Search | City + State | Ranked agent list (HOT/WARM/COLD) | Claude Haiku | ~$0.15–1.00 |
+| Prometheus | FMO/IMO name | Competitive briefing + counter-script | Claude Sonnet | ~$0.10–0.17 |
+| ANATHEMA | Agent URL/name | Tree prediction + stage (I–IV) | Claude Sonnet | ~$0.05–0.09 |
 
 ---
 
-## Supabase Schema
+## Docs
 
-```sql
--- Users table (synced from Clerk via webhook)
-create table users (
-  id uuid primary key default gen_random_uuid(),
-  clerk_id text unique not null,
-  email text,
-  first_name text,
-  last_name text,
-  created_at timestamptz default now()
-);
-
--- Searches table (saved on every agent search run)
-create table searches (
-  id uuid primary key default gen_random_uuid(),
-  clerk_id text not null,
-  city text not null,
-  state text not null,
-  results_count integer default 0,
-  hot_count integer default 0,
-  warm_count integer default 0,
-  cold_count integer default 0,
-  agents_json jsonb default '[]',
-  created_at timestamptz default now()
-);
-
--- Prometheus scans table (saved on every TCPA scan)
-create table prometheus_scans (
-  id uuid primary key default gen_random_uuid(),
-  clerk_id text not null,
-  domain text not null,
-  score integer,
-  verdict text,
-  vendor_tier text default 'UNKNOWN',
-  is_shared_lead boolean default false,
-  pages_scanned text[] default '{}',
-  analysis_json jsonb,
-  created_at timestamptz default now()
-);
-```
+- [How Agent Search Works](docs/HOW_IT_WORKS.md)
+- [How Prometheus Works](docs/PROMETHEUS_HOW_IT_WORKS.md)
+- [How ANATHEMA Works](docs/ANATHEMA_HOW_IT_WORKS.md)
 
 ---
 
-## Pipelines (Brief)
+## Roadmap Highlights
 
-### Agent Search
-1. **Google Local** — 3–8 parallel queries via SerpAPI, deduplicated
-2. **Website crawl** — direct fetch, stripped to text, carrier/independence detection
-3. **Google Jobs** — checks for active hiring (HIRING badge + score boost)
-4. **YouTube** — detects agent channels with insurance content (YOUTUBE badge)
-5. **Claude Haiku** — scores every agent 0–100, returns HOT/WARM/COLD + notes
-6. **Save** — results stored in Supabase, accessible from dashboard history
+**Live:**
+- Agent search with AI scoring
+- Prometheus FMO competitive intelligence
+- ANATHEMA distribution tree prediction
+- Dashboard with scan history for both modules
+- Pricing tiers (Free / Operator / Enterprise)
 
-See `docs/HOW_IT_WORKS.md` for full pipeline details.
-
-### Prometheus — TCPA Intelligence
-1. **Domain fetch** — homepage, privacy policy, lead capture pages
-2. **SERP intelligence** — complaint databases, lawsuit records, BBB signals
-3. **Vendor classification** — ENTERPRISE / ESTABLISHED / UNKNOWN / SUSPICIOUS
-4. **Claude Sonnet** — 7-check TCPA analysis, confidence score 0–100, recommendations
-5. **Generated language** — ready-to-use TCPA disclaimer, vendor demand letter, opt-out line
-6. **Save** — scan saved to Supabase, accessible from dashboard history
-
-See `docs/PROMETHEUS_HOW_IT_WORKS.md` for full pipeline details.
-
----
-
-## Rate Limiting
-
-- Agent search: 10 searches per user per hour (sliding window via Upstash)
-- Prometheus scans: 10 scans per user per hour (sliding window via Upstash)
-
----
-
-## Auth & Access Control
-
-- All `/dashboard/*` routes protected by Clerk middleware (`proxy.ts`)
-- Sign-up is invite-code gated — verified server-side via `/api/verify-invite`
-- Clerk custom pages at `/sign-in` and `/sign-up` with full site branding
-
----
-
-## Security
-
-Security hardening completed February 2026. Current state:
-
-- CSRF origin check on all POST endpoints (`/api/search`, `/api/prometheus`)
-- SSRF protection on all external URL fetches (blocked hosts, private IP ranges, 500KB size cap)
-- Supabase service role key centralized behind `server-only` (`lib/supabase.server.ts`)
-- Invite code moved server-side — no longer exposed in client bundle
-- Clerk webhook svix signature verification on every request
-- Webhook replay protection via Upstash Redis (30-minute dedup window)
-- `user.deleted` webhook handler cleans up Supabase records
-- Rate limiting on all AI routes — 10 requests/hour per user
-- Security headers on all routes (X-Frame-Options, HSTS, nosniff, Referrer-Policy)
-- Generic error responses — no internal errors or stack traces leaked to client
-
-**Still required (manual):**
-- Run RLS audit SQL on `searches` and `users` tables in Supabase
-- Set $50/month spend alerts in Anthropic and SerpAPI dashboards
-
----
-
-## Local Development
-
-```bash
-npm install
-cp .env.local.example .env.local   # fill in your keys
-npm run dev
-```
-
-App runs at `http://localhost:3000`.
-
----
-
-## Deployment
-
-Deployed on Vercel. Push to `main` triggers production deploy automatically.
-All env vars must be set in Vercel → Settings → Environment Variables.
+**Coming:**
+- Prometheus PDF export
+- FMO watchlist (scheduled re-scans)
+- ANATHEMA accuracy reporting
+- Predictive recruiting score (search score + ANATHEMA stage combined)
+- CSV export
+- CRM sync (HubSpot, Salesforce)
+- NIPR license database integration
