@@ -153,7 +153,7 @@ function extractEmails(text: string): string[] {
   ).slice(0, 3)
 }
 
-// Extract social links from HTML
+// Extract social links from HTML (excludes YouTube — handled separately)
 function extractSocialLinks(html: string): string[] {
   const links: string[] = []
   const socialPatterns = [
@@ -174,17 +174,33 @@ function extractSocialLinks(html: string): string[] {
   return links.slice(0, 4)
 }
 
+// Extract the agent's own YouTube channel link from their website HTML.
+// A link on their own site is the highest-confidence signal we have.
+function extractYouTubeLink(html: string): string | null {
+  // Match channel URLs: /channel/ID, /@handle, /c/name, /user/name
+  const pattern = /https?:\/\/(?:www\.)?youtube\.com\/(channel\/[A-Za-z0-9_-]+|@[A-Za-z0-9_.-]+|c\/[A-Za-z0-9_-]+|user\/[A-Za-z0-9_-]+)/g
+  const matches = html.match(pattern) || []
+  for (const m of matches) {
+    const clean = m.replace(/['">,]+$/, '')
+    // Skip YouTube's own embed/share infrastructure links
+    if (clean.includes('/embed') || clean.includes('youtube.com/t/') || clean.includes('youtube.com/about')) continue
+    return clean
+  }
+  return null
+}
+
 type WebsiteIntel = {
   homeText: string
   aboutText: string
   contactText: string
   email: string | null
   socialLinks: string[]
+  youtubeLink: string | null  // extracted directly from their website — highest confidence
   fullText: string // combined for Claude scoring
 }
 
 async function fetchWebsiteText(rawUrl: string): Promise<WebsiteIntel> {
-  const empty: WebsiteIntel = { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], fullText: '' }
+  const empty: WebsiteIntel = { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], youtubeLink: null, fullText: '' }
   try {
     const parsed = new URL(rawUrl)
     if (!['http:', 'https:'].includes(parsed.protocol)) return empty
@@ -242,7 +258,8 @@ async function fetchWebsiteText(rawUrl: string): Promise<WebsiteIntel> {
       contactText ? `CONTACT PAGE: ${contactText}` : '',
     ].filter(Boolean).join('\n\n').slice(0, 6000)
 
-    return { homeText, aboutText, contactText, email, socialLinks, fullText }
+    const youtubeLink = extractYouTubeLink(homeHtml)
+    return { homeText, aboutText, contactText, email, socialLinks, youtubeLink, fullText }
   } catch { return empty }
 }
 
@@ -461,9 +478,20 @@ export async function POST(req: NextRequest) {
     const top = rawAgents.slice(0, clampedLimit)
     const scored = await Promise.all(top.map(async (raw) => {
       const reviews = raw.reviews || 0
-      const intel = raw.website ? await fetchWebsiteText(raw.website) : { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], fullText: '' }
+      const intel = raw.website ? await fetchWebsiteText(raw.website) : { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], youtubeLink: null, fullText: '' }
       const jobData = await fetchJobPostings(raw.title, city, state)
-      const ytData = (reviews >= 50 || !!raw.website) ? await fetchYouTube(raw.title, city) : { channel: null, subscribers: null, videoCount: 0 }
+      // YouTube priority:
+      // 1. Link found on their own website — definitive, use it directly
+      // 2. SerpAPI name-match — only if no site link found AND name matches confidently
+      // 3. Nothing — don't show a YouTube badge at all rather than show wrong channel
+      let ytData: { channel: string | null; subscribers: string | null; videoCount: number }
+      if (intel.youtubeLink) {
+        ytData = { channel: intel.youtubeLink, subscribers: null, videoCount: 1 }
+      } else if (reviews >= 50 || !!raw.website) {
+        ytData = await fetchYouTube(raw.title, city)
+      } else {
+        ytData = { channel: null, subscribers: null, videoCount: 0 }
+      }
       return scoreAgent(raw, intel, jobData, ytData, mode)
     }))
 
