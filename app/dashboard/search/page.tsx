@@ -21,6 +21,35 @@ const MODES = [
 
 type CitySuggestion = { city: string; state: string; label: string }
 
+// Curated search terms — these produce clean, reliable SerpAPI results
+const SEARCH_TERMS = [
+  // Medicare / Senior
+  { term: 'Medicare supplement agent', category: 'Medicare' },
+  { term: 'Medicare advantage broker', category: 'Medicare' },
+  { term: 'Medicare insurance agent', category: 'Medicare' },
+  { term: 'Medigap broker', category: 'Medicare' },
+  { term: 'Senior health insurance agent', category: 'Medicare' },
+  { term: 'Medicare PDP agent', category: 'Medicare' },
+  // Final Expense / Life
+  { term: 'Final expense insurance agent', category: 'Life' },
+  { term: 'Life insurance agent', category: 'Life' },
+  { term: 'Term life insurance broker', category: 'Life' },
+  { term: 'Whole life insurance agent', category: 'Life' },
+  { term: 'Burial insurance agent', category: 'Life' },
+  { term: 'Independent life insurance broker', category: 'Life' },
+  // ACA / Health
+  { term: 'ACA marketplace broker', category: 'Health' },
+  { term: 'Health insurance agent', category: 'Health' },
+  { term: 'Marketplace insurance agent', category: 'Health' },
+  { term: 'Group health insurance broker', category: 'Health' },
+  { term: 'Small business health insurance broker', category: 'Health' },
+  // Independent / Multi-line
+  { term: 'Independent insurance agent', category: 'Independent' },
+  { term: 'Independent insurance broker', category: 'Independent' },
+  { term: 'Multi-line insurance agent', category: 'Independent' },
+  { term: 'Insurance agency', category: 'Independent' },
+]
+
 type Agent = {
   name: string; type: string; phone: string; address: string
   rating: number; reviews: number; website: string | null
@@ -170,6 +199,9 @@ function SearchPageInner() {
   const [searchLabel, setSearchLabel] = useState('')
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
+  const [querySuggestions, setQuerySuggestions] = useState<typeof SEARCH_TERMS>([])
+  const [showQuerySuggestions, setShowQuerySuggestions] = useState(false)
+  const queryRef = useRef<HTMLDivElement>(null)
   // City autocomplete
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -182,16 +214,39 @@ function SearchPageInner() {
     if (id) loadSavedSearch(id)
   }, [])
 
-  // Close city suggestions when clicking outside
+  // Close all suggestion dropdowns when clicking outside
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (acRef.current && !acRef.current.contains(e.target as Node)) {
         setShowSuggestions(false)
       }
+      if (queryRef.current && !queryRef.current.contains(e.target as Node)) {
+        setShowQuerySuggestions(false)
+      }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  function handleQueryChange(val: string) {
+    setQuery(val)
+    if (val.length === 0) {
+      setQuerySuggestions(SEARCH_TERMS.slice(0, 8))
+      setShowQuerySuggestions(true)
+      return
+    }
+    const lower = val.toLowerCase()
+    const filtered = SEARCH_TERMS.filter(t =>
+      t.term.toLowerCase().includes(lower) || t.category.toLowerCase().includes(lower)
+    )
+    setQuerySuggestions(filtered.slice(0, 8))
+    setShowQuerySuggestions(filtered.length > 0)
+  }
+
+  function selectQuerySuggestion(term: string) {
+    setQuery(term)
+    setShowQuerySuggestions(false)
+  }
 
   function handleCityChange(val: string) {
     setCity(val)
@@ -284,31 +339,54 @@ function SearchPageInner() {
         </h1>
       </div>
 
-      {/* Single search bar: [query] [mode] [city w/ autocomplete] [state] [limit] [SEARCH] */}
-      <div ref={acRef} style={{ position: 'relative', marginBottom: 12 }}>
-        <div style={{ display: 'flex', border: `1px solid ${loading ? 'var(--orange)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none' }}>
+      {/* Single search bar: [query w/ autocomplete] [mode] [city w/ autocomplete] [state] [limit] [SEARCH] */}
+      <div style={{ position: 'relative', marginBottom: 12, display: 'flex', gap: 0, border: `1px solid ${loading ? 'var(--orange)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none' }}>
 
-          {/* Free-text search — takes most of the space */}
+        {/* Query input with dropdown — takes the most space */}
+        <div ref={queryRef} style={{ flex: 1, minWidth: 0, position: 'relative' }}>
           <input
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && runSearch()}
-            placeholder="Search agents, agencies, specialties..."
+            onChange={e => handleQueryChange(e.target.value)}
+            onFocus={() => { setQuerySuggestions(query.length === 0 ? SEARCH_TERMS.slice(0, 8) : querySuggestions); setShowQuerySuggestions(true) }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { setShowQuerySuggestions(false); runSearch() }
+              if (e.key === 'Escape') setShowQuerySuggestions(false)
+            }}
+            placeholder="Search agents, specialties..."
             disabled={loading}
-            style={{ flex: 1, minWidth: 0, padding: '18px 24px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
+            autoComplete="off"
+            style={{ width: '100%', padding: '18px 24px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
           />
+          {showQuerySuggestions && querySuggestions.length > 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: -1, right: -1, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 300 }}>
+              {querySuggestions.map((s, i) => (
+                <div
+                  key={i}
+                  onMouseDown={() => selectQuerySuggestion(s.term)}
+                  style={{ padding: '11px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < querySuggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.term}</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>{s.category}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-          <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
+        <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
 
-          {/* Mode */}
-          <select value={mode} onChange={e => setMode(e.target.value)} disabled={loading}
-            style={{ width: 150, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0 }}>
-            {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
+        {/* Mode */}
+        <select value={mode} onChange={e => setMode(e.target.value)} disabled={loading}
+          style={{ width: 150, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0 }}>
+          {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+        </select>
 
-          <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
+        <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
 
-          {/* City — compact, with autocomplete dropdown anchored here */}
+        {/* City — compact with autocomplete */}
+        <div ref={acRef} style={{ position: 'relative', flexShrink: 0 }}>
           <input
             value={city}
             onChange={e => handleCityChange(e.target.value)}
@@ -320,58 +398,56 @@ function SearchPageInner() {
             placeholder="City"
             disabled={loading}
             autoComplete="off"
-            style={{ width: 140, flexShrink: 0, padding: '18px 14px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, letterSpacing: 1 }}
+            style={{ width: 130, padding: '18px 14px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, letterSpacing: 1 }}
           />
           {acLoading && (
-            <div style={{ display: 'flex', alignItems: 'center', paddingRight: 10, flexShrink: 0 }}>
+            <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}>
               <div style={{ width: 10, height: 10, border: '1px solid var(--border-light)', borderTopColor: 'var(--orange)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
             </div>
           )}
-
-          <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
-
-          {/* State */}
-          <select value={state} onChange={e => setState(e.target.value)} disabled={loading}
-            style={{ width: 72, padding: '18px 8px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, cursor: 'pointer', appearance: 'none', textAlign: 'center', flexShrink: 0 }}>
-            {STATES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-
-          <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
-
-          {/* Limit */}
-          <select value={limit} onChange={e => setLimit(Number(e.target.value))} disabled={loading}
-            style={{ width: 64, padding: '18px 8px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, cursor: 'pointer', appearance: 'none', textAlign: 'center', flexShrink: 0 }}>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={30}>30</option>
-            <option value={40}>40</option>
-            <option value={50}>50</option>
-          </select>
-
-          {/* Search button */}
-          <button onClick={() => runSearch()} disabled={loading || !city.trim()}
-            style={{ padding: '18px 32px', background: loading ? '#333' : 'var(--orange)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            {loading ? 'SCANNING...' : 'SEARCH'}
-          </button>
+          {showSuggestions && suggestions.length > 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: -1, width: 220, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 300 }}>
+              {suggestions.map((s, i) => (
+                <div
+                  key={i}
+                  onMouseDown={() => selectSuggestion(s)}
+                  style={{ padding: '11px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2 }}>{s.state}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* City autocomplete dropdown — anchored under the city input */}
-        {showSuggestions && suggestions.length > 0 && (
-          <div style={{ position: 'absolute', right: 0, width: 220, top: '100%', background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 200 }}>
-            {suggestions.map((s, i) => (
-              <div
-                key={i}
-                onMouseDown={() => selectSuggestion(s)}
-                style={{ padding: '11px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2 }}>{s.state}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
+
+        {/* State */}
+        <select value={state} onChange={e => setState(e.target.value)} disabled={loading}
+          style={{ width: 72, padding: '18px 8px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, cursor: 'pointer', appearance: 'none', textAlign: 'center', flexShrink: 0 }}>
+          {STATES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
+
+        {/* Limit */}
+        <select value={limit} onChange={e => setLimit(Number(e.target.value))} disabled={loading}
+          style={{ width: 64, padding: '18px 8px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, cursor: 'pointer', appearance: 'none', textAlign: 'center', flexShrink: 0 }}>
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={30}>30</option>
+          <option value={40}>40</option>
+          <option value={50}>50</option>
+        </select>
+
+        {/* Search button */}
+        <button onClick={() => runSearch()} disabled={loading || !city.trim()}
+          style={{ padding: '18px 32px', background: loading ? '#333' : 'var(--orange)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {loading ? 'SCANNING...' : 'SEARCH'}
+        </button>
       </div>
 
       {/* Result count hint */}
