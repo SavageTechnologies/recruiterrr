@@ -91,6 +91,40 @@ export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
+  // Try anathema_specimens first (logged observations from dashboard table)
+  const { data: specimen, error: specimenError } = await supabase
+    .from('anathema_specimens')
+    .select('*')
+    .eq('id', id)
+    .eq('clerk_id', userId)
+    .single()
+
+  if (specimen && !specimenError) {
+    // Reconstruct the scan shape the page expects
+    return NextResponse.json({
+      scan: {
+        id: specimen.id,
+        agent_name: specimen.agent_name,
+        url: specimen.agent_website,
+        city: specimen.city,
+        state: specimen.state,
+        confirmed_tree: specimen.confirmed_tree,
+        confirmed_tree_other: specimen.confirmed_tree_other,
+        sub_imo: specimen.confirmed_sub_imo,
+        recruiter_notes: specimen.recruiter_notes,
+        analysis_json: {
+          predicted_tree: specimen.predicted_tree || 'unknown',
+          confidence: specimen.predicted_confidence || 0,
+          signals_used: specimen.prediction_signals || [],
+          reasoning: specimen.prediction_reasoning || '',
+          facebook_profile_url: specimen.facebook_profile_url || null,
+          facebook_about: specimen.facebook_about || null,
+        },
+      }
+    })
+  }
+
+  // Fall back to anathema_scans table
   const { data, error } = await supabase
     .from('anathema_scans')
     .select('*')

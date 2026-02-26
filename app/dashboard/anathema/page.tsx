@@ -108,6 +108,7 @@ function AnathemaDashboardInner() {
         setState(s.state || '')
         if (s.analysis_json) setResult(s.analysis_json)
         if (s.confirmed_tree) setConfirmedTree(s.confirmed_tree)
+        if (s.confirmed_tree_other) setConfirmedOther(s.confirmed_tree_other)
         if (s.sub_imo) setSubImo(s.sub_imo)
         if (s.recruiter_notes) setRecruiterNotes(s.recruiter_notes)
         setSaveState('saved')
