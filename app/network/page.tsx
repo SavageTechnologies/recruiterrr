@@ -19,6 +19,14 @@ const NETWORKS = [
     count: 78,
     status: 'live',
   },
+  {
+    slug: 'sms',
+    name: 'Senior Market Sales',
+    url: 'seniormarketsales.com',
+    desc: 'Omaha-based national FMO and one of the top three distribution networks in the senior market. Strong in Medicare, life, and annuity across the midwest and beyond.',
+    count: 32,
+    status: 'live',
+  },
 ]
 
 export default function NetworkPage() {
