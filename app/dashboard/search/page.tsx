@@ -317,7 +317,7 @@ function SearchPageInner() {
         <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
-              {searchLabel} — Medicare Agents
+              {searchLabel} — {MODES.find(m => m.value === mode)?.label} Agents
             </div>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)' }}>

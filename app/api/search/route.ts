@@ -28,39 +28,59 @@ type AgentResult = {
 async function fetchAgentsFromSerp(city: string, state: string, limit: number, mode: string): Promise<any[]> {
   const base: string[] = []
 
+  // Mode controls WHAT type of agent we're looking for.
+  // We intentionally omit city/state from the query string because we enforce location
+  // via the SerpAPI `location` param below — mixing both causes Google to widen the
+  // search area or return national directory results instead of true local listings.
   if (mode === 'medicare' || mode === 'all') {
-    base.push(`Medicare insurance agent ${city} ${state}`)
-    base.push(`Medicare supplement agent ${city} ${state}`)
-    if (limit >= 20 || mode === 'all') base.push(`Medicare advantage broker ${city} ${state}`)
-    if (limit >= 30 || mode === 'all') base.push(`senior health insurance ${city} ${state}`)
+    base.push(`Medicare insurance agent`)
+    base.push(`Medicare supplement broker`)
+    if (limit >= 20 || mode === 'all') base.push(`Medicare advantage agent`)
+    if (limit >= 30 || mode === 'all') base.push(`senior health insurance agent`)
   }
   if (mode === 'life' || mode === 'all') {
-    base.push(`life insurance agent ${city} ${state}`)
-    base.push(`final expense insurance agent ${city} ${state}`)
-    if (limit >= 20 || mode === 'all') base.push(`term life insurance agent ${city} ${state}`)
+    base.push(`life insurance agent`)
+    base.push(`final expense insurance agent`)
+    if (limit >= 20 || mode === 'all') base.push(`term life insurance broker`)
   }
   if (mode === 'aca' || mode === 'all') {
-    base.push(`health insurance agent ${city} ${state}`)
-    base.push(`ACA insurance broker ${city} ${state}`)
-    if (limit >= 20 || mode === 'all') base.push(`marketplace insurance agent ${city} ${state}`)
+    base.push(`health insurance agent`)
+    base.push(`ACA marketplace broker`)
+    if (limit >= 20 || mode === 'all') base.push(`marketplace insurance agent`)
   }
   if (mode === 'all') {
-    base.push(`independent insurance agent ${city} ${state}`)
+    base.push(`independent insurance agent`)
   }
 
   // Scale up for larger limits
   const queries = limit >= 30 ? base : base.slice(0, Math.max(3, Math.ceil(base.length * 0.6)))
+
+  // SerpAPI google_local accepts a `location` string AND `q` separately.
+  // Passing city+state here pins the Google Maps local pack to that exact market.
+  // We also pass `hl=en` and `gl=us` to prevent locale drift on the API side.
+  const locationParam = encodeURIComponent(`${city}, ${state}`)
 
   const seen = new Set<string>()
   const results: any[] = []
 
   await Promise.all(queries.map(async (q) => {
     try {
-      const url = `https://serpapi.com/search.json?engine=google_local&q=${encodeURIComponent(q)}&api_key=${process.env.SERPAPI_KEY}`
+      const url = `https://serpapi.com/search.json?engine=google_local&q=${encodeURIComponent(q)}&location=${locationParam}&hl=en&gl=us&api_key=${process.env.SERPAPI_KEY}`
       const res = await fetch(url)
       if (!res.ok) return
       const data = await res.json()
       for (const item of (data.local_results || [])) {
+        // Post-fetch filter: drop results whose address clearly doesn't match the
+        // searched city/state. This catches edge cases where Google returns nearby
+        // market results even when a location param is set (e.g. national chains).
+        const addr = (item.address || '').toLowerCase()
+        const cityLower = city.toLowerCase()
+        const stateLower = state.toLowerCase()
+        const cityWords = cityLower.split(' ').filter((w: string) => w.length > 2)
+        const cityMatch = cityWords.some((w: string) => addr.includes(w))
+        const stateMatch = addr.includes(stateLower) || addr.includes(`, ${state.toLowerCase()}`)
+        if (!cityMatch && !stateMatch) return // skip results from wrong market
+
         const key = item.title + item.address
         if (!seen.has(key)) {
           seen.add(key)
@@ -134,26 +154,57 @@ async function fetchJobPostings(name: string, city: string, state: string): Prom
   } catch { return { hiring: false, roles: [] } }
 }
 
+// Tokenize a business name into meaningful words, stripping legal/generic suffixes
+function nameTokens(name: string): string[] {
+  const STOP = new Set(['insurance', 'agency', 'group', 'llc', 'inc', 'co', 'corp', 'the', 'and', 'of', 'a', 'an', 'broker', 'services', 'solutions', 'associates', 'financial', 'advisor', 'advisors'])
+  return name.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(t => t.length > 2 && !STOP.has(t))
+}
+
+// Returns true if candidate string shares enough meaningful tokens with the business name
+function nameMatchesChannel(businessName: string, candidate: string): boolean {
+  const bizTokens = nameTokens(businessName)
+  if (bizTokens.length === 0) return false
+  const candidateLower = candidate.toLowerCase()
+  const matchCount = bizTokens.filter(t => candidateLower.includes(t)).length
+  // Require at least half the meaningful tokens to match, and at least 1
+  return matchCount >= Math.max(1, Math.ceil(bizTokens.length * 0.5))
+}
+
 async function fetchYouTube(name: string, city: string): Promise<{ channel: string | null; subscribers: string | null; videoCount: number }> {
   try {
-    const q = `${name} Medicare insurance ${city}`
-    const url = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(q)}&api_key=${process.env.SERPAPI_KEY}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
-    if (!res.ok) return { channel: null, subscribers: null, videoCount: 0 }
-    const data = await res.json()
-    const nameLower = name.toLowerCase().split(' ')[0]
+    // Search by the business name directly — not by topic — to find THEIR channel
+    const channelSearchUrl = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(name + ' insurance')}&api_key=${process.env.SERPAPI_KEY}`
+    const channelRes = await fetch(channelSearchUrl, { signal: AbortSignal.timeout(6000) })
+    if (!channelRes.ok) return { channel: null, subscribers: null, videoCount: 0 }
+    const channelData = await channelRes.json()
 
-    const matchedChannel = (data.channel_results || []).find((c: any) =>
-      c.title?.toLowerCase().includes(nameLower) ||
-      c.description?.toLowerCase().includes('medicare') ||
-      c.description?.toLowerCase().includes('insurance')
+    // Check channel_results first — these are actual YouTube channels.
+    // STRICT: the channel title must match the business name, not just the topic.
+    const matchedChannel = (channelData.channel_results || []).find((c: any) =>
+      nameMatchesChannel(name, c.title || '')
     )
-    if (matchedChannel) return { channel: matchedChannel.link, subscribers: matchedChannel.subscribers || null, videoCount: 1 }
+    if (matchedChannel) {
+      return {
+        channel: matchedChannel.link,
+        subscribers: matchedChannel.subscribers || null,
+        videoCount: 1,
+      }
+    }
 
-    const matchedVideos = (data.video_results || []).filter((v: any) =>
-      v.channel?.name?.toLowerCase().includes(nameLower)
+    // Fallback: check video_results, but only accept if the uploading channel's name
+    // matches the business — prevents attributing a random Medicare educator's channel.
+    const matchedVideo = (channelData.video_results || []).find((v: any) =>
+      nameMatchesChannel(name, v.channel?.name || '')
     )
-    if (matchedVideos.length > 0) return { channel: matchedVideos[0].channel?.link || null, subscribers: null, videoCount: matchedVideos.length }
+    if (matchedVideo?.channel?.link) {
+      return {
+        channel: matchedVideo.channel.link,
+        subscribers: null,
+        videoCount: (channelData.video_results || []).filter((v: any) =>
+          v.channel?.link === matchedVideo.channel.link
+        ).length,
+      }
+    }
 
     return { channel: null, subscribers: null, videoCount: 0 }
   } catch { return { channel: null, subscribers: null, videoCount: 0 } }
