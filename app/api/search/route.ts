@@ -23,6 +23,7 @@ type AgentResult = {
   flag: 'hot' | 'warm' | 'cold'; notes: string; years: number | null
   hiring: boolean; hiring_roles: string[]
   youtube_channel: string | null; youtube_subscribers: string | null; youtube_video_count: number
+  about: string | null; contact_email: string | null; social_links: string[]
 }
 
 async function fetchAgentsFromSerp(city: string, state: string, limit: number, mode: string): Promise<any[]> {
@@ -94,17 +95,12 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
   return results
 }
 
-async function fetchWebsiteText(rawUrl: string): Promise<string> {
+// Fetch and clean a single URL, returning up to maxChars of text
+async function fetchPageText(rawUrl: string, maxChars = 3000): Promise<string> {
   try {
     const parsed = new URL(rawUrl)
-
-    // Only allow http and https
     if (!['http:', 'https:'].includes(parsed.protocol)) return ''
-
-    // Block internal/metadata hosts
     if (BLOCKED_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith('.local'))) return ''
-
-    // Block private IP ranges
     if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(parsed.hostname)) return ''
 
     const res = await fetch(rawUrl, {
@@ -112,19 +108,17 @@ async function fetchWebsiteText(rawUrl: string): Promise<string> {
       signal: AbortSignal.timeout(5000),
       redirect: 'follow',
     })
+    if (!res.ok) return ''
 
-    // Cap response size — read max 500KB
     const reader = res.body?.getReader()
     if (!reader) return ''
-    let html = ''
-    let bytes = 0
-    const MAX = 500_000
+    let html = ''; let bytes = 0
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       bytes += value.length
       html += new TextDecoder().decode(value)
-      if (bytes > MAX) { reader.cancel(); break }
+      if (bytes > 400_000) { reader.cancel(); break }
     }
 
     return html
@@ -132,8 +126,112 @@ async function fetchWebsiteText(rawUrl: string): Promise<string> {
       .replace(/<style[\s\S]*?<\/style>/gi, '')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
-      .slice(0, 3000)
+      .trim()
+      .slice(0, maxChars)
   } catch { return '' }
+}
+
+// Extract emails from text
+function extractEmails(text: string): string[] {
+  const matches = text.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || []
+  // Filter out noreply, support@ style emails and obvious false positives
+  return [...new Set(matches)].filter(e =>
+    !e.includes('noreply') && !e.includes('no-reply') && !e.includes('@sentry') &&
+    !e.includes('@example') && !e.includes('@schema') && e.length < 60
+  ).slice(0, 3)
+}
+
+// Extract social links from HTML
+function extractSocialLinks(html: string): string[] {
+  const links: string[] = []
+  const socialPatterns = [
+    /https?:\/\/(?:www\.)?facebook\.com\/[^"'\s>]+/g,
+    /https?:\/\/(?:www\.)?linkedin\.com\/(?:in|company)\/[^"'\s>]+/g,
+    /https?:\/\/(?:www\.)?instagram\.com\/[^"'\s>]+/g,
+    /https?:\/\/(?:www\.)?(?:twitter|x)\.com\/[^"'\s>]+/g,
+  ]
+  for (const pattern of socialPatterns) {
+    const matches = html.match(pattern) || []
+    for (const m of matches) {
+      const clean = m.replace(/['">,]+$/, '')
+      if (!links.includes(clean) && !clean.includes('sharer') && !clean.includes('intent')) {
+        links.push(clean)
+      }
+    }
+  }
+  return links.slice(0, 4)
+}
+
+type WebsiteIntel = {
+  homeText: string
+  aboutText: string
+  contactText: string
+  email: string | null
+  socialLinks: string[]
+  fullText: string // combined for Claude scoring
+}
+
+async function fetchWebsiteText(rawUrl: string): Promise<WebsiteIntel> {
+  const empty: WebsiteIntel = { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], fullText: '' }
+  try {
+    const parsed = new URL(rawUrl)
+    if (!['http:', 'https:'].includes(parsed.protocol)) return empty
+
+    const base = `${parsed.protocol}//${parsed.hostname}`
+
+    // Crawl homepage, /about, and /contact in parallel
+    const [homeHtml, aboutText, contactText] = await Promise.all([
+      // For homepage we keep the raw HTML to extract socials/emails from links
+      (async () => {
+        try {
+          const res = await fetch(rawUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruiterrr/1.0)' },
+            signal: AbortSignal.timeout(5000),
+            redirect: 'follow',
+          })
+          if (!res.ok) return ''
+          const reader = res.body?.getReader()
+          if (!reader) return ''
+          let html = ''; let bytes = 0
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            bytes += value.length
+            html += new TextDecoder().decode(value)
+            if (bytes > 400_000) { reader.cancel(); break }
+          }
+          return html
+        } catch { return '' }
+      })(),
+      fetchPageText(`${base}/about`, 2000)
+        .then(t => t || fetchPageText(`${base}/about-us`, 2000))
+        .then(t => t || fetchPageText(`${base}/our-story`, 1500)),
+      fetchPageText(`${base}/contact`, 1500)
+        .then(t => t || fetchPageText(`${base}/contact-us`, 1500)),
+    ])
+
+    const homeText = homeHtml
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 2000)
+
+    const socialLinks = extractSocialLinks(homeHtml)
+    const allText = homeText + ' ' + aboutText + ' ' + contactText
+    const emails = extractEmails(allText)
+    const email = emails[0] || null
+
+    // Build a structured summary for Claude
+    const fullText = [
+      homeText ? `HOMEPAGE: ${homeText}` : '',
+      aboutText ? `ABOUT PAGE: ${aboutText}` : '',
+      contactText ? `CONTACT PAGE: ${contactText}` : '',
+    ].filter(Boolean).join('\n\n').slice(0, 6000)
+
+    return { homeText, aboutText, contactText, email, socialLinks, fullText }
+  } catch { return empty }
 }
 
 async function fetchJobPostings(name: string, city: string, state: string): Promise<{ hiring: boolean; roles: string[] }> {
@@ -210,7 +308,7 @@ async function fetchYouTube(name: string, city: string): Promise<{ channel: stri
   } catch { return { channel: null, subscribers: null, videoCount: 0 } }
 }
 
-async function scoreAgent(raw: any, websiteText: string, jobData: { hiring: boolean; roles: string[] }, ytData: { channel: string | null; subscribers: string | null; videoCount: number }, mode: string = 'all'): Promise<AgentResult> {
+async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: boolean; roles: string[] }, ytData: { channel: string | null; subscribers: string | null; videoCount: number }, mode: string = 'all'): Promise<AgentResult> {
   const name = raw.title || 'Unknown'
   const type = raw.type || ''
   const reviews = raw.reviews || 0
@@ -229,8 +327,8 @@ Address: ${raw.address || 'Unknown'}
 Rating: ${rating} stars / ${reviews} reviews
 Has Website: ${hasWebsite ? 'YES — ' + raw.website : 'NO'}
 
-WEBSITE TEXT:
-${websiteText || 'No website available'}
+WEBSITE INTELLIGENCE:
+${intel.fullText || 'No website available'}
 
 JOB POSTINGS:
 ${jobData.hiring ? `ACTIVELY HIRING — Roles: ${jobData.roles.join(', ')}` : 'No active job postings found'}
@@ -254,6 +352,8 @@ SCORING RULES:
 7. HAS YOUTUBE with relevant insurance content = +5 points
 8. HOT=75+, WARM=50-74, COLD=0-49
 
+Using the ABOUT PAGE and CONTACT PAGE content, extract a concise company description and any contact details.
+
 Return ONLY valid JSON:
 {
   "carriers": ["array"],
@@ -261,7 +361,9 @@ Return ONLY valid JSON:
   "years": number or null,
   "score": 0-100,
   "flag": "hot"|"warm"|"cold",
-  "notes": "2-3 sentences with specific data points including job/youtube signals if present"
+  "notes": "2-3 sentences with specific data points including job/youtube signals if present",
+  "about": "1-2 sentence plain-English summary of who this agency is and what they focus on, drawn from their About page. null if no about content found.",
+  "contact_email": "primary contact email if found on website, else null"
 }`
 
   try {
@@ -286,6 +388,9 @@ Return ONLY valid JSON:
       notes: parsed.notes || 'No analysis available.',
       hiring: jobData.hiring, hiring_roles: jobData.roles,
       youtube_channel: ytData.channel, youtube_subscribers: ytData.subscribers, youtube_video_count: ytData.videoCount,
+      about: parsed.about || null,
+      contact_email: parsed.contact_email || intel.email || null,
+      social_links: intel.socialLinks || [],
     }
   } catch {
     const nl = name.toLowerCase()
@@ -309,6 +414,9 @@ Return ONLY valid JSON:
       notes: 'Fallback score based on name, review, and enrichment signals.',
       hiring: jobData.hiring, hiring_roles: jobData.roles,
       youtube_channel: ytData.channel, youtube_subscribers: ytData.subscribers, youtube_video_count: ytData.videoCount,
+      about: null,
+      contact_email: intel.email || null,
+      social_links: intel.socialLinks || [],
     }
   }
 }
@@ -341,10 +449,10 @@ export async function POST(req: NextRequest) {
     const top = rawAgents.slice(0, clampedLimit)
     const scored = await Promise.all(top.map(async (raw) => {
       const reviews = raw.reviews || 0
-      const websiteText = raw.website ? await fetchWebsiteText(raw.website) : ''
+      const intel = raw.website ? await fetchWebsiteText(raw.website) : { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], fullText: '' }
       const jobData = await fetchJobPostings(raw.title, city, state)
       const ytData = (reviews >= 50 || !!raw.website) ? await fetchYouTube(raw.title, city) : { channel: null, subscribers: null, videoCount: 0 }
-      return scoreAgent(raw, websiteText, jobData, ytData, mode)
+      return scoreAgent(raw, intel, jobData, ytData, mode)
     }))
 
     const sorted = scored.sort((a, b) => b.score - a.score)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
@@ -19,6 +19,8 @@ const MODES = [
   { value: 'aca', label: 'ACA / Health', desc: 'Marketplace, group health, ACA brokers' },
 ]
 
+type CitySuggestion = { city: string; state: string; label: string }
+
 type Agent = {
   name: string; type: string; phone: string; address: string
   rating: number; reviews: number; website: string | null
@@ -26,11 +28,12 @@ type Agent = {
   flag: 'hot' | 'warm' | 'cold'; notes: string; years: number | null
   hiring: boolean; hiring_roles: string[]
   youtube_channel: string | null; youtube_subscribers: string | null; youtube_video_count: number
+  about: string | null; contact_email: string | null; social_links: string[]
 }
 
 const LOADING_STEPS = [
   'Querying Google local listings',
-  'Crawling agent websites',
+  'Deep crawling agent websites',
   'Checking job postings',
   'Scanning YouTube presence',
   'Scoring recruitability',
@@ -110,9 +113,34 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
                   {agent.hiring_roles.map(r => <div key={r} style={{ fontSize: 12, color: 'var(--muted)' }}>• {r}</div>)}
                 </div>
               )}
+              {agent.about && (
+                <div style={{ marginTop: 12, padding: '12px 16px', background: '#1a1814', border: '1px solid var(--border)', fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>ABOUT</div>
+                  {agent.about}
+                </div>
+              )}
+              {(agent.contact_email || (agent.social_links || []).length > 0) && (
+                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {agent.contact_email && (
+                    <a href={`mailto:${agent.contact_email}`} onClick={e => e.stopPropagation()}
+                      style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 1, textDecoration: 'none' }}>
+                      ✉ {agent.contact_email}
+                    </a>
+                  )}
+                  {(agent.social_links || []).map((link, i) => {
+                    const label = link.includes('facebook') ? '🔵 Facebook' : link.includes('linkedin') ? '💼 LinkedIn' : link.includes('instagram') ? '📸 Instagram' : link.includes('twitter') || link.includes('x.com') ? '🐦 Twitter' : '🔗 Social'
+                    return (
+                      <a key={i} href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                        style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 1, textDecoration: 'none' }}>
+                        {label}
+                      </a>
+                    )
+                  })}
+                </div>
+              )}
               {agent.website && (
                 <a href={agent.website} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                  style={{ display: 'inline-block', marginTop: 12, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1 }}>
+                  style={{ display: 'inline-block', marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1 }}>
                   {agent.website} ↗
                 </a>
               )}
@@ -141,11 +169,51 @@ function SearchPageInner() {
   const [searched, setSearched] = useState(false)
   const [searchLabel, setSearchLabel] = useState('')
   const [error, setError] = useState('')
+  // Autocomplete
+  const [suggestions, setSuggestions] = useState<CitySuggestion[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [acLoading, setAcLoading] = useState(false)
+  const acRef = useRef<HTMLDivElement>(null)
+  const acTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const id = searchParams.get('id')
     if (id) loadSavedSearch(id)
   }, [])
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (acRef.current && !acRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleCityChange(val: string) {
+    setCity(val)
+    if (acTimer.current) clearTimeout(acTimer.current)
+    if (val.length < 2) { setSuggestions([]); setShowSuggestions(false); return }
+    setAcLoading(true)
+    acTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/autocomplete?q=${encodeURIComponent(val)}`)
+        const data = await res.json()
+        setSuggestions(data.suggestions || [])
+        setShowSuggestions((data.suggestions || []).length > 0)
+      } catch {}
+      setAcLoading(false)
+    }, 250)
+  }
+
+  function selectSuggestion(s: CitySuggestion) {
+    setCity(s.city)
+    setState(s.state)
+    setSuggestions([])
+    setShowSuggestions(false)
+  }
 
   async function loadSavedSearch(id: string) {
     setLoading(true)
@@ -204,6 +272,7 @@ function SearchPageInner() {
       <style>{`
         @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes loadSlide { 0% { left: -40%; } 100% { left: 100%; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
         select option { background: #1a1814; }
       `}</style>
 
@@ -214,29 +283,71 @@ function SearchPageInner() {
         </h1>
       </div>
 
-      {/* Search bar */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 12, border: `1px solid ${loading ? 'var(--orange)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none' }}>
-        <input
-          value={city}
-          onChange={e => setCity(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && runSearch()}
-          placeholder="City (e.g. Kansas City)"
-          disabled={loading}
-          style={{ flex: 1, padding: '18px 24px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
-        />
-        <div style={{ width: 1, background: 'var(--border-light)' }} />
+      {/* City input — own box with autocomplete */}
+      <div ref={acRef} style={{ position: 'relative', marginBottom: 2 }}>
+        <div style={{ display: 'flex', border: `1px solid ${loading ? 'var(--orange)' : showSuggestions ? 'var(--border-light)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none' }}>
+          <div style={{ padding: '14px 20px', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', borderRight: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+            📍 CITY
+          </div>
+          <input
+            value={city}
+            onChange={e => handleCityChange(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { setShowSuggestions(false); runSearch() }
+              if (e.key === 'Escape') setShowSuggestions(false)
+            }}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            placeholder="Type a city — e.g. Kansas City"
+            disabled={loading}
+            autoComplete="off"
+            style={{ flex: 1, padding: '14px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
+          />
+          {acLoading && (
+            <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center' }}>
+              <div style={{ width: 12, height: 12, border: '1px solid var(--border-light)', borderTopColor: 'var(--orange)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+            </div>
+          )}
+          {city && !loading && (
+            <button onClick={() => { setCity(''); setSuggestions([]); setShowSuggestions(false) }}
+              style={{ padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 14 }}>
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Autocomplete suggestions dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 200 }}>
+            {suggestions.map((s, i) => (
+              <div
+                key={i}
+                onMouseDown={() => selectSuggestion(s)}
+                style={{ padding: '12px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none', transition: 'background 0.1s' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'var(--white)', letterSpacing: 0.5 }}>{s.city}</span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2 }}>{s.state}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Controls row — mode, limit, state, search button */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 12, border: '1px solid var(--border-light)', background: 'var(--card)' }}>
         <select value={state} onChange={e => setState(e.target.value)} disabled={loading}
-          style={{ width: 80, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, cursor: 'pointer', appearance: 'none', textAlign: 'center' }}>
+          style={{ width: 80, padding: '14px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, cursor: 'pointer', appearance: 'none', textAlign: 'center' }}>
           {STATES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <div style={{ width: 1, background: 'var(--border-light)' }} />
         <select value={mode} onChange={e => setMode(e.target.value)} disabled={loading}
-          style={{ width: 160, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1 }}>
+          style={{ flex: 1, padding: '14px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1 }}>
           {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
         </select>
         <div style={{ width: 1, background: 'var(--border-light)' }} />
         <select value={limit} onChange={e => setLimit(Number(e.target.value))} disabled={loading}
-          style={{ width: 80, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, cursor: 'pointer', appearance: 'none', textAlign: 'center' }}>
+          style={{ width: 80, padding: '14px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, cursor: 'pointer', appearance: 'none', textAlign: 'center' }}>
           <option value={10}>10</option>
           <option value={20}>20</option>
           <option value={30}>30</option>
@@ -244,7 +355,7 @@ function SearchPageInner() {
           <option value={50}>50</option>
         </select>
         <button onClick={() => runSearch()} disabled={loading || !city.trim()}
-          style={{ padding: '18px 32px', background: loading ? '#333' : 'var(--orange)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap' }}>
+          style={{ padding: '14px 32px', background: loading ? '#333' : 'var(--orange)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap' }}>
           {loading ? 'SCANNING...' : 'SEARCH'}
         </button>
       </div>
