@@ -9,7 +9,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(50, '1 h'),
+  limiter: Ratelimit.slidingWindow(10, '1 h'),
   analytics: true,
 })
 
@@ -65,8 +65,8 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
     }
   }
 
-  // Scale up for larger limits
-  const queries = limit >= 30 ? base : base.slice(0, Math.max(3, Math.ceil(base.length * 0.6)))
+  // Run all queries — don't scale down based on limit, let dedup handle it
+  const queries = base
 
   // SerpAPI google_local accepts a `location` string AND `q` separately.
   // Passing city+state here pins the Google Maps local pack to that exact market.
@@ -83,16 +83,17 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
       if (!res.ok) return
       const data = await res.json()
       for (const item of (data.local_results || [])) {
-        // Post-fetch filter: drop results whose address clearly doesn't match the
-        // searched city/state. This catches edge cases where Google returns nearby
-        // market results even when a location param is set (e.g. national chains).
+        // Post-fetch filter: only drop results that are clearly in a different state.
+        // Don't filter by city — Google often shows agents with abbreviated or
+        // slightly different city formats (KC, K.C., suburb names, etc.)
         const addr = (item.address || '').toLowerCase()
-        const cityLower = city.toLowerCase()
         const stateLower = state.toLowerCase()
-        const cityWords = cityLower.split(' ').filter((w: string) => w.length > 2)
-        const cityMatch = cityWords.some((w: string) => addr.includes(w))
-        const stateMatch = addr.includes(stateLower) || addr.includes(`, ${state.toLowerCase()}`)
-        if (!cityMatch && !stateMatch) return // skip results from wrong market
+        const stateMatch = addr.includes(stateLower) || 
+          addr.includes(`, ${state.toLowerCase()}`) ||
+          addr.includes(` ${state.toLowerCase()} `) ||
+          addr.endsWith(state.toLowerCase())
+        // Only filter if we have an address AND it clearly belongs to a different state
+        if (item.address && !stateMatch) return
 
         const key = item.title + item.address
         if (!seen.has(key)) {
