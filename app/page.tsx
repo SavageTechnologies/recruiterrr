@@ -36,8 +36,8 @@ export default function HomePage() {
           Stop cold calling blind. We scrape, research, and score every independent life, health, and senior insurance agent in any market — so you know exactly who to call first.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <Link href="/sign-up" style={{ padding: '18px 48px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 3, cursor: 'pointer', textDecoration: 'none' }}>
-            START FREE TRIAL
+          <Link href="/pricing" style={{ padding: '18px 48px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 3, cursor: 'pointer', textDecoration: 'none' }}>
+            REQUEST ACCESS
           </Link>
           <Link href="/about" style={{ padding: '18px 32px', background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
             HOW IT WORKS
@@ -276,8 +276,8 @@ export default function HomePage() {
           STOP COLD<br />
           CALLING<span style={{ color: 'var(--orange)' }}>.</span>
         </div>
-        <Link href="/sign-up" style={{ padding: '18px 48px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 3, cursor: 'pointer', textDecoration: 'none' }}>
-          START YOUR FREE TRIAL
+        <Link href="/pricing" style={{ padding: '18px 48px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 3, cursor: 'pointer', textDecoration: 'none' }}>
+          REQUEST ACCESS
         </Link>
       </section>
 

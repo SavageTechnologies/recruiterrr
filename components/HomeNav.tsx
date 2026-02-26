@@ -165,7 +165,7 @@ export default function HomeNav() {
           }}>
             Sign In
           </Link>
-          <Link href="/sign-up" style={{
+          <Link href="/pricing" style={{
             padding: '10px 20px',
             background: 'var(--orange)',
             color: 'var(--black)',
@@ -173,7 +173,7 @@ export default function HomeNav() {
             fontSize: 16, letterSpacing: 2,
             textDecoration: 'none',
           }}>
-            Start Free Trial
+            REQUEST ACCESS
           </Link>
         </div>
 
@@ -236,9 +236,9 @@ export default function HomeNav() {
             style={{ padding: '14px 0', textAlign: 'center', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none' }}>
             Sign In
           </Link>
-          <Link href="/sign-up" onClick={() => setMenuOpen(false)}
+          <Link href="/pricing" onClick={() => setMenuOpen(false)}
             style={{ padding: '14px 0', textAlign: 'center', background: 'var(--orange)', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 3, textDecoration: 'none' }}>
-            START FREE TRIAL
+            REQUEST ACCESS
           </Link>
         </div>
       </div>
