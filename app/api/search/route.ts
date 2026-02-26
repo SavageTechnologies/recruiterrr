@@ -320,29 +320,55 @@ function nameMatchesChannel(businessName: string, candidate: string): boolean {
   return matchCount >= Math.max(1, Math.ceil(bizTokens.length * 0.5))
 }
 
-async function fetchYouTube(name: string, city: string): Promise<{ channel: string | null; subscribers: string | null; videoCount: number }> {
+// Validate a YouTube link found on the agent's own website by confirming via SerpAPI
+// that the channel handle/ID actually belongs to this business — not an embedded video
+// from another creator or a YouTube share widget.
+async function validateYouTubeLink(link: string, businessName: string): Promise<{ channel: string | null; subscribers: string | null; videoCount: number }> {
   try {
-    // Search by the business name directly — not by topic — to find THEIR channel
-    const channelSearchUrl = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(name + ' insurance')}&api_key=${process.env.SERPAPI_KEY}`
+    const handleMatch = link.match(/youtube\.com\/((@[A-Za-z0-9_.-]+)|channel\/[A-Za-z0-9_-]+|c\/[A-Za-z0-9_-]+|user\/[A-Za-z0-9_-]+)/)
+    if (!handleMatch) return { channel: null, subscribers: null, videoCount: 0 }
+    const handle = handleMatch[1]
+
+    const searchUrl = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(handle)}&api_key=${process.env.SERPAPI_KEY}`
+    const res = await fetch(searchUrl, { signal: AbortSignal.timeout(6000) })
+    if (!res.ok) return { channel: null, subscribers: null, videoCount: 0 }
+    const data = await res.json()
+
+    // Accept if the channel link contains the handle OR the channel name matches the business
+    const matched = (data.channel_results || []).find((c: any) => {
+      const linkMatch = (c.link || '').toLowerCase().includes(handle.replace('@', '').toLowerCase())
+      const nameMatch = nameMatchesChannel(businessName, c.title || '')
+      return linkMatch || nameMatch
+    })
+    if (matched) {
+      return { channel: matched.link || link, subscribers: matched.subscribers || null, videoCount: 1 }
+    }
+
+    // Can't confirm it's theirs — don't show the badge
+    return { channel: null, subscribers: null, videoCount: 0 }
+  } catch { return { channel: null, subscribers: null, videoCount: 0 } }
+}
+
+// Only called when we have NO website-found YouTube link.
+// Searches YouTube by the exact business name and requires a strict name match on the
+// channel/uploader — never returns a result just because the topic is Medicare/insurance.
+async function fetchYouTube(name: string): Promise<{ channel: string | null; subscribers: string | null; videoCount: number }> {
+  try {
+    // Quoted name search to find THEIR channel specifically
+    const channelSearchUrl = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent('"' + name + '"')}&api_key=${process.env.SERPAPI_KEY}`
     const channelRes = await fetch(channelSearchUrl, { signal: AbortSignal.timeout(6000) })
     if (!channelRes.ok) return { channel: null, subscribers: null, videoCount: 0 }
     const channelData = await channelRes.json()
 
-    // Check channel_results first — these are actual YouTube channels.
-    // STRICT: the channel title must match the business name, not just the topic.
+    // STRICT: channel title must match the business name meaningfully
     const matchedChannel = (channelData.channel_results || []).find((c: any) =>
       nameMatchesChannel(name, c.title || '')
     )
     if (matchedChannel) {
-      return {
-        channel: matchedChannel.link,
-        subscribers: matchedChannel.subscribers || null,
-        videoCount: 1,
-      }
+      return { channel: matchedChannel.link, subscribers: matchedChannel.subscribers || null, videoCount: 1 }
     }
 
-    // Fallback: check video_results, but only accept if the uploading channel's name
-    // matches the business — prevents attributing a random Medicare educator's channel.
+    // Fallback: video uploader channel name must match the business name
     const matchedVideo = (channelData.video_results || []).find((v: any) =>
       nameMatchesChannel(name, v.channel?.name || '')
     )
@@ -504,14 +530,16 @@ export async function POST(req: NextRequest) {
       const intel = raw.website ? await fetchWebsiteText(raw.website) : { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], youtubeLink: null, fullText: '' }
       const jobData = await fetchJobPostings(raw.title, city, state)
       // YouTube priority:
-      // 1. Link found on their own website — definitive, use it directly
-      // 2. SerpAPI name-match — only if no site link found AND name matches confidently
-      // 3. Nothing — don't show a YouTube badge at all rather than show wrong channel
+      // YouTube strategy — strictest possible to avoid false attributions:
+      // 1. Found a YouTube link on their own website → validate it via SerpAPI to confirm
+      //    the channel handle/name actually matches this business (not an embedded video)
+      // 2. No site link → search YouTube by exact quoted business name, require name match
+      // 3. No confirmed match either way → no badge, period
       let ytData: { channel: string | null; subscribers: string | null; videoCount: number }
       if (intel.youtubeLink) {
-        ytData = { channel: intel.youtubeLink, subscribers: null, videoCount: 1 }
-      } else if (reviews >= 50 || !!raw.website) {
-        ytData = await fetchYouTube(raw.title, city)
+        ytData = await validateYouTubeLink(intel.youtubeLink, raw.title)
+      } else if (raw.website) {
+        ytData = await fetchYouTube(raw.title)
       } else {
         ytData = { channel: null, subscribers: null, videoCount: 0 }
       }
