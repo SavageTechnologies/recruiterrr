@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 type ScanResult = {
@@ -64,6 +64,14 @@ function TerminalLog({ lines }: { lines: string[] }) {
 }
 
 export default function AnathemaDashboardPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: '60px 40px', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2 }}>LOADING...</div>}>
+      <AnathemaDashboardInner />
+    </Suspense>
+  )
+}
+
+function AnathemaDashboardInner() {
   const [agencyName, setAgencyName] = useState('')
   const [website, setWebsite] = useState('')
   const [city, setCity] = useState('')
