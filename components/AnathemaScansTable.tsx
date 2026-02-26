@@ -70,10 +70,11 @@ export default function AnathemaScansTable({ specimens }: { specimens: Specimen[
         const confirmedMatch = specimen.confirmed_tree === specimen.predicted_tree
 
         return (
-          <div
+          <Link
             key={specimen.id}
-            style={{ display: 'grid', gridTemplateColumns: '1fr 130px 80px 100px 110px', gap: 16, padding: '14px 16px', background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.1)', marginBottom: 2, transition: 'border-color 0.15s' }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.3)')}
+            href={`/dashboard/anathema?id=${specimen.id}`}
+            style={{ display: 'grid', gridTemplateColumns: '1fr 130px 80px 100px 110px', gap: 16, padding: '14px 16px', background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.1)', marginBottom: 2, transition: 'border-color 0.15s', textDecoration: 'none' }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.5)')}
             onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.1)')}
           >
             <div style={{ alignSelf: 'center' }}>
@@ -104,7 +105,7 @@ export default function AnathemaScansTable({ specimens }: { specimens: Specimen[
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center' }}>
               {new Date(specimen.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
-          </div>
+          </Link>
         )
       })}
 
