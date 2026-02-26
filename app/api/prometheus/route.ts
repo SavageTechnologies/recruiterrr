@@ -9,22 +9,27 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(10, '1 h'),
+  limiter: Ratelimit.slidingWindow(20, '1 h'),
   analytics: true,
 })
 
-function normalizeUrl(domain: string): string {
-  let d = domain.trim().toLowerCase()
-  d = d.replace(/^https?:\/\//, '').replace(/^www\./, '')
-  d = d.split('/')[0]
-  return `https://${d}`
+function normalizeUrl(url: string): string {
+  let u = url.trim().toLowerCase()
+  if (!u.startsWith('http')) u = `https://${u}`
+  try {
+    const parsed = new URL(u)
+    return `${parsed.protocol}//${parsed.hostname}`
+  } catch {
+    return `https://${u.replace(/^https?:\/\//, '').split('/')[0]}`
+  }
 }
 
 async function fetchPageText(url: string, timeout = 8000): Promise<string> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PrometheusCompliance/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruiterrr/1.0)' },
       signal: AbortSignal.timeout(timeout),
+      redirect: 'follow',
     })
     if (!res.ok) return ''
     const html = await res.text()
@@ -34,198 +39,182 @@ async function fetchPageText(url: string, timeout = 8000): Promise<string> {
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 5000)
+      .slice(0, 6000)
   } catch {
     return ''
   }
 }
 
-async function tryFetchPages(base: string): Promise<{ homepage: string; privacy: string; leadForm: string; foundPages: string[] }> {
-  const privacySlugs = ['/privacy-policy', '/privacy', '/legal', '/terms-of-service', '/terms']
-  const leadSlugs = ['/contact', '/get-quote', '/free-quote', '/leads', '/quote', '/signup', '/sign-up', '/start', '/apply']
-
-  const homepage = await fetchPageText(base)
-
-  let privacy = ''
-  let privacyPage = ''
-  for (const slug of privacySlugs) {
-    const text = await fetchPageText(base + slug, 5000)
-    if (text.length > 200) { privacy = text; privacyPage = slug; break }
-  }
-
-  let leadForm = ''
-  let leadPage = ''
-  for (const slug of leadSlugs) {
-    const text = await fetchPageText(base + slug, 5000)
-    if (text.length > 200) { leadForm = text; leadPage = slug; break }
-  }
-
-  const foundPages = ['/ (homepage)']
-  if (privacyPage) foundPages.push(privacyPage)
-  if (leadPage) foundPages.push(leadPage)
-
-  return { homepage, privacy, leadForm, foundPages }
-}
-
-async function fetchSerpIntel(domain: string): Promise<string> {
+async function discoverWebsite(fmoName: string): Promise<string | null> {
   try {
-    const company = domain.replace(/\.(com|net|org|io|co).*/, '')
-    const queries = [
-      `"${domain}" TCPA complaint lawsuit`,
-      `"${company}" lead generation complaint BBB`,
-    ]
-    const results: string[] = []
-    for (const q of queries) {
+    const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(fmoName + ' insurance FMO IMO official website')}&num=5&api_key=${process.env.SERPAPI_KEY}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
+    if (!res.ok) return null
+    const data = await res.json()
+    const results = data.organic_results || []
+    const nameLower = fmoName.toLowerCase().replace(/[^a-z0-9]/g, '')
+    for (const r of results) {
       try {
-        const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&num=5&api_key=${process.env.SERPAPI_KEY}`
-        const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
-        if (!res.ok) continue
-        const data = await res.json()
-        const snippets = (data.organic_results || [])
-          .slice(0, 5)
-          .map((r: any) => `${r.title}: ${r.snippet}`)
-          .join('\n')
-        if (snippets) results.push(snippets)
-      } catch { continue }
+        const domain = new URL(r.link).hostname.replace('www.', '')
+        const domainClean = domain.replace(/[^a-z0-9]/g, '')
+        if (domainClean.includes(nameLower.slice(0, 6)) || nameLower.includes(domainClean.split('.')[0])) {
+          return normalizeUrl(domain)
+        }
+      } catch {}
     }
-    return results.join('\n\n').slice(0, 3000)
+    if (results[0]?.link) {
+      return normalizeUrl(new URL(results[0].link).hostname)
+    }
+    return null
   } catch {
-    return ''
+    return null
   }
+}
+
+async function crawlFMOSite(baseUrl: string): Promise<{ pages: Record<string, string>; foundPages: string[] }> {
+  const slugGroups = [
+    ['/', '/home'],
+    ['/about', '/about-us', '/who-we-are', '/our-story'],
+    ['/agents', '/for-agents', '/join', '/join-us', '/become-an-agent', '/agent-partners', '/partner-with-us'],
+    ['/carriers', '/our-carriers', '/carrier-partners', '/products', '/our-products'],
+    ['/trips', '/incentive-trips', '/incentives', '/awards', '/rewards', '/events', '/conferences'],
+    ['/leads', '/lead-program', '/lead-programs', '/marketing', '/marketing-support'],
+    ['/technology', '/tech', '/tools', '/platform', '/crm', '/resources'],
+    ['/why-us', '/why-join', '/benefits', '/agent-benefits', '/advantages'],
+    ['/contact', '/contact-us'],
+  ]
+
+  const pages: Record<string, string> = {}
+  const foundPages: string[] = []
+
+  await Promise.all(slugGroups.map(async (slugs) => {
+    for (const slug of slugs) {
+      const text = await fetchPageText(baseUrl + slug, 6000)
+      if (text.length > 300) {
+        pages[slug] = text
+        foundPages.push(slug)
+        break
+      }
+    }
+  }))
+
+  return { pages, foundPages }
+}
+
+async function fetchSerpIntel(fmoName: string): Promise<Record<string, string>> {
+  const queries = [
+    { key: 'trips', q: `"${fmoName}" incentive trip 2025 2026 destination` },
+    { key: 'carriers', q: `"${fmoName}" carriers agents contracts insurance` },
+    { key: 'reviews', q: `"${fmoName}" agent review complaint experience` },
+    { key: 'recruiting', q: `"${fmoName}" join FMO IMO commission override` },
+    { key: 'news', q: `"${fmoName}" insurance news acquisition partnership 2024 2025` },
+  ]
+
+  const results: Record<string, string> = {}
+  await Promise.all(queries.map(async ({ key, q }) => {
+    try {
+      const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&num=5&api_key=${process.env.SERPAPI_KEY}`
+      const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
+      if (!res.ok) return
+      const data = await res.json()
+      const snippets = (data.organic_results || [])
+        .slice(0, 5)
+        .map((r: any) => `${r.title}: ${r.snippet}`)
+        .join('\n')
+      if (snippets) results[key] = snippets
+    } catch {}
+  }))
+
+  return results
 }
 
 async function runClaudeAnalysis(
-  domain: string,
-  pages: { homepage: string; privacy: string; leadForm: string; foundPages: string[] },
-  serpIntel: string
+  fmoName: string,
+  domain: string | null,
+  pages: Record<string, string>,
+  serpIntel: Record<string, string>,
+  foundPages: string[]
 ): Promise<any> {
-  const pagesAvailable = !!(pages.homepage || pages.privacy || pages.leadForm)
+  const pageContent = Object.entries(pages)
+    .map(([slug, text]) => `PAGE: ${slug}\n${text}`)
+    .join('\n\n---\n\n')
+    .slice(0, 18000)
 
-  const prompt = `You are a TCPA compliance expert analyzing a lead generation website for an independent insurance agent evaluating whether it is safe to purchase leads from this vendor.
+  const prompt = `You are an elite insurance industry competitive intelligence analyst. A recruiter is on a call with an agent who works with this FMO/IMO. Give the recruiter a complete intelligence briefing so they know exactly what they're up against and how to win.
 
-DOMAIN: ${domain}
-PAGES ACCESSIBLE: ${pagesAvailable ? 'YES — content retrieved' : 'NO — site blocked automated fetch or pages unavailable'}
+FMO/IMO NAME: ${fmoName}
+WEBSITE: ${domain || 'Not found'}
+PAGES CRAWLED: ${foundPages.join(', ') || 'None accessible'}
 
-HOMEPAGE TEXT:
-${pages.homepage || 'Not accessible.'}
-
-PRIVACY POLICY TEXT:
-${pages.privacy || 'Not accessible.'}
-
-LEAD FORM / CONTACT PAGE TEXT:
-${pages.leadForm || 'Not accessible.'}
+WEBSITE CONTENT:
+${pageContent || 'No website content available.'}
 
 SERP INTELLIGENCE:
-${serpIntel || 'No external intelligence gathered.'}
+TRIPS/INCENTIVES: ${serpIntel.trips || 'No data found.'}
+CARRIERS/CONTRACTS: ${serpIntel.carriers || 'No data found.'}
+AGENT REVIEWS: ${serpIntel.reviews || 'No data found.'}
+RECRUITING PITCH: ${serpIntel.recruiting || 'No data found.'}
+RECENT NEWS: ${serpIntel.news || 'No data found.'}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 1 — CLASSIFY THE VENDOR
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-First classify this vendor into one of four tiers using ALL available signals — domain name, SERP results, company reputation, age, and any page content available:
+Be specific — name actual carriers, actual trip destinations, actual tools, actual dollar amounts when found. Never be vague when specific data exists. Never fabricate.
 
-ENTERPRISE: Publicly traded company, nationally recognized brand, 10+ years operating, dedicated legal/compliance teams. Examples: eHealth, GoHealth, SelectQuote, HealthMarkets, eHealthInsurance, Covered California, MediaAlpha, QuoteWizard, EverQuote. These companies have compliance infrastructure by necessity and are subject to SEC and regulatory oversight. If pages are inaccessible it is because of bot protection — NOT a compliance failure. Do not penalize for inaccessibility. Score their BUSINESS MODEL risk only.
-
-ESTABLISHED: Known regional or industry brand, 3+ years operating, clear web presence, no significant complaint history. Inaccessible pages = neutral signal, not a penalty. Score based on business model and whatever content is available.
-
-UNKNOWN: Little or no reputation data, newer or unrecognizable domain, limited SERP presence, no clear track record. Inaccessible pages = moderate penalty. Apply higher scrutiny.
-
-SUSPICIOUS: Active SERP complaints or lawsuits filed within last 2 years, very new domain (under 1 year), multiple recent BBB complaints, pages inaccessible AND no reputation data, or known bad actor signals. Inaccessible pages = significant penalty.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 2 — SCORE BY VENDOR TIER
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Apply these scoring frameworks based on the tier you assigned:
-
-ENTERPRISE (pages inaccessible):
-- Assume accessibility checks (PEWC, seller ID, contact method, placement, privacy policy, opt-out) are likely met given compliance infrastructure — mark as null/UNCLEAR not false
-- Focus scoring on BUSINESS MODEL risk: is this a shared lead marketplace? That is the real risk
-- Shared lead marketplace with no exclusive option → 45-60 (REVIEW NEEDED) — real risk but not a rogue vendor
-- Enterprise with dedicated exclusive lead product → 65-80 (REVIEW NEEDED to COMPLIANT)
-- Enterprise with documented active ongoing litigation (within 2 years) → drop 15-20 points
-- Old settled litigation (3+ years ago) at an enterprise = do NOT penalize, all large companies face litigation
-
-ENTERPRISE (pages accessible):
-- Score normally across all 7 checks
-- Weight business model heavily — shared marketplace = structural TCPA risk regardless of disclaimer quality
-
-ESTABLISHED (pages inaccessible):
-- Mark accessibility checks as null/UNCLEAR
-- Score 40-60 based on SERP signals and business model
-- Active complaints → 25-40
-
-ESTABLISHED (pages accessible):
-- Score normally across all 7 checks
-
-UNKNOWN (pages inaccessible):
-- Score 20-40 — lack of reputation + inaccessibility = genuine risk
-- Active SERP complaints → 10-25
-
-UNKNOWN (pages accessible):
-- Score normally, apply full scrutiny
-
-SUSPICIOUS:
-- Score 5-25 regardless of page accessibility
-- Document specific red flags clearly
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 3 — EVALUATE THE 7 TCPA CHECKS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-For each check: true = PASS, false = FAIL, null = UNCLEAR (use null when pages inaccessible and no external signal confirms pass or fail — only mark false when you have actual evidence of failure).
-
-1. PRIOR_EXPRESS_WRITTEN_CONSENT (30pts): Explicit PEWC language in opt-in form.
-2. SELLER_IDENTIFICATION (15pts): Specific company or agent named in consent — not just "a licensed agent."
-3. CONTACT_METHOD_DISCLOSURE (15pts): Calls, texts, autodialer, prerecorded messages explicitly stated.
-4. CLEAR_CONSPICUOUS_PLACEMENT (15pts): Disclaimer visible near submit button, not buried.
-5. PRIVACY_POLICY_PRESENT (10pts): Accessible policy addressing phone/text contact and data sharing.
-6. SHARED_LEAD_WARNING (-15pts PENALTY if confirmed shared): Multi-buyer model, "up to X partners," aggregator language. 2024 FCC ruling makes this a structural liability.
-7. OPT_OUT_LANGUAGE (5pts): Clear STOP/unsubscribe instructions present.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 4 — VERDICT THRESHOLDS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-75-100 → COMPLIANT
-45-74 → REVIEW NEEDED
-0-44 → HIGH RISK
-
-NEVER return a score of 0 unless there is truly zero data of any kind. If SERP intel exists, use it to inform the score.
-
-Return ONLY valid JSON:
+Return ONLY valid JSON — no markdown, no backticks:
 {
-  "score": <number 5-100>,
-  "verdict": "COMPLIANT" | "REVIEW NEEDED" | "HIGH RISK",
-  "vendor_tier": "ENTERPRISE" | "ESTABLISHED" | "UNKNOWN" | "SUSPICIOUS",
-  "domain_age_signal": "<signals about how established this domain/company appears>",
-  "is_shared_lead_vendor": <true|false>,
-  "checks": {
-    "prior_express_written_consent": { "pass": <true|false|null>, "points": <0 or 30>, "finding": "<specific finding or reason for UNCLEAR>" },
-    "seller_identification": { "pass": <true|false|null>, "points": <0 or 15>, "finding": "<specific finding>" },
-    "contact_method_disclosure": { "pass": <true|false|null>, "points": <0 or 15>, "finding": "<specific finding>" },
-    "clear_conspicuous_placement": { "pass": <true|false|null>, "points": <0 or 15>, "finding": "<specific finding>" },
-    "privacy_policy_present": { "pass": <true|false|null>, "points": <0 or 10>, "finding": "<specific finding>" },
-    "shared_lead_warning": { "pass": <true|false|null>, "points": <0 or -15>, "finding": "<specific finding — use SERP intel and business model knowledge if pages unavailable>" },
-    "opt_out_language": { "pass": <true|false|null>, "points": <0 or 5>, "finding": "<specific finding>" }
+  "fmo_name": "<official name as found>",
+  "website": "<domain>",
+  "overview": "<2-3 sentence summary of who this FMO is, how big, what market, how long operating>",
+  "size_signal": "LARGE" | "MID-SIZE" | "SMALL" | "UNKNOWN",
+  "what_they_offer": {
+    "carriers": ["specific carrier names — every one you can identify"],
+    "contract_highlights": "<specific contract terms, commission levels, release policies, ownership language found>",
+    "lead_program": "<exactly what they offer for leads — be specific>",
+    "technology": ["specific tools, CRMs, portals, quoting platforms mentioned"],
+    "training": "<training or onboarding they advertise>",
+    "marketing_support": "<marketing co-op, materials, or support mentioned>"
   },
-  "reputation_intel": "<2-3 sentences on SERP intelligence — complaints, lawsuits, BBB issues, or clean record. Note age of any litigation.>",
-  "recommendations": [
-    { "priority": "CRITICAL" | "HIGH" | "MEDIUM", "title": "<short title>", "detail": "<specific actionable recommendation tailored to this vendor and tier>" }
-  ],
-  "generated_language": {
-    "tcpa_disclaimer": "<Complete ready-to-use TCPA disclaimer with PEWC language, [COMPANY NAME] placeholder, contact method, and opt-out>",
-    "vendor_demand_letter": "<Short professional paragraph to send to this vendor demanding specific compliance documentation or fixes>",
-    "opt_out_line": "<Single ready-to-use opt-out disclosure line>"
+  "incentive_trips": {
+    "current_trip": "<2025 or 2026 trip destination if found, otherwise most recent known>",
+    "past_trips": ["past destinations mentioned"],
+    "qualification": "<threshold or criteria to qualify if mentioned>",
+    "trip_intel": "<additional context about their trip program>"
   },
-  "summary": "<3-4 sentences plain English summary of compliance picture, vendor tier, key risks, and what the agent should do next>"
+  "their_pitch": {
+    "headline_claim": "<the #1 thing they tell agents about why to join>",
+    "key_selling_points": ["specific claims they make to agents"],
+    "target_agent": "<what type of agent they recruit>",
+    "differentiators": "<what they claim makes them different>"
+  },
+  "weak_points": {
+    "agent_complaints": "<complaints, negative reviews, or agent frustrations found>",
+    "gaps": "<what they don't offer or are weak on>",
+    "red_flags": "<contract ownership, captive language, release issues, anything agents complain about>"
+  },
+  "competitive_intel": {
+    "tree_affiliation": "<which of the three major trees — Integrity, AmeriLife, SMS — this FMO rolls up through if determinable>",
+    "recent_changes": "<acquisitions, rebrands, ownership changes, news in 2024-2025>",
+    "market_position": "<how they position themselves>"
+  },
+  "your_counter": {
+    "opening_line": "<single best opening line to say to an agent at this FMO — specific, not generic>",
+    "key_angles": ["3-5 specific angles based on their weak points"],
+    "trip_angle": "<how to use their trip program in conversation — tactical>",
+    "carrier_angle": "<what to say about carriers — what they're missing>",
+    "close": "<most compelling reason for this specific agent to have the conversation>"
+  },
+  "pages_found": ${JSON.stringify(foundPages)},
+  "data_confidence": "HIGH" | "MEDIUM" | "LOW",
+  "confidence_note": "<why the confidence level is what it is>"
 }`
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-5',
-    max_tokens: 2500,
+    max_tokens: 3000,
     messages: [{ role: 'user', content: prompt }],
   })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : ''
   const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('Failed to parse Claude analysis')
+  if (!jsonMatch) throw new Error('Failed to parse analysis')
   return JSON.parse(jsonMatch[0])
 }
 
@@ -234,9 +223,7 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const id = req.nextUrl.searchParams.get('id')
-
   if (id) {
-    // Fetch single scan by ID
     const { data, error } = await supabase
       .from('prometheus_scans')
       .select('*')
@@ -247,7 +234,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ scan: data })
   }
 
-  // Fetch recent scans for this user
   const { data, error } = await supabase
     .from('prometheus_scans')
     .select('id, domain, score, verdict, vendor_tier, is_shared_lead, pages_scanned, created_at')
@@ -260,6 +246,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get('origin')
+  const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
+  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -267,43 +259,47 @@ export async function POST(req: NextRequest) {
   if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
 
   try {
-    const { domain } = await req.json()
-    if (!domain || typeof domain !== 'string' || domain.length > 253) {
-      return NextResponse.json({ error: 'Invalid domain' }, { status: 400 })
+    const { fmo_name, website } = await req.json()
+    if (!fmo_name || typeof fmo_name !== 'string') {
+      return NextResponse.json({ error: 'FMO name required' }, { status: 400 })
     }
 
-    const baseUrl = normalizeUrl(domain)
-    const cleanDomain = baseUrl.replace('https://', '')
+    const baseUrl = website ? normalizeUrl(website) : await discoverWebsite(fmo_name)
+    const domain = baseUrl ? baseUrl.replace('https://', '').replace('http://', '') : null
 
-    const pages = await tryFetchPages(baseUrl)
-    const serpIntel = await fetchSerpIntel(cleanDomain)
-    const analysis = await runClaudeAnalysis(cleanDomain, pages, serpIntel)
+    const [crawlResult, serpIntel] = await Promise.all([
+      baseUrl ? crawlFMOSite(baseUrl) : Promise.resolve({ pages: {}, foundPages: [] }),
+      fetchSerpIntel(fmo_name),
+    ])
+
+    const analysis = await runClaudeAnalysis(fmo_name, domain, crawlResult.pages, serpIntel, crawlResult.foundPages)
 
     const { data: saved, error: saveError } = await supabase
       .from('prometheus_scans')
       .insert({
         clerk_id: userId,
-        domain: cleanDomain,
-        score: analysis.score,
-        verdict: analysis.verdict,
-        vendor_tier: analysis.vendor_tier || 'UNKNOWN',
-        is_shared_lead: analysis.is_shared_lead_vendor || false,
-        pages_scanned: pages.foundPages,
+        domain: fmo_name,
+        score: analysis.data_confidence === 'HIGH' ? 90 : analysis.data_confidence === 'MEDIUM' ? 60 : 30,
+        verdict: analysis.size_signal || 'UNKNOWN',
+        vendor_tier: analysis.competitive_intel?.tree_affiliation || 'UNKNOWN',
+        is_shared_lead: false,
+        pages_scanned: crawlResult.foundPages,
         analysis_json: analysis,
       })
       .select('id')
       .single()
 
-    if (saveError) console.error('[/api/prometheus] Supabase save error:', saveError)
+    if (saveError) console.error('[/api/prometheus] save error:', saveError)
 
     return NextResponse.json({
       id: saved?.id || null,
-      domain: cleanDomain,
-      pages: pages.foundPages,
+      fmo_name,
+      domain,
+      pages: crawlResult.foundPages,
       analysis,
     })
   } catch (err) {
     console.error('[/api/prometheus] error:', err)
-    return NextResponse.json({ error: 'Scan failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Scan failed. Please try again.' }, { status: 500 })
   }
 }

@@ -129,8 +129,8 @@ export default function HomePage() {
               onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--orange)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)' }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 3, marginBottom: 12 }}>PROMETHEUS</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'var(--white)', letterSpacing: 2, marginBottom: 10 }}>TCPA COMPLIANCE SCANNER</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>Scan any lead vendor domain and score its TCPA compliance before the first call goes out. Documented due diligence in under 30 seconds.</div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'var(--white)', letterSpacing: 2, marginBottom: 10 }}>FMO COMPETITIVE INTEL</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>Scan any FMO or IMO and get a full competitive briefing — carriers, incentive trips, lead programs, their recruiting pitch, weak points, and a custom counter-script built from their vulnerabilities.</div>
               <div style={{ marginTop: 16, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1 }}>LEARN MORE ↗</div>
             </div>
           </Link>
