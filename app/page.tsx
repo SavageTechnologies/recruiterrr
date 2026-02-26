@@ -121,29 +121,150 @@ export default function HomePage() {
       </section>
 
       {/* INTELLIGENCE TOOLS */}
-      <section style={{ padding: '0 40px 80px', maxWidth: 900 }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 16 }}>Intelligence Systems</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+      <section style={{ padding: '0 40px 80px', maxWidth: 960 }}>
+        <style>{`
+          @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+          @keyframes scanlineP { 0%{top:-2px;opacity:0.7} 100%{top:100%;opacity:0} }
+          @keyframes scanlineA { 0%{top:-2px;opacity:0.7} 100%{top:100%;opacity:0} }
+          @keyframes pulseP { 0%,100%{opacity:0.4} 50%{opacity:1} }
+          @keyframes pulseA { 0%,100%{opacity:0.3} 50%{opacity:0.8} }
+          .intel-card-p:hover .scanline-p { animation: scanlineP 1.4s linear infinite !important; }
+          .intel-card-a:hover .scanline-a { animation: scanlineA 1.4s linear infinite !important; }
+          .intel-card-p:hover { border-color: var(--orange) !important; box-shadow: 0 0 40px rgba(255,85,0,0.08), inset 0 0 60px rgba(255,85,0,0.03) !important; }
+          .intel-card-a:hover { border-color: rgba(0,230,118,0.6) !important; box-shadow: 0 0 40px rgba(0,230,118,0.08), inset 0 0 60px rgba(0,230,118,0.03) !important; }
+        `}</style>
+
+        {/* Section header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 3 }}>SYS://INTEL</div>
+          <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, #2a2a2a, transparent)' }} />
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 2 }}>2 MODULES ONLINE</div>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', animation: 'pulseA 2s ease-in-out infinite' }} />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
+
+          {/* PROMETHEUS CARD */}
           <Link href="/prometheus" style={{ textDecoration: 'none' }}>
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '32px 28px', transition: 'border-color 0.15s', cursor: 'pointer' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--orange)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 3, marginBottom: 12 }}>PROMETHEUS</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'var(--white)', letterSpacing: 2, marginBottom: 10 }}>FMO COMPETITIVE INTEL</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>Scan any FMO or IMO and get a full competitive briefing — carriers, incentive trips, lead programs, their recruiting pitch, weak points, and a custom counter-script built from their vulnerabilities.</div>
-              <div style={{ marginTop: 16, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1 }}>LEARN MORE ↗</div>
+            <div className="intel-card-p" style={{ background: '#100f0d', border: '1px solid #2a2826', padding: 0, cursor: 'pointer', transition: 'border-color 0.2s, box-shadow 0.2s', position: 'relative', overflow: 'hidden' }}>
+
+              {/* Scan line */}
+              <div className="scanline-p" style={{ position: 'absolute', left: 0, width: '100%', height: 2, background: 'linear-gradient(90deg, transparent, var(--orange), transparent)', top: '-2px', opacity: 0, zIndex: 2 }} />
+
+              {/* Corner decorations */}
+              <div style={{ position: 'absolute', top: 0, left: 0, width: 20, height: 20, borderTop: '1px solid var(--orange)', borderLeft: '1px solid var(--orange)', opacity: 0.5 }} />
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 20, height: 20, borderTop: '1px solid var(--orange)', borderRight: '1px solid var(--orange)', opacity: 0.5 }} />
+              <div style={{ position: 'absolute', bottom: 0, left: 0, width: 20, height: 20, borderBottom: '1px solid var(--orange)', borderLeft: '1px solid var(--orange)', opacity: 0.5 }} />
+              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderBottom: '1px solid var(--orange)', borderRight: '1px solid var(--orange)', opacity: 0.5 }} />
+
+              {/* Header bar */}
+              <div style={{ padding: '10px 16px', borderBottom: '1px solid #1e1c1a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 5, height: 5, background: 'var(--orange)', animation: 'pulseP 2.5s ease-in-out infinite' }} />
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--orange)', letterSpacing: 3 }}>PROMETHEUS · MODULE 01</div>
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', letterSpacing: 1 }}>STATUS: ONLINE</div>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: '28px 28px 24px' }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2, marginBottom: 14 }}>
+                  ── FMO COMPETITIVE INTELLIGENCE ──
+                </div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--white)', letterSpacing: 2, lineHeight: 1, marginBottom: 14 }}>
+                  KNOW THEIR<br />EVERY MOVE<span style={{ color: 'var(--orange)' }}>.</span>
+                </div>
+                <div style={{ fontSize: 12, color: '#666', lineHeight: 1.7, marginBottom: 20 }}>
+                  Carriers. Incentive trips. Lead programs. Their recruiting pitch. Weak points. A custom counter-script built from their vulnerabilities.
+                </div>
+
+                {/* Fake data readout */}
+                <div style={{ borderTop: '1px solid #1e1c1a', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {['CARRIER STACK EXTRACTION', 'TRIP INTEL 2025/2026', 'COUNTER-PITCH GENERATOR'].map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 4, height: 4, background: 'var(--orange)', opacity: 0.5, flexShrink: 0 }} />
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 1 }}>{item}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '10px 28px', borderTop: '1px solid #1e1c1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 2 }}>ACCESS MODULE ↗</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#2a2826', letterSpacing: 1 }}>v1.0 · RECRUITERRR</div>
+              </div>
             </div>
           </Link>
+
+          {/* ANATHEMA CARD */}
           <Link href="/anathema" style={{ textDecoration: 'none' }}>
-            <div style={{ background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.2)', padding: '32px 28px', transition: 'border-color 0.15s', cursor: 'pointer' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--green)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(0,230,118,0.2)' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 3, marginBottom: 12 }}>ANATHEMA</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'var(--white)', letterSpacing: 2, marginBottom: 10 }}>DISTRIBUTION TREE SCANNER</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>Predict which of the three major distribution trees — Integrity, AmeriLife, or SMS — an agent rolls up through. Run on any agent card. No agent is truly independent.</div>
-              <div style={{ marginTop: 16, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)', letterSpacing: 1 }}>LEARN MORE ↗</div>
+            <div className="intel-card-a" style={{ background: '#090d0b', border: '1px solid rgba(0,230,118,0.12)', padding: 0, cursor: 'pointer', transition: 'border-color 0.2s, box-shadow 0.2s', position: 'relative', overflow: 'hidden' }}>
+
+              {/* Scan line */}
+              <div className="scanline-a" style={{ position: 'absolute', left: 0, width: '100%', height: 2, background: 'linear-gradient(90deg, transparent, #00e676, transparent)', top: '-2px', opacity: 0, zIndex: 2 }} />
+
+              {/* Corner decorations */}
+              <div style={{ position: 'absolute', top: 0, left: 0, width: 20, height: 20, borderTop: '1px solid rgba(0,230,118,0.4)', borderLeft: '1px solid rgba(0,230,118,0.4)' }} />
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 20, height: 20, borderTop: '1px solid rgba(0,230,118,0.4)', borderRight: '1px solid rgba(0,230,118,0.4)' }} />
+              <div style={{ position: 'absolute', bottom: 0, left: 0, width: 20, height: 20, borderBottom: '1px solid rgba(0,230,118,0.4)', borderLeft: '1px solid rgba(0,230,118,0.4)' }} />
+              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderBottom: '1px solid rgba(0,230,118,0.4)', borderRight: '1px solid rgba(0,230,118,0.4)' }} />
+
+              {/* Header bar */}
+              <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,230,118,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 5, height: 5, background: 'var(--green)', animation: 'pulseA 2s ease-in-out infinite' }} />
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--green)', letterSpacing: 3 }}>ANATHEMA · MODULE 02</div>
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#1a2e22', letterSpacing: 1 }}>A0-3959X.91–15</div>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: '28px 28px 24px' }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'rgba(0,230,118,0.2)', letterSpacing: 2, marginBottom: 14 }}>
+                  ── PATHOGEN ANALYSIS SYSTEM ──
+                </div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--white)', letterSpacing: 2, lineHeight: 1, marginBottom: 14 }}>
+                  NO AGENT IS<br />TRULY FREE<span style={{ color: 'var(--green)' }}>.</span>
+                </div>
+                <div style={{ fontSize: 12, color: '#4a6655', lineHeight: 1.7, marginBottom: 20 }}>
+                  Every agent carries markers. Carrier fingerprints. Language signals. Social traces. ANATHEMA reads the pathogen and names the strain.
+                </div>
+
+                {/* Fake data readout */}
+                <div style={{ borderTop: '1px solid rgba(0,230,118,0.07)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {['INTEGRITY · AMERILIFE · SMS', 'STAGE I → STAGE IV CLASSIFICATION', 'SPECIMEN DATABASE LEARNING'].map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 4, height: 4, background: 'var(--green)', opacity: 0.3, flexShrink: 0 }} />
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'rgba(0,230,118,0.25)', letterSpacing: 1 }}>{item}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '10px 28px', borderTop: '1px solid rgba(0,230,118,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 2 }}>ACCESS MODULE ↗</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'rgba(0,230,118,0.08)', letterSpacing: 1 }}>v1.0 · RECRUITERRR</div>
+              </div>
             </div>
           </Link>
+
+        </div>
+
+        {/* Bottom system bar */}
+        <div style={{ marginTop: 3, padding: '8px 16px', background: '#0a0908', border: '1px solid #191714', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#252220', letterSpacing: 2 }}>RECRUITERRR INTELLIGENCE PLATFORM · ALL SYSTEMS NOMINAL</div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 4, height: 4, background: 'var(--orange)', opacity: 0.5 }} />
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#252220', letterSpacing: 1 }}>PROMETHEUS ONLINE</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 4, height: 4, background: 'var(--green)', opacity: 0.3 }} />
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#252220', letterSpacing: 1 }}>ANATHEMA ONLINE</div>
+            </div>
+          </div>
         </div>
       </section>
 
