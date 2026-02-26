@@ -7,9 +7,10 @@ const NETWORKS = [
     slug: 'integrity',
     name: 'Integrity Marketing Group',
     url: 'integrity.com',
-    desc: 'The nation\'s largest independent distributor of life and health insurance. 181 partner FMOs and IMOs across all 50 states.',
+    desc: "The nation's largest independent distributor of life and health insurance. 181 partner FMOs and IMOs across all 50 states.",
     count: 181,
     status: 'live',
+    countLabel: 'Affiliates Mapped',
   },
   {
     slug: 'amerilife',
@@ -18,6 +19,7 @@ const NETWORKS = [
     desc: 'One of the largest insurance distribution organizations in the US, focused on health, life, wealth and worksite markets.',
     count: 78,
     status: 'live',
+    countLabel: 'Affiliates Mapped',
   },
   {
     slug: 'sms',
@@ -26,6 +28,17 @@ const NETWORKS = [
     desc: 'Omaha-based national FMO and one of the top three distribution networks in the senior market. Strong in Medicare, life, and annuity across the midwest and beyond.',
     count: 27,
     status: 'live',
+    countLabel: 'Affiliates Mapped',
+  },
+  {
+    slug: 'anathema',
+    name: 'ANATHEMA Infection Map',
+    url: 'field intelligence',
+    desc: 'A live map built from recruiter field data. Every confirmed agent affiliation logged by a Recruiterrr user gets plotted in real time — proprietary intelligence no directory can give you.',
+    count: null,
+    status: 'live',
+    countLabel: 'Community Logged',
+    isAnathema: true,
   },
 ]
 
@@ -72,12 +85,21 @@ export default function NetworkPage() {
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--orange)', letterSpacing: 1 }}>{n.count}</div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>Affiliates Mapped</div>
+                  {n.count !== null ? (
+                    <>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: n.isAnathema ? '#00e676' : 'var(--orange)', letterSpacing: 1 }}>{n.count}</div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>{n.countLabel || 'Affiliates Mapped'}</div>
+                    </>
+                  ) : (
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#00e676', letterSpacing: 2, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: '#00e676', animation: 'anathemaPulse 2s ease infinite' }} />
+                      LIVE · COMMUNITY LOGGED
+                    </div>
+                  )}
                 </div>
 
                 {n.status === 'live' ? (
-                  <Link href={`/network/${n.slug}`} style={{ padding: '12px 28px', background: 'var(--orange)', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, textDecoration: 'none' }}>
+                  <Link href={`/network/${n.slug}`} style={{ padding: '12px 28px', background: n.isAnathema ? '#00e676' : 'var(--orange)', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, textDecoration: 'none' }}>
                     EXPLORE MAP →
                   </Link>
                 ) : (
@@ -91,6 +113,9 @@ export default function NetworkPage() {
         </div>
       </section>
 
+      
+
+      <style>{`@keyframes anathemaPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
       <PageFooter />
     </div>
   )
