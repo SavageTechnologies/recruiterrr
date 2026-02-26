@@ -70,10 +70,23 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
   // Run all queries — don't scale down based on limit, let dedup handle it
   const queries = base
 
-  // SerpAPI google_local accepts a `location` string AND `q` separately.
-  // Passing city+state here pins the Google Maps local pack to that exact market.
-  // We also pass `hl=en` and `gl=us` to prevent locale drift on the API side.
-  const locationParam = encodeURIComponent(`${city}, ${state}`)
+  const STATE_FULL: Record<string, string> = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+    'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+    'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+    'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+    'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
+    'DC': 'District of Columbia',
+  }
+  const stateAbbr = state.trim().toUpperCase()
+  const stateFull = STATE_FULL[stateAbbr] || state
+  // SerpAPI requires full state name: "City, State, United States"
+  const locationParam = encodeURIComponent(`${city}, ${stateFull}, United States`)
 
   const seen = new Set<string>()
   const results: any[] = []
