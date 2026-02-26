@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import AnathemaPanel from '@/components/AnathemaPanel'
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
 
@@ -88,7 +89,7 @@ function RecruitBadge({ flag }: { flag: 'hot' | 'warm' | 'cold' }) {
   )
 }
 
-function AgentCard({ agent, index }: { agent: Agent; index: number }) {
+function AgentCard({ agent, index, city, state }: { agent: Agent; index: number; city: string; state: string }) {
   const [expanded, setExpanded] = useState(false)
   return (
     <div
@@ -173,6 +174,7 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
                   {agent.website} ↗
                 </a>
               )}
+              <AnathemaPanel agent={agent} city={city} state={state} />
             </>
           )}
         </div>
@@ -555,7 +557,7 @@ function SearchPageInner() {
             </div>
           ) : (
             <div style={{ display: 'grid', gap: 2 }}>
-              {agents.map((agent, i) => <AgentCard key={i} agent={agent} index={i} />)}
+              {agents.map((agent, i) => <AgentCard key={i} agent={agent} index={i} city={city} state={state} />)}
             </div>
           )}
         </>

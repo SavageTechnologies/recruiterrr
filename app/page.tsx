@@ -120,6 +120,33 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* INTELLIGENCE TOOLS */}
+      <section style={{ padding: '0 40px 80px', maxWidth: 900 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 16 }}>Intelligence Systems</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+          <Link href="/prometheus" style={{ textDecoration: 'none' }}>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '32px 28px', transition: 'border-color 0.15s', cursor: 'pointer' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--orange)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 3, marginBottom: 12 }}>PROMETHEUS</div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'var(--white)', letterSpacing: 2, marginBottom: 10 }}>TCPA COMPLIANCE SCANNER</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>Scan any lead vendor domain and score its TCPA compliance before the first call goes out. Documented due diligence in under 30 seconds.</div>
+              <div style={{ marginTop: 16, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1 }}>LEARN MORE ↗</div>
+            </div>
+          </Link>
+          <Link href="/anathema" style={{ textDecoration: 'none' }}>
+            <div style={{ background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.2)', padding: '32px 28px', transition: 'border-color 0.15s', cursor: 'pointer' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--green)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(0,230,118,0.2)' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 3, marginBottom: 12 }}>ANATHEMA</div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'var(--white)', letterSpacing: 2, marginBottom: 10 }}>DISTRIBUTION TREE SCANNER</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>Predict which of the three major distribution trees — Integrity, AmeriLife, or SMS — an agent rolls up through. Run on any agent card. No agent is truly independent.</div>
+              <div style={{ marginTop: 16, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)', letterSpacing: 1 }}>LEARN MORE ↗</div>
+            </div>
+          </Link>
+        </div>
+      </section>
+
       {/* CTA */}
       <section style={{ padding: '60px 40px 80px', borderTop: '1px solid var(--border)' }}>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(48px, 7vw, 88px)', letterSpacing: 2, color: 'var(--white)', lineHeight: 0.95, marginBottom: 32 }}>
