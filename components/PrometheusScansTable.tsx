@@ -26,10 +26,10 @@ export default function PrometheusScansTable({ scans }: { scans: Scan[] }) {
           NO SCANS YET
         </div>
         <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 24 }}>
-          Scan a lead vendor domain to check TCPA compliance.
+          Run Prometheus on any FMO or IMO to get a full competitive briefing.
         </div>
         <Link href="/dashboard/prometheus" style={{ padding: '12px 32px', background: 'transparent', border: '1px solid var(--orange)', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none', display: 'inline-block' }}>
-          Scan a Domain
+          Run Intel
         </Link>
       </div>
     )
@@ -38,39 +38,40 @@ export default function PrometheusScansTable({ scans }: { scans: Scan[] }) {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 80px 100px 120px', gap: 16, padding: '8px 16px', marginBottom: 4, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
-        <div>Domain</div>
-        <div>Tier</div>
-        <div>Score</div>
-        <div>Verdict</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 100px 110px 120px', gap: 16, padding: '8px 16px', marginBottom: 4, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
+        <div>FMO / IMO</div>
+        <div>Size</div>
+        <div>Confidence</div>
+        <div>Tree</div>
         <div>Date</div>
       </div>
 
       {visible.map(scan => {
-        const scoreColor = scan.score >= 75 ? 'var(--green)' : scan.score >= 45 ? 'var(--yellow)' : 'var(--red)'
-        const verdictColor = scan.verdict === 'COMPLIANT' ? 'var(--green)' : scan.verdict === 'REVIEW NEEDED' ? 'var(--yellow)' : 'var(--red)'
+        const sizeColor = scan.verdict === 'LARGE' ? 'var(--orange)' : scan.verdict === 'MID-SIZE' ? 'var(--yellow)' : 'var(--muted)'
+        const confColor = scan.score >= 75 ? 'var(--green)' : scan.score >= 45 ? 'var(--yellow)' : 'var(--muted)'
+        // Truncate long tree affiliation text
+        const treeRaw = scan.vendor_tier || '—'
+        const treeShort = treeRaw.length > 12 ? treeRaw.slice(0, 10) + '…' : treeRaw
+
         return (
           <Link
             key={scan.id}
             href={`/dashboard/prometheus?id=${scan.id}`}
-            style={{ display: 'grid', gridTemplateColumns: '1fr 120px 80px 100px 120px', gap: 16, padding: '14px 16px', background: 'var(--dark)', border: '1px solid var(--border)', marginBottom: 2, textDecoration: 'none', transition: 'border-color 0.15s' }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-light)')}
+            style={{ display: 'grid', gridTemplateColumns: '1fr 90px 100px 110px 120px', gap: 16, padding: '14px 16px', background: 'var(--dark)', border: '1px solid var(--border)', marginBottom: 2, textDecoration: 'none', transition: 'border-color 0.15s' }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--orange)')}
             onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
           >
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)', alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {scan.domain}
-              {scan.is_shared_lead && (
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 6px', border: '1px solid var(--red)', color: 'var(--red)', letterSpacing: 1 }}>SHARED</span>
-              )}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center' }}>
-              {scan.vendor_tier || 'UNKNOWN'}
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: sizeColor, letterSpacing: 1, alignSelf: 'center' }}>
+              {scan.verdict || '—'}
             </div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: scoreColor, lineHeight: 1, alignSelf: 'center' }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: confColor, lineHeight: 1, alignSelf: 'center' }}>
               {scan.score}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: verdictColor, letterSpacing: 1, alignSelf: 'center' }}>
-              {scan.verdict}
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {treeShort}
             </div>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center' }}>
               {new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

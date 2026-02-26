@@ -77,7 +77,7 @@ export default async function DashboardPage() {
           <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: 'var(--white)' }}>
             PROMETHEUS
           </span>
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2 }}>TCPA SCAN →</span>
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2 }}>FMO INTEL →</span>
         </Link>
         <Link href="/dashboard/anathema" style={{ display: 'inline-flex', alignItems: 'center', gap: 16, padding: '20px 32px', background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.25)', textDecoration: 'none', transition: 'border-color 0.15s' }}>
           <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: 'var(--green)' }}>
