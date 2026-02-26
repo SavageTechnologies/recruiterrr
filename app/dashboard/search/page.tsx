@@ -169,7 +169,8 @@ function SearchPageInner() {
   const [searched, setSearched] = useState(false)
   const [searchLabel, setSearchLabel] = useState('')
   const [error, setError] = useState('')
-  // Autocomplete
+  const [query, setQuery] = useState('')
+  // City autocomplete
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [acLoading, setAcLoading] = useState(false)
@@ -181,7 +182,7 @@ function SearchPageInner() {
     if (id) loadSavedSearch(id)
   }, [])
 
-  // Close suggestions when clicking outside
+  // Close city suggestions when clicking outside
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (acRef.current && !acRef.current.contains(e.target as Node)) {
@@ -249,7 +250,7 @@ function SearchPageInner() {
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city: searchCity.trim(), state: searchState, limit, mode }),
+        body: JSON.stringify({ city: searchCity.trim(), state: searchState, limit, mode, query: query.trim() }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
@@ -283,12 +284,31 @@ function SearchPageInner() {
         </h1>
       </div>
 
-      {/* City input — own box with autocomplete */}
-      <div ref={acRef} style={{ position: 'relative', marginBottom: 2 }}>
-        <div style={{ display: 'flex', border: `1px solid ${loading ? 'var(--orange)' : showSuggestions ? 'var(--border-light)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none' }}>
-          <div style={{ padding: '14px 20px', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', borderRight: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
-            📍 CITY
-          </div>
+      {/* Single search bar: [query] [mode] [city w/ autocomplete] [state] [limit] [SEARCH] */}
+      <div ref={acRef} style={{ position: 'relative', marginBottom: 12 }}>
+        <div style={{ display: 'flex', border: `1px solid ${loading ? 'var(--orange)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none' }}>
+
+          {/* Free-text search — takes most of the space */}
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && runSearch()}
+            placeholder="Search agents, agencies, specialties..."
+            disabled={loading}
+            style={{ flex: 1, minWidth: 0, padding: '18px 24px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
+          />
+
+          <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
+
+          {/* Mode */}
+          <select value={mode} onChange={e => setMode(e.target.value)} disabled={loading}
+            style={{ width: 150, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0 }}>
+            {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+
+          <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
+
+          {/* City — compact, with autocomplete dropdown anchored here */}
           <input
             value={city}
             onChange={e => handleCityChange(e.target.value)}
@@ -297,67 +317,61 @@ function SearchPageInner() {
               if (e.key === 'Escape') setShowSuggestions(false)
             }}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            placeholder="Type a city — e.g. Kansas City"
+            placeholder="City"
             disabled={loading}
             autoComplete="off"
-            style={{ flex: 1, padding: '14px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
+            style={{ width: 140, flexShrink: 0, padding: '18px 14px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, letterSpacing: 1 }}
           />
           {acLoading && (
-            <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: 12, height: 12, border: '1px solid var(--border-light)', borderTopColor: 'var(--orange)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+            <div style={{ display: 'flex', alignItems: 'center', paddingRight: 10, flexShrink: 0 }}>
+              <div style={{ width: 10, height: 10, border: '1px solid var(--border-light)', borderTopColor: 'var(--orange)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
             </div>
           )}
-          {city && !loading && (
-            <button onClick={() => { setCity(''); setSuggestions([]); setShowSuggestions(false) }}
-              style={{ padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 14 }}>
-              ✕
-            </button>
-          )}
+
+          <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
+
+          {/* State */}
+          <select value={state} onChange={e => setState(e.target.value)} disabled={loading}
+            style={{ width: 72, padding: '18px 8px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, cursor: 'pointer', appearance: 'none', textAlign: 'center', flexShrink: 0 }}>
+            {STATES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+
+          <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
+
+          {/* Limit */}
+          <select value={limit} onChange={e => setLimit(Number(e.target.value))} disabled={loading}
+            style={{ width: 64, padding: '18px 8px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, cursor: 'pointer', appearance: 'none', textAlign: 'center', flexShrink: 0 }}>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={30}>30</option>
+            <option value={40}>40</option>
+            <option value={50}>50</option>
+          </select>
+
+          {/* Search button */}
+          <button onClick={() => runSearch()} disabled={loading || !city.trim()}
+            style={{ padding: '18px 32px', background: loading ? '#333' : 'var(--orange)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {loading ? 'SCANNING...' : 'SEARCH'}
+          </button>
         </div>
 
-        {/* Autocomplete suggestions dropdown */}
+        {/* City autocomplete dropdown — anchored under the city input */}
         {showSuggestions && suggestions.length > 0 && (
-          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 200 }}>
+          <div style={{ position: 'absolute', right: 0, width: 220, top: '100%', background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 200 }}>
             {suggestions.map((s, i) => (
               <div
                 key={i}
                 onMouseDown={() => selectSuggestion(s)}
-                style={{ padding: '12px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none', transition: 'background 0.1s' }}
+                style={{ padding: '11px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'var(--white)', letterSpacing: 0.5 }}>{s.city}</span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2 }}>{s.state}</span>
               </div>
             ))}
           </div>
         )}
-      </div>
-
-      {/* Controls row — mode, limit, state, search button */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 12, border: '1px solid var(--border-light)', background: 'var(--card)' }}>
-        <select value={state} onChange={e => setState(e.target.value)} disabled={loading}
-          style={{ width: 80, padding: '14px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, cursor: 'pointer', appearance: 'none', textAlign: 'center' }}>
-          {STATES.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <div style={{ width: 1, background: 'var(--border-light)' }} />
-        <select value={mode} onChange={e => setMode(e.target.value)} disabled={loading}
-          style={{ flex: 1, padding: '14px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1 }}>
-          {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-        </select>
-        <div style={{ width: 1, background: 'var(--border-light)' }} />
-        <select value={limit} onChange={e => setLimit(Number(e.target.value))} disabled={loading}
-          style={{ width: 80, padding: '14px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, cursor: 'pointer', appearance: 'none', textAlign: 'center' }}>
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-          <option value={30}>30</option>
-          <option value={40}>40</option>
-          <option value={50}>50</option>
-        </select>
-        <button onClick={() => runSearch()} disabled={loading || !city.trim()}
-          style={{ padding: '14px 32px', background: loading ? '#333' : 'var(--orange)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap' }}>
-          {loading ? 'SCANNING...' : 'SEARCH'}
-        </button>
       </div>
 
       {/* Result count hint */}

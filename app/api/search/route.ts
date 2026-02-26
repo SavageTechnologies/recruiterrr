@@ -26,31 +26,43 @@ type AgentResult = {
   about: string | null; contact_email: string | null; social_links: string[]
 }
 
-async function fetchAgentsFromSerp(city: string, state: string, limit: number, mode: string): Promise<any[]> {
+async function fetchAgentsFromSerp(city: string, state: string, limit: number, mode: string, query: string = ''): Promise<any[]> {
   const base: string[] = []
 
   // Mode controls WHAT type of agent we're looking for.
   // We intentionally omit city/state from the query string because we enforce location
   // via the SerpAPI `location` param below — mixing both causes Google to widen the
   // search area or return national directory results instead of true local listings.
-  if (mode === 'medicare' || mode === 'all') {
-    base.push(`Medicare insurance agent`)
-    base.push(`Medicare supplement broker`)
-    if (limit >= 20 || mode === 'all') base.push(`Medicare advantage agent`)
-    if (limit >= 30 || mode === 'all') base.push(`senior health insurance agent`)
-  }
-  if (mode === 'life' || mode === 'all') {
-    base.push(`life insurance agent`)
-    base.push(`final expense insurance agent`)
-    if (limit >= 20 || mode === 'all') base.push(`term life insurance broker`)
-  }
-  if (mode === 'aca' || mode === 'all') {
-    base.push(`health insurance agent`)
-    base.push(`ACA marketplace broker`)
-    if (limit >= 20 || mode === 'all') base.push(`marketplace insurance agent`)
-  }
-  if (mode === 'all') {
-    base.push(`independent insurance agent`)
+  //
+  // If the user typed a free-text query (e.g. "Medicare supplement", "final expense"),
+  // use that directly as the first and primary search term instead of the mode defaults.
+  const prefix = query.trim()
+
+  if (prefix) {
+    // User-supplied query is always the primary search
+    base.push(prefix)
+    base.push(`${prefix} insurance agent`)
+    if (limit >= 20) base.push(`${prefix} broker`)
+  } else {
+    if (mode === 'medicare' || mode === 'all') {
+      base.push(`Medicare insurance agent`)
+      base.push(`Medicare supplement broker`)
+      if (limit >= 20 || mode === 'all') base.push(`Medicare advantage agent`)
+      if (limit >= 30 || mode === 'all') base.push(`senior health insurance agent`)
+    }
+    if (mode === 'life' || mode === 'all') {
+      base.push(`life insurance agent`)
+      base.push(`final expense insurance agent`)
+      if (limit >= 20 || mode === 'all') base.push(`term life insurance broker`)
+    }
+    if (mode === 'aca' || mode === 'all') {
+      base.push(`health insurance agent`)
+      base.push(`ACA marketplace broker`)
+      if (limit >= 20 || mode === 'all') base.push(`marketplace insurance agent`)
+    }
+    if (mode === 'all') {
+      base.push(`independent insurance agent`)
+    }
   }
 
   // Scale up for larger limits
@@ -435,11 +447,11 @@ export async function POST(req: NextRequest) {
   if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
 
   try {
-    const { city, state, limit: resultLimit = 10, mode = 'all' } = await req.json()
+    const { city, state, limit: resultLimit = 10, mode = 'all', query = '' } = await req.json()
     if (!city || !state) return NextResponse.json({ error: 'City and state required' }, { status: 400 })
 
     const clampedLimit = Math.min(50, Math.max(10, Number(resultLimit)))
-    const rawAgents = await fetchAgentsFromSerp(city, state, clampedLimit, mode)
+    const rawAgents = await fetchAgentsFromSerp(city, state, clampedLimit, mode, query)
 
     if (!rawAgents.length) {
       await supabase.from('searches').insert({ clerk_id: userId, city, state, results_count: 0, hot_count: 0, warm_count: 0, cold_count: 0, agents_json: [] })
