@@ -6,65 +6,94 @@ const COLS = [
   {
     label: 'Platform',
     links: [
-      { href: '/about', label: 'About' },
-      { href: '/pricing', label: 'Pricing' },
-      { href: '/roadmap', label: 'Roadmap' },
-      { href: '/faq', label: 'FAQ' },
-      { href: '/wall', label: 'Wall' },
+      { href: '/about',       label: 'About' },
+      { href: '/philosophy',  label: 'Philosophy' },
+      { href: '/pricing',     label: 'Pricing' },
+      { href: '/roadmap',     label: 'Roadmap' },
+      { href: '/faq',         label: 'FAQ' },
     ],
   },
   {
     label: 'Intelligence',
     links: [
-      { href: '/prometheus', label: 'Prometheus' },
-      { href: '/anathema', label: 'ANATHEMA' },
-      { href: '/network', label: 'Network' },
+      { href: '/prometheus',       label: 'Prometheus' },
+      { href: '/anathema',         label: 'ANATHEMA' },
+      { href: '/network',          label: 'Network' },
+      { href: '/network/anathema', label: 'Infection Map' },
     ],
   },
   {
     label: 'Company',
     links: [
-      { href: '/team', label: 'Team' },
+      { href: '/team',    label: 'Team' },
       { href: '/contact', label: 'Contact' },
-      { href: '/socials', label: 'Socials' },
+      { href: '/wall',    label: 'Wall' },
     ],
   },
   {
     label: 'Legal',
     links: [
       { href: '/privacy', label: 'Privacy Policy' },
-      { href: '/terms', label: 'Terms of Service' },
+      { href: '/terms',   label: 'Terms of Service' },
     ],
   },
+]
+
+const SOCIALS = [
+  { label: 'X / TWITTER', handle: '@rrrSIGNAL', href: 'https://x.com/rrrSIGNAL' },
+  { label: 'INSTAGRAM',   handle: '@rrrSIGNAL', href: 'https://instagram.com/rrrSIGNAL' },
+  { label: 'TIKTOK',      handle: '@rrrSIGNAL', href: 'https://tiktok.com/@rrrSIGNAL' },
+  { label: 'LINKEDIN',    handle: '@rrrSIGNAL', href: 'https://linkedin.com/company/rrrsignal' },
 ]
 
 export default function PageFooter() {
   return (
     <footer style={{ borderTop: '1px solid #2e2b27' }}>
       <div style={{ height: 2, background: 'var(--orange)', width: 60 }} />
+
       <div style={{ padding: '48px 40px 32px', maxWidth: 1200 }}>
 
         {/* Top row — logo + columns */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(4, auto)', gap: '40px 64px', marginBottom: 40, flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(4, auto)', gap: '40px 64px', marginBottom: 48, flexWrap: 'wrap' }}>
 
           {/* Brand */}
           <div>
             <Link href="/" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 3, color: '#777', textDecoration: 'none', display: 'block', marginBottom: 12 }}>
               RECRUITERRR<span style={{ color: 'var(--orange)' }}>.</span>
             </Link>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#3a3a3a', letterSpacing: 1, lineHeight: 1.8 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#3a3a3a', letterSpacing: 1, lineHeight: 1.8, marginBottom: 16 }}>
               FIND. SCORE. RECRUIT.<br />
               FMO &amp; IMO Intelligence Platform<br />
               recruiterrr.com
             </div>
+
             {/* Module status pills */}
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1, padding: '3px 8px', border: '1px solid rgba(255,85,0,0.3)', color: 'rgba(255,85,0,0.5)' }}>
                 PROMETHEUS
               </div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1, padding: '3px 8px', border: '1px solid rgba(0,230,118,0.2)', color: 'rgba(0,230,118,0.35)' }}>
                 ANATHEMA
               </div>
+            </div>
+
+            {/* Socials */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {SOCIALS.map(s => (
+                <a
+                  key={s.label}
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}
+                >
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#2a2a2a', letterSpacing: 1, width: 72, flexShrink: 0 }}>{s.label}</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, color: '#444', transition: 'color 0.15s' }}
+                    onMouseEnter={e => ((e.target as HTMLElement).style.color = 'var(--white)')}
+                    onMouseLeave={e => ((e.target as HTMLElement).style.color = '#444')}
+                  >{s.handle}</span>
+                </a>
+              ))}
             </div>
           </div>
 
@@ -76,9 +105,12 @@ export default function PageFooter() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {col.links.map(l => (
-                  <Link key={l.href} href={l.href} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#666', letterSpacing: 1, textDecoration: 'none', transition: 'color 0.15s' }}
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#555', letterSpacing: 1, textDecoration: 'none' }}
                     onMouseEnter={e => (e.currentTarget.style.color = 'var(--white)')}
-                    onMouseLeave={e => (e.currentTarget.style.color = '#666')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#555')}
                   >
                     {l.label}
                   </Link>
@@ -89,14 +121,21 @@ export default function PageFooter() {
         </div>
 
         {/* Bottom bar */}
-        <div style={{ borderTop: '1px solid #1e1e1e', paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#3a3a3a', letterSpacing: 1 }}>
             © 2026 InsuraSafe, LLC. All rights reserved.
           </div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#2a2a2a', letterSpacing: 2 }}>
-            ALL SYSTEMS NOMINAL
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#2a2a2a', letterSpacing: 2 }}>
+              ALL SYSTEMS NOMINAL
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ width: 4, height: 4, background: 'rgba(255,85,0,0.4)', borderRadius: '50%' }} />
+              <div style={{ width: 4, height: 4, background: 'rgba(0,230,118,0.3)', borderRadius: '50%' }} />
+            </div>
           </div>
         </div>
+
       </div>
     </footer>
   )

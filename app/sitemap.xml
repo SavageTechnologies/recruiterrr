@@ -31,21 +31,15 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://recruiterrr.com/faq</loc>
+    <loc>https://recruiterrr.com/philosophy</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://recruiterrr.com/wall</loc>
+    <loc>https://recruiterrr.com/faq</loc>
     <lastmod>2026-02-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://recruiterrr.com/roadmap</loc>
-    <lastmod>2026-02-26</lastmod>
-    <changefreq>weekly</changefreq>
+    <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
@@ -55,9 +49,27 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://recruiterrr.com/network/anathema</loc>
+    <lastmod>2026-02-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://recruiterrr.com/network/integrity</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://recruiterrr.com/wall</loc>
+    <lastmod>2026-02-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://recruiterrr.com/roadmap</loc>
+    <lastmod>2026-02-26</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
@@ -67,16 +79,16 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://recruiterrr.com/socials</loc>
+    <loc>https://recruiterrr.com/team</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://recruiterrr.com/team</loc>
+    <loc>https://recruiterrr.com/socials</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.4</priority>
   </url>
   <url>
     <loc>https://recruiterrr.com/privacy</loc>

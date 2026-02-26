@@ -10,7 +10,7 @@ const TOOLS = [
 
 const NAV_LINKS = [
   { href: '/pricing', label: 'PRICING' },
-  { href: '/roadmap', label: 'ROADMAP' },
+  { href: '/philosophy', label: 'PHILOSOPHY' },
   { href: '/about', label: 'ABOUT' },
 ]
 
