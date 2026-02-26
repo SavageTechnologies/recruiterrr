@@ -38,6 +38,12 @@ export default function DashboardLayout({
           }}>
             Prometheus
           </Link>
+          <Link href="/dashboard/anathema" style={{
+            fontFamily: "'DM Mono', monospace", fontSize: 11,
+            color: 'var(--green)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+          }}>
+            Anathema
+          </Link>
           <UserButton
             afterSignOutUrl="/"
             appearance={{
