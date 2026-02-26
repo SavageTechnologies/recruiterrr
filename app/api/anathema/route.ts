@@ -141,6 +141,8 @@ export async function POST(req: NextRequest) {
       .eq('state', state)
       .single()
 
+    let specimenId = existing?.id
+
     if (existing?.id) {
       await supabase
         .from('anathema_specimens')
@@ -151,14 +153,28 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', existing.id)
     } else {
-      await supabase.from('anathema_specimens').insert({
-        clerk_id: userId,
-        agent_name, city, state, agent_website, agent_address,
-        predicted_tree, predicted_confidence, prediction_signals, prediction_reasoning,
-        facebook_profile_url, facebook_about,
-        confirmed_tree, confirmed_tree_other, confirmed_sub_imo, recruiter_notes,
-      })
+      const { data: inserted } = await supabase
+        .from('anathema_specimens')
+        .insert({
+          clerk_id: userId,
+          agent_name, city, state, agent_website, agent_address,
+          predicted_tree, predicted_confidence, prediction_signals, prediction_reasoning,
+          facebook_profile_url, facebook_about,
+          confirmed_tree, confirmed_tree_other, confirmed_sub_imo, recruiter_notes,
+        })
+        .select('id')
+        .single()
+      specimenId = inserted?.id
     }
+
+    // Always write a history entry so every change is tracked over time
+    await supabase.from('anathema_observation_history').insert({
+      specimen_id: specimenId,
+      clerk_id: userId,
+      agent_name, city, state,
+      confirmed_tree, confirmed_tree_other, confirmed_sub_imo, recruiter_notes,
+      predicted_tree, predicted_confidence,
+    })
 
     return NextResponse.json({ ok: true })
   }
