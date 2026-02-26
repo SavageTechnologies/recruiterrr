@@ -236,13 +236,37 @@ function AnathemaDashboardInner() {
       `}</style>
 
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#555', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>
-          Pathogen Analysis System · Chemical A0-3959X.91–15
+      <div style={{ marginBottom: 32, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#555', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>
+            Pathogen Analysis System · Chemical A0-3959X.91–15
+          </div>
+          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>
+            ANATHEMA<span style={{ color: 'var(--green)' }}>.</span>
+          </h1>
         </div>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>
-          ANATHEMA<span style={{ color: 'var(--green)' }}>.</span>
-        </h1>
+        <a
+          href="/dashboard/anathema/map"
+          style={{
+            padding: '10px 24px',
+            background: 'transparent',
+            border: '1px solid rgba(0,230,118,0.3)',
+            color: 'var(--green)',
+            fontFamily: "'DM Mono', monospace",
+            fontSize: 11,
+            letterSpacing: 2,
+            textTransform: 'uppercase',
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            transition: 'border-color 0.15s, background 0.15s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(0,230,118,0.06)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(0,230,118,0.6)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(0,230,118,0.3)' }}
+        >
+          <span style={{ fontSize: 8 }}>◈</span> VIEW INFECTION MAP
+        </a>
       </div>
 
       {/* Input form */}
