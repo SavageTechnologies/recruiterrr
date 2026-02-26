@@ -47,8 +47,25 @@ export default function AnathemaLandingPage() {
         }
       `}</style>
 
-      {/* HERO */}
-      <section style={{ padding: '100px 40px 60px', maxWidth: 960, position: 'relative', overflow: 'hidden' }}>
+      {/* HERO — full width so watermark pins to right edge */}
+      <section style={{ padding: '100px 40px 60px', position: 'relative', overflow: 'hidden' }}>
+        {/* Anathema specimen watermark — infected engineer, right edge */}
+        <div style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          width: '45vw',
+          height: '100%',
+          backgroundImage: "url('/anathema-specimen.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          opacity: 0.055,
+          pointerEvents: 'none',
+          userSelect: 'none',
+          maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 30%, black 70%)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 30%, black 70%)',
+        }} />
+        <div style={{ maxWidth: 960, position: 'relative' }}>
         <div className="hero-scanline" />
 
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--green)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -103,6 +120,7 @@ export default function AnathemaLandingPage() {
           >
             CREATE ACCOUNT
           </Link>
+        </div>
         </div>
       </section>
 

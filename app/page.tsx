@@ -22,6 +22,7 @@ export default function HomePage() {
 
       {/* HERO */}
       <section style={{ padding: '100px 40px 60px', maxWidth: 960, position: 'relative', overflow: 'hidden' }}>
+
         <XenoEgg />
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--orange)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ width: 24, height: 1, background: 'var(--orange)', display: 'inline-block' }} />

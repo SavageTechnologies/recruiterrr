@@ -7,8 +7,25 @@ export default function PrometheusLandingPage() {
     <div style={{ minHeight: '100vh', background: 'var(--black)' }}>
       <PageNav />
 
-      {/* HERO */}
-      <section style={{ padding: '100px 40px 60px', maxWidth: 960 }}>
+      {/* HERO — full width so watermark can pin to right edge */}
+      <section style={{ padding: '100px 40px 60px', position: 'relative', overflow: 'hidden' }}>
+        {/* Engineer watermark — pinned to right viewport edge, clipped by hero */}
+        <div style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          width: '45vw',
+          height: '100%',
+          backgroundImage: "url('/engineer.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          opacity: 0.055,
+          pointerEvents: 'none',
+          userSelect: 'none',
+          maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 30%, black 70%)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 30%, black 70%)',
+        }} />
+        <div style={{ maxWidth: 960, position: 'relative' }}>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--orange)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ width: 24, height: 1, background: 'var(--orange)', display: 'inline-block' }} />
           A Recruiterrr Intelligence Tool
@@ -27,6 +44,7 @@ export default function PrometheusLandingPage() {
           <Link href="/sign-up" style={{ padding: '18px 32px', background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
             CREATE ACCOUNT
           </Link>
+        </div>
         </div>
       </section>
 
