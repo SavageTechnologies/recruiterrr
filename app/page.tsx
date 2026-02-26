@@ -5,6 +5,7 @@ import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import PageFooter from '@/components/PageFooter'
+import HomeNav from '@/components/HomeNav'
 
 export default function HomePage() {
   const { isSignedIn } = useUser()
@@ -16,20 +17,7 @@ export default function HomePage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--black)' }}>
-      {/* NAV */}
-      <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 40px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--black)', zIndex: 100 }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 3, color: 'var(--white)' }}>
-          RECRUITERRR<span style={{ color: 'var(--orange)' }}>.</span>
-        </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <Link href="/sign-in" style={{ padding: '10px 24px', background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, cursor: 'pointer', textTransform: 'uppercase', textDecoration: 'none' }}>
-            Sign In
-          </Link>
-          <Link href="/sign-up" style={{ padding: '10px 24px', background: 'var(--orange)', border: 'none', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 2, cursor: 'pointer', textDecoration: 'none' }}>
-            Start Free Trial
-          </Link>
-        </div>
-      </nav>
+      <HomeNav />
 
       {/* HERO */}
       <section style={{ padding: '100px 40px 60px', maxWidth: 960 }}>
