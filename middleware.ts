@@ -32,11 +32,10 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Run middleware on all routes EXCEPT static files, _next internals, and API routes.
-    // API routes handle their own auth via Clerk's auth() helper — they do NOT need
-    // middleware, and including them caused Edge runtime bundling to pull in Node-only
-    // dependencies (Anthropic SDK) into the Edge bundle, crashing on startup.
-    '/((?!.*\\..*|_next|api).*)',
+    // Match all routes except static files and _next internals.
+    // API routes must be included so Clerk auth() context is established in handlers.
+    '/((?!.*\\..*|_next).*)',
     '/',
+    '/(api|trpc)(.*)',
   ],
 }
