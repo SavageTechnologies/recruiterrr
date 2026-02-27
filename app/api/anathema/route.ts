@@ -546,7 +546,7 @@ export async function POST(req: NextRequest) {
                   source: 'facebook_profile',
                   results: [{
                     title: `Facebook profile — ${handle}`,
-                    url: facebookProfileUrl,
+                    url: facebookProfileUrl || '',
                     snippet: about.slice(0, 200),
                     signals_matched: fbResult2.signals,
                   }],
