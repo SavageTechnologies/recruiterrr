@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
-import { getCandidatePartners, matchPartnerByName, type NetworkPartner } from '@/lib/networks'
+import { getCandidatePartners, matchPartnerByName, INTEGRITY_PARTNERS, AMERILIFE_PARTNERS, SMS_PARTNERS, type NetworkPartner } from '@/lib/networks'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -16,49 +16,154 @@ const ratelimit = new Ratelimit({
 
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 
-// ─── LANGUAGE FINGERPRINTS ───────────────────────────────────────────────────
-// These are explicit brand phrases — not generic words.
-// "integrity" alone is NOT here. Only compound phrases that can only mean one thing.
+// ─── NETWORK SIGNAL INDEX ────────────────────────────────────────────────────
+// Auto-built from networks.ts at startup — covers ALL 289 partners + aliases.
+// Never hardcode partner names here — add them to networks.ts instead.
+// Each signal carries: phrase, tree, partner reference, weight, and isAlias flag.
 
-const INTEGRITY_SIGNALS = [
-  'integrity marketing group',
-  'integrity marketing',
-  'integrity partner',
-  'ffl agent',
-  'family first life',
-  'integrityconnect',
-  'integrity connect',
-  'medicarecenter',
-  'medicare center',
-  'life of the southwest',
-  'integrity.com',
-  'integrity-partner',
-  'proud integrity partner',
+type NetworkSignal = {
+  phrase: string
+  tree: 'integrity' | 'amerilife' | 'sms'
+  partner: NetworkPartner | null  // null = parent brand signal, not a specific partner
+  weight: number
+  isAlias: boolean
+}
+
+// Unambiguous parent-brand phrases that identify the tree but not a specific partner
+const PARENT_BRAND_SIGNALS: { phrase: string; tree: 'integrity' | 'amerilife' | 'sms' }[] = [
+  { phrase: 'integrity marketing group', tree: 'integrity' },
+  { phrase: 'integrity marketing',       tree: 'integrity' },
+  { phrase: 'integrity partner',         tree: 'integrity' },
+  { phrase: 'proud integrity partner',   tree: 'integrity' },
+  { phrase: 'integrityconnect',          tree: 'integrity' },
+  { phrase: 'integrity connect',         tree: 'integrity' },
+  { phrase: 'medicarecenter',            tree: 'integrity' },
+  { phrase: 'medicare center',           tree: 'integrity' },
+  { phrase: 'integrity.com',             tree: 'integrity' },
+  { phrase: 'ffl agent',                 tree: 'integrity' },
+  { phrase: 'amerilife',                 tree: 'amerilife' },
+  { phrase: 'amerilife affiliate',       tree: 'amerilife' },
+  { phrase: 'amerilife partner',         tree: 'amerilife' },
+  { phrase: 'amerilife.com',             tree: 'amerilife' },
+  { phrase: 'senior market sales',       tree: 'sms' },
+  { phrase: 'sms partner',               tree: 'sms' },
+  { phrase: 'rethinking retirement',     tree: 'sms' },
+  { phrase: 'seniormarketsales.com',     tree: 'sms' },
+  { phrase: 'sms family',               tree: 'sms' },
+  { phrase: 'sms affiliate',            tree: 'sms' },
 ]
 
-const AMERILIFE_SIGNALS = [
-  'amerilife',
-  'usabg',
-  'amerilife affiliate',
-  'amerilife partner',
-  'amerilife.com',
-  'united senior benefits group',
-]
-
-const SMS_SIGNALS = [
-  'senior market sales',
-  'sms partner',
-  'rethinking retirement',
-  'seniormarketsales.com',
-  'sms family',
-  'sms affiliate',
-]
-
-// ─── CARRIER FINGERPRINTS ────────────────────────────────────────────────────
-// Only SMS has carriers exclusive enough to be a real signal.
-// Integrity and AmeriLife share all major carriers — removed.
-
+// SMS carrier combo — still the only carrier signal worth using
 const SMS_EXCLUSIVE_CARRIERS = ['mutual of omaha', 'medico', 'gpm life']
+
+function scoreSMSCarriers(carriers: string[]): { sms: number; signals: string[] } {
+  const lower = carriers.map(c => c.toLowerCase())
+  const smsMatches = lower.filter(c => SMS_EXCLUSIVE_CARRIERS.some(k => c.includes(k) || k.includes(c)))
+  if (smsMatches.length >= 2) return { sms: 35, signals: [`Carrier combo: ${smsMatches.join(' + ')} — SMS exclusive fingerprint`] }
+  if (smsMatches.length === 1) return { sms: 15, signals: [`Carrier: ${smsMatches[0]} — weak SMS signal`] }
+  return { sms: 0, signals: [] }
+}
+
+function buildNetworkSignalIndex(): NetworkSignal[] {
+  const signals: NetworkSignal[] = []
+  const seen = new Set<string>()
+
+  // Parent brand signals first — highest priority
+  for (const b of PARENT_BRAND_SIGNALS) {
+    if (!seen.has(b.phrase)) {
+      signals.push({ phrase: b.phrase, tree: b.tree, partner: null, weight: 40, isAlias: false })
+      seen.add(b.phrase)
+    }
+  }
+
+  // Every partner: name + website domain + aliases
+  const allPartners = [...INTEGRITY_PARTNERS, ...AMERILIFE_PARTNERS, ...SMS_PARTNERS]
+  for (const partner of allPartners) {
+    const nameLower = partner.name.toLowerCase()
+    if (nameLower.length >= 4 && !seen.has(nameLower)) {
+      signals.push({ phrase: nameLower, tree: partner.tree, partner, weight: 38, isAlias: false })
+      seen.add(nameLower)
+    }
+    // Domain match is strongest — it's unambiguous
+    const domain = partner.website.toLowerCase().replace('www.', '')
+    if (domain && !seen.has(domain)) {
+      signals.push({ phrase: domain, tree: partner.tree, partner, weight: 45, isAlias: false })
+      seen.add(domain)
+    }
+    for (const alias of partner.aliases || []) {
+      const aliasLower = alias.toLowerCase()
+      if (aliasLower.length >= 4 && !seen.has(aliasLower)) {
+        signals.push({ phrase: aliasLower, tree: partner.tree, partner, weight: aliasLower.length <= 4 ? 25 : 35, isAlias: true })
+        seen.add(aliasLower)
+      }
+    }
+  }
+  return signals
+}
+
+// Built once at module load — not rebuilt per request
+const NETWORK_SIGNALS = buildNetworkSignalIndex()
+
+// ─── FULL NETWORK SCANNER ─────────────────────────────────────────────────────
+// Scans a single SERP result against ALL signals simultaneously.
+// Returns every match with the proof URL attached — no more discarding the source.
+
+type NetworkMatch = {
+  signal: NetworkSignal
+  proofUrl: string
+  proofTitle: string
+  proofSnippet: string
+  matchedPhrase: string
+}
+
+function scanResultAgainstNetwork(title: string, snippet: string, url: string): NetworkMatch[] {
+  const haystack = `${title} ${snippet} ${url}`.toLowerCase()
+  const matches: NetworkMatch[] = []
+  const firedPhrases = new Set<string>()
+
+  for (const signal of NETWORK_SIGNALS) {
+    if (firedPhrases.has(signal.phrase)) continue
+    if (haystack.includes(signal.phrase)) {
+      matches.push({ signal, proofUrl: url, proofTitle: title, proofSnippet: snippet.slice(0, 200), matchedPhrase: signal.phrase })
+      firedPhrases.add(signal.phrase)
+    }
+  }
+  return matches
+}
+
+// Aggregate matches from multiple results into scores + human-readable signals
+// Each phrase is counted only once even if it appears in 5 results.
+function aggregateMatches(matches: NetworkMatch[]): {
+  integrity: number; amerilife: number; sms: number
+  signals: string[]
+  topPartnerMatch: NetworkMatch | null  // highest-weight partner-specific match
+} {
+  let integrity = 0, amerilife = 0, sms = 0
+  const signals: string[] = []
+  let topPartnerMatch: NetworkMatch | null = null
+  let topWeight = 0
+  const counted = new Set<string>()
+
+  for (const m of matches) {
+    if (counted.has(m.matchedPhrase)) continue
+    counted.add(m.matchedPhrase)
+    const { signal } = m
+    if (signal.tree === 'integrity') integrity += signal.weight
+    else if (signal.tree === 'amerilife') amerilife += signal.weight
+    else sms += signal.weight
+
+    const label = signal.partner
+      ? `${signal.partner.name} [${signal.tree.toUpperCase()} partner]`
+      : `${signal.tree.toUpperCase()} brand language`
+    signals.push(`"${m.matchedPhrase}" → ${label} · ↗ ${m.proofUrl}`)
+
+    if (signal.partner && signal.weight > topWeight) {
+      topWeight = signal.weight
+      topPartnerMatch = m
+    }
+  }
+  return { integrity, amerilife, sms, signals, topPartnerMatch }
+}
 
 function extractFacebookHandle(url: string): string | null {
   try {
@@ -68,37 +173,6 @@ function extractFacebookHandle(url: string): string | null {
   return null
 }
 
-// SMS-only carrier scoring
-function scoreSMSCarriers(carriers: string[]): { sms: number; signals: string[] } {
-  const lower = carriers.map(c => c.toLowerCase())
-  const smsMatches = lower.filter(c => SMS_EXCLUSIVE_CARRIERS.some(k => c.includes(k) || k.includes(c)))
-  if (smsMatches.length >= 2) {
-    return { sms: 35, signals: [`Carrier combo: ${smsMatches.join(' + ')} — SMS exclusive fingerprint`] }
-  }
-  if (smsMatches.length === 1) {
-    return { sms: 15, signals: [`Carrier: ${smsMatches[0]} — weak SMS signal`] }
-  }
-  return { sms: 0, signals: [] }
-}
-
-// Explicit brand language matching — compound phrases only
-function scoreText(text: string): { integrity: number; amerilife: number; sms: number; signals: string[] } {
-  const lower = text.toLowerCase()
-  const signals: string[] = []
-  let integrity = 0, amerilife = 0, sms = 0
-
-  for (const s of INTEGRITY_SIGNALS) {
-    if (lower.includes(s)) { integrity += 40; signals.push(`Text: "${s}" [INTEGRITY brand language]`); break }
-  }
-  for (const s of AMERILIFE_SIGNALS) {
-    if (lower.includes(s)) { amerilife += 40; signals.push(`Text: "${s}" [AMERILIFE brand language]`); break }
-  }
-  for (const s of SMS_SIGNALS) {
-    if (lower.includes(s)) { sms += 40; signals.push(`Text: "${s}" [SMS brand language]`); break }
-  }
-
-  return { integrity, amerilife, sms, signals }
-}
 
 // ─── CHAIN SIGNAL TYPES ───────────────────────────────────────────────────────
 
@@ -436,6 +510,7 @@ export async function POST(req: NextRequest) {
   const allSignals: string[] = []
   let facebookProfileUrl: string | null = null
   let facebookAbout: string | null = null
+  let autoDetectedSubImo: NetworkMatch | null = null  // highest-weight partner match found during scanning
 
   // ── serp_debug: audit trail of every query run and every match found ──────
   // Stored as jsonb on the specimen so any result can be traced back to its
@@ -447,60 +522,98 @@ export async function POST(req: NextRequest) {
     results: Array<{ title: string; url: string; snippet: string; signals_matched: string[] }>
   }> = []
 
-  // ── SMS carrier check (only meaningful carrier signal) ────────────────────
+  // ── SMS carrier check ─────────────────────────────────────────────────────
   if (agent.carriers?.length > 0) {
     const smsCarriers = scoreSMSCarriers(agent.carriers)
     smsScore += smsCarriers.sms
     allSignals.push(...smsCarriers.signals)
   }
 
-  // ── Explicit brand language on website/about ──────────────────────────────
+  // ── Scan agent notes/about against full network ───────────────────────────
+  // Agent's own text fields — scan against all 289 partners
   const textBlob = [agent.notes || '', agent.about || ''].join(' ')
   if (textBlob.trim()) {
-    const textResult = scoreText(textBlob)
-    integrityScore += textResult.integrity
-    amerilifeScore += textResult.amerilife
-    smsScore += textResult.sms
-    allSignals.push(...textResult.signals)
+    const textMatches = scanResultAgainstNetwork('', textBlob, agent.website || '')
+    const agg = aggregateMatches(textMatches)
+    integrityScore += agg.integrity
+    amerilifeScore += agg.amerilife
+    smsScore += agg.sms
+    allSignals.push(...agg.signals.map(s => `Profile: ${s}`))
+    if (agg.topPartnerMatch && !autoDetectedSubImo) {
+      autoDetectedSubImo = agg.topPartnerMatch
+    }
   }
 
-  // ── SERP: explicit brand phrase search ────────────────────────────────────
-  // Using quoted multi-word phrases only — no bare single words like "integrity"
+  // ── SERP Pass 1: broad agent search — full network scan ───────────────────
+  // Simple agent name query — get back 8 results and scan ALL of them against
+  // the complete 289-partner network index. No pre-filtering by brand phrase.
+  const allNetworkMatches: NetworkMatch[] = []
   try {
-    const q = `"${agent.name}" "Integrity Marketing Group" OR "family first life" OR "integrityconnect" OR "medicarecenter" OR "amerilife" OR "USABG" OR "senior market sales" OR "rethinking retirement"`
-    const serpRes = await fetch(
-      `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&num=5&api_key=${serpKey}`,
+    const q1 = `"${agent.name}" insurance ${agent.city || ''} ${agent.state || ''}`
+    const res1 = await fetch(
+      `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q1)}&num=8&api_key=${serpKey}`,
       { signal: AbortSignal.timeout(6000) }
     )
-    if (serpRes.ok) {
-      const serpData = await serpRes.json()
-      const results = serpData.organic_results || []
+    if (res1.ok) {
+      const data1 = await res1.json()
+      const results1 = data1.organic_results || []
+      const debugEntry: typeof serpDebug[0] = { query: q1, source: 'pass1_broad', results: [] }
 
-      // Build debug entry for this query
-      const debugEntry: typeof serpDebug[0] = { query: q, source: 'brand_serp', results: [] }
-
-      for (const r of results.slice(0, 4)) {
-        const combined = `${r.title || ''} ${r.snippet || ''}`.toLowerCase()
-        const textResult = scoreText(combined)
-        integrityScore += textResult.integrity
-        amerilifeScore += textResult.amerilife
-        smsScore += textResult.sms
-        allSignals.push(...textResult.signals.map(s => `Google: ${s}`))
-
-        // Record this result with what it matched
+      for (const r of results1) {
+        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '')
+        allNetworkMatches.push(...matches)
         debugEntry.results.push({
           title: r.title || '',
           url: r.link || '',
           snippet: (r.snippet || '').slice(0, 200),
-          signals_matched: textResult.signals,
+          signals_matched: matches.map(m => `"${m.matchedPhrase}" → ${m.signal.partner?.name || m.signal.tree}`),
         })
       }
-
       serpDebug.push(debugEntry)
     }
   } catch {}
 
-  // ── Facebook profile ──────────────────────────────────────────────────────
+  // ── SERP Pass 2: FMO/IMO context search — full network scan ──────────────
+  // Second query adds FMO/IMO/agent context to surface affiliation pages
+  // that don't show up in a generic name search.
+  try {
+    const q2 = `"${agent.name}" FMO OR IMO OR "insurance agent" OR "appointed" OR "contracted"`
+    const res2 = await fetch(
+      `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q2)}&num=8&api_key=${serpKey}`,
+      { signal: AbortSignal.timeout(6000) }
+    )
+    if (res2.ok) {
+      const data2 = await res2.json()
+      const results2 = data2.organic_results || []
+      const debugEntry: typeof serpDebug[0] = { query: q2, source: 'pass2_fmo', results: [] }
+
+      for (const r of results2) {
+        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '')
+        allNetworkMatches.push(...matches)
+        debugEntry.results.push({
+          title: r.title || '',
+          url: r.link || '',
+          snippet: (r.snippet || '').slice(0, 200),
+          signals_matched: matches.map(m => `"${m.matchedPhrase}" → ${m.signal.partner?.name || m.signal.tree}`),
+        })
+      }
+      serpDebug.push(debugEntry)
+    }
+  } catch {}
+
+  // Aggregate all SERP matches into scores
+  if (allNetworkMatches.length > 0) {
+    const agg = aggregateMatches(allNetworkMatches)
+    integrityScore += agg.integrity
+    amerilifeScore += agg.amerilife
+    smsScore += agg.sms
+    allSignals.push(...agg.signals.map(s => `Google: ${s}`))
+    if (agg.topPartnerMatch && !autoDetectedSubImo) {
+      autoDetectedSubImo = agg.topPartnerMatch
+    }
+  }
+
+  // ── SERP Pass 3: Facebook ─────────────────────────────────────────────────
   try {
     const fbQ = `"${agent.name}" site:facebook.com`
     const fbSearchRes = await fetch(
@@ -536,10 +649,11 @@ export async function POST(req: NextRequest) {
               const about = fbProfile?.about || fbProfile?.description || ''
               if (about) {
                 facebookAbout = about
-                const fbResult2 = scoreText(about)
-                integrityScore += fbResult2.integrity
-                amerilifeScore += fbResult2.amerilife
-                smsScore += fbResult2.sms
+                const fbMatches = scanResultAgainstNetwork('', about, facebookProfileUrl || '')
+                const fbAgg = aggregateMatches(fbMatches)
+                integrityScore += fbAgg.integrity
+                amerilifeScore += fbAgg.amerilife
+                smsScore += fbAgg.sms
 
                 serpDebug.push({
                   query: `facebook_profile:${handle}`,
@@ -548,12 +662,13 @@ export async function POST(req: NextRequest) {
                     title: `Facebook profile — ${handle}`,
                     url: facebookProfileUrl || '',
                     snippet: about.slice(0, 200),
-                    signals_matched: fbResult2.signals,
+                    signals_matched: fbMatches.map(m => `"${m.matchedPhrase}" → ${m.signal.partner?.name || m.signal.tree}`),
                   }],
                 })
 
-                if (fbResult2.signals.length > 0) {
-                  allSignals.push(...fbResult2.signals.map(s => `Facebook: ${s}`))
+                if (fbAgg.signals.length > 0) {
+                  allSignals.push(...fbAgg.signals.map(s => `Facebook: ${s}`))
+                  if (fbAgg.topPartnerMatch && !autoDetectedSubImo) autoDetectedSubImo = fbAgg.topPartnerMatch
                 } else {
                   allSignals.push('Facebook profile found — no affiliation language detected')
                 }
@@ -620,10 +735,9 @@ Respond with ONLY valid JSON:
   } catch {}
 
   // ── Chain resolver ────────────────────────────────────────────────────────
-  // Runs against whatever tree Haiku predicted. If Haiku said unknown, we try
-  // all three trees and take the first that finds a resolved partner.
-  // A resolved partner SETS or OVERRIDES the tree prediction — the chain feeds
-  // the parent.
+  // Now runs as a fallback — the full network scanner above catches most agents
+  // directly. Chain resolver fires when we have a tree but no specific partner,
+  // or when still unknown after both SERP passes.
 
   let chainResult: ChainResult = null
   const treesToTry: Array<'integrity' | 'amerilife' | 'sms'> =
@@ -642,9 +756,6 @@ Respond with ONLY valid JSON:
   }
 
   // ── Synthesize final prediction ───────────────────────────────────────────
-  // Chain resolver finding a named partner that resolves in the network map
-  // is treated as a stronger signal than Haiku's text analysis alone.
-
   let finalTree = prediction.predicted_tree
   let finalConfidence = prediction.confidence
   let finalSignals = prediction.signals_used
@@ -657,23 +768,47 @@ Respond with ONLY valid JSON:
 
   if (chainResult?.resolved_partner_name && chainResult.resolved_partner_tree) {
     const chainTree = chainResult.resolved_partner_tree
-
     if (finalTree === 'unknown') {
-      // Chain found something Haiku missed — chain sets the prediction
       finalTree = chainTree
       finalConfidence = chainResult.resolved_confidence ?? 50
       finalSignals = [`${chainResult.resolved_partner_name} identified as ${chainTree === 'integrity' ? 'Integrity Marketing Group' : chainTree === 'amerilife' ? 'AmeriLife' : 'Senior Market Sales'} partner`]
       finalReasoning = `${chainResult.resolved_partner_name} was found co-mentioned with this agent and is a known ${chainTree === 'integrity' ? 'Integrity Marketing Group' : chainTree === 'amerilife' ? 'AmeriLife' : 'Senior Market Sales'} partner.`
       predictionSource = 'chain_resolver'
     } else if (finalTree === chainTree) {
-      // Chain agrees with Haiku — boost confidence
       finalConfidence = Math.min(92, finalConfidence + 15)
       finalSignals = [...finalSignals, `Chain: ${chainResult.resolved_partner_name} confirmed as ${chainTree} partner`]
       predictionSource = 'both'
     }
-    // If chain disagrees with Haiku — keep Haiku's prediction, note the conflict silently
-    // (the chain signals are still stored for recruiter review)
   }
+
+  // ── Sub-IMO resolution ────────────────────────────────────────────────────
+  // Priority: chain resolver (deeper analysis) > autoDetectedSubImo (network scanner)
+  // autoDetectedSubImo fires when the scanner found a specific partner name/domain
+  // directly in SERP results — no chain query needed.
+
+  const subImoPartner = chainResult?.resolved_partner_name
+    ? {
+        name: chainResult.resolved_partner_name,
+        id: chainResult.resolved_partner_id,
+        confidence: chainResult.resolved_confidence,
+        signals: chainResult.chain_signals,
+        proofUrl: null,  // chain resolver uses SERP queries, not direct URL proofs
+      }
+    : autoDetectedSubImo
+    ? {
+        name: autoDetectedSubImo.signal.partner!.name,
+        id: autoDetectedSubImo.signal.partner!.id,
+        confidence: Math.min(88, Math.round(autoDetectedSubImo.signal.weight * 2)),
+        signals: [{
+          tier: 'HIGH' as const,
+          type: 'name' as const,
+          entity: autoDetectedSubImo.signal.partner!.name,
+          text: `"${autoDetectedSubImo.matchedPhrase}" found in search results — direct partner identification`,
+          source: 'partner_query' as const,
+        }],
+        proofUrl: autoDetectedSubImo.proofUrl,
+      }
+    : null
 
   return NextResponse.json({
     predicted_tree: finalTree,
@@ -683,12 +818,11 @@ Respond with ONLY valid JSON:
     prediction_source: predictionSource,
     facebook_profile_url: facebookProfileUrl,
     facebook_about: facebookAbout,
-    // Chain resolver output — always included for storage and UI
-    predicted_sub_imo: chainResult?.resolved_partner_name ?? null,
-    predicted_sub_imo_confidence: chainResult?.resolved_confidence ?? null,
-    predicted_sub_imo_signals: chainResult?.chain_signals ?? [],
-    predicted_sub_imo_partner_id: chainResult?.resolved_partner_id ?? null,
-    // Audit trail — every query run, every result returned, every signal matched
+    predicted_sub_imo: subImoPartner?.name ?? null,
+    predicted_sub_imo_confidence: subImoPartner?.confidence ?? null,
+    predicted_sub_imo_signals: subImoPartner?.signals ?? [],
+    predicted_sub_imo_partner_id: subImoPartner?.id ?? null,
+    predicted_sub_imo_proof_url: subImoPartner?.proofUrl ?? null,  // NEW: direct proof link
     serp_debug: serpDebug,
   })
 }

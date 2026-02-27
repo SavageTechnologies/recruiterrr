@@ -148,3 +148,6 @@ Specimens are saved to the `anathema_scans` table in Supabase:
 - Scan history search and filtering
 - INDEPENDENT/OTHER fourth tree bucket (for agents outside the big three)
 - Direct scan tool from the agent search results page
+
+Add lead start as a keyword to associate with Amerilife 
+Hunt for facebook groups for agents, comments, etc.

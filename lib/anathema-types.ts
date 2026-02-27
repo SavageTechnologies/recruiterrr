@@ -30,11 +30,12 @@ export type ScanResult = {
   facebook_profile_url: string | null
   facebook_about: string | null
   prediction_source: 'brand_language' | 'chain_resolver' | 'both' | null
-  // Chain resolver
+  // Sub-IMO detection (chain resolver or network scanner)
   predicted_sub_imo: string | null
   predicted_sub_imo_confidence: number | null
   predicted_sub_imo_partner_id: number | null
   predicted_sub_imo_signals: ChainSignal[]
+  predicted_sub_imo_proof_url: string | null  // direct URL proof when found by network scanner
   // Audit trail
   serp_debug: SerpDebugEntry[] | null
 }

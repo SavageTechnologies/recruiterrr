@@ -50,7 +50,8 @@ function TerminalLog({ lines }: { lines: string[] }) {
   )
 }
 
-function findSourceEvidence(entity: string, debugEntries: SerpDebugEntry[]): { url: string; title: string } | null {
+function findSourceEvidence(entity: string, debugEntries: SerpDebugEntry[], directProofUrl?: string | null): { url: string; title: string } | null {
+  if (directProofUrl) return { url: directProofUrl, title: 'View source ↗' }
   const entityLower = entity.toLowerCase()
   for (const entry of debugEntries) {
     for (const r of entry.results) {
@@ -103,7 +104,9 @@ function ChainSection({ result }: { result: ScanResult }) {
   if (visibleSignals.length === 0 && !result.predicted_sub_imo) return null
 
   const partnerEvidence = result.predicted_sub_imo && debugEntries
-    ? findSourceEvidence(result.predicted_sub_imo, debugEntries)
+    ? findSourceEvidence(result.predicted_sub_imo, debugEntries, result.predicted_sub_imo_proof_url)
+    : result.predicted_sub_imo_proof_url
+    ? { url: result.predicted_sub_imo_proof_url, title: 'View source ↗' }
     : null
 
   return (
@@ -284,10 +287,12 @@ function AnathemaDashboardInner() {
         ? `[FOUND] STRAIN: ${tree} — CONFIDENCE: ${data.confidence}%`
         : `[WARN] STRAIN: UNCLASSIFIED — Insufficient markers`)
       if (data.facebook_profile_url) addLog(`[FOUND] Facebook profile located`)
-      if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence`)
+      if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence${data.predicted_sub_imo_proof_url ? ' · proof linked' : ''}`)
       else if (data.predicted_sub_imo_signals?.length > 0) addLog(`[OK] Chain signals collected — no confident sub-IMO match`)
       if (data.prediction_source === 'chain_resolver') addLog(`[FOUND] Prediction sourced from chain — partner resolved in network map`)
       setResult(data)
+      // Auto-populate sub-IMO field when detected
+      if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
     } catch (err: any) {
       if (timerRef.current) clearTimeout(timerRef.current)
       addLog(`[ALERT] Scan failed: ${err.message}`)
@@ -322,6 +327,7 @@ function AnathemaDashboardInner() {
           predicted_sub_imo_confidence: result.predicted_sub_imo_confidence || null,
           predicted_sub_imo_signals: result.predicted_sub_imo_signals || [],
           predicted_sub_imo_partner_id: result.predicted_sub_imo_partner_id || null,
+          predicted_sub_imo_proof_url: result.predicted_sub_imo_proof_url || null,
           serp_debug: result.serp_debug || null,
           confirmed_tree: confirmedTree || null,
           confirmed_tree_other: confirmedOther || null,

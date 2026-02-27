@@ -45,7 +45,9 @@ type SavedSpecimen = ScanResult & {
 }
 
 // Find the best matching source URL + title for a given entity string
-function findSourceEvidence(entity: string, debugEntries: SerpDebugEntry[]): { url: string; title: string } | null {
+function findSourceEvidence(entity: string, debugEntries: SerpDebugEntry[], directProofUrl?: string | null): { url: string; title: string } | null {
+  // Prefer the direct proof URL from the network scanner — it's ground truth
+  if (directProofUrl) return { url: directProofUrl, title: 'View source ↗' }
   const entityLower = entity.toLowerCase()
   for (const entry of debugEntries) {
     for (const r of entry.results) {
@@ -115,7 +117,9 @@ function ChainSection({ result }: { result: ScanResult }) {
 
   // Find evidence link for the resolved partner
   const partnerEvidence = result.predicted_sub_imo && debugEntries
-    ? findSourceEvidence(result.predicted_sub_imo, debugEntries)
+    ? findSourceEvidence(result.predicted_sub_imo, debugEntries, result.predicted_sub_imo_proof_url)
+    : result.predicted_sub_imo_proof_url
+    ? { url: result.predicted_sub_imo_proof_url, title: 'View source ↗' }
     : null
 
   return (
@@ -239,11 +243,13 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
           predicted_sub_imo_confidence: data.specimen.predicted_sub_imo_confidence || null,
           predicted_sub_imo_partner_id: data.specimen.predicted_sub_imo_partner_id || null,
           predicted_sub_imo_signals: data.specimen.predicted_sub_imo_signals || [],
+          predicted_sub_imo_proof_url: data.specimen.predicted_sub_imo_proof_url || null,
           serp_debug: data.specimen.serp_debug || null,
         })
         setConfirmedTree(data.specimen.confirmed_tree || '')
         setConfirmedOther(data.specimen.confirmed_tree_other || '')
-        setSubImo(data.specimen.confirmed_sub_imo || '')
+        // Auto-populate sub-IMO from confirmed value, or from prediction if not yet confirmed
+        setSubImo(data.specimen.confirmed_sub_imo || data.specimen.predicted_sub_imo || '')
         setRecruiterNotes(data.specimen.recruiter_notes || '')
         setScanState('done')
       }
@@ -272,6 +278,10 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
       if (data.error) throw new Error(data.error)
       setResult(data)
       setScanState('done')
+      // Auto-populate sub-IMO when network scanner or chain resolver identifies one
+      if (data.predicted_sub_imo && !subImo) {
+        setSubImo(data.predicted_sub_imo)
+      }
     } catch (err: any) {
       setScanState('error')
       setErrorMsg(err.message || 'Scan failed')
@@ -301,6 +311,7 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
           predicted_sub_imo_confidence: result.predicted_sub_imo_confidence || null,
           predicted_sub_imo_signals: result.predicted_sub_imo_signals || [],
           predicted_sub_imo_partner_id: result.predicted_sub_imo_partner_id || null,
+          predicted_sub_imo_proof_url: result.predicted_sub_imo_proof_url || null,
           serp_debug: result.serp_debug || null,
           confirmed_tree: confirmedTree || null,
           confirmed_tree_other: confirmedOther || null,
