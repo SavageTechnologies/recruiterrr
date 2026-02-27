@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
-
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 
 export async function POST(req: NextRequest) {
@@ -11,6 +9,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Initialize inside handler so env vars are available at runtime not build time
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
+
   try {
     const { email } = await req.json()
 
@@ -18,18 +19,11 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       mode: 'subscription',
       customer_email: email || undefined,
-      line_items: [
-        {
-          price: process.env.STRIPE_PRICE_ID!,
-          quantity: 1,
-        },
-      ],
+      line_items: [{ price: process.env.STRIPE_PRICE_ID!, quantity: 1 }],
       success_url: `${origin}/sign-up?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/sign-up?checkout=cancelled`,
       metadata: { email: email || '' },
-      subscription_data: {
-        metadata: { email: email || '' },
-      },
+      subscription_data: { metadata: { email: email || '' } },
     })
 
     return NextResponse.json({ url: session.url })

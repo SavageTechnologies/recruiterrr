@@ -3,8 +3,6 @@ import { auth } from '@clerk/nextjs/server'
 import Stripe from 'stripe'
 import { supabase } from '@/lib/supabase.server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
-
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 
 export async function POST(req: NextRequest) {
@@ -15,6 +13,9 @@ export async function POST(req: NextRequest) {
 
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Initialize inside handler so env vars are available at runtime not build time
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
 
   try {
     const { data: user } = await supabase

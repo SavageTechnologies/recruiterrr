@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { supabase } from '@/lib/supabase.server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
-
 export async function POST(req: NextRequest) {
+  // Initialize inside handler so env vars are available at runtime not build time
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
+
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')
 
@@ -23,7 +24,6 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
 
-      // ── Payment succeeded — subscription created ─────────────────────────
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         if (session.mode !== 'subscription') break
@@ -32,7 +32,6 @@ export async function POST(req: NextRequest) {
         const subscriptionId = session.subscription as string
         const email          = session.customer_email || session.metadata?.email || ''
 
-        // Retrieve subscription to get period end
         const subscription = await stripe.subscriptions.retrieve(subscriptionId)
         const item = subscription.items.data[0]
         const periodEnd = new Date((item as any).current_period_end * 1000).toISOString()
@@ -54,7 +53,6 @@ export async function POST(req: NextRequest) {
         break
       }
 
-      // ── Subscription updated (renewal, plan change, etc) ─────────────────
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
         const item = subscription.items.data[0]
@@ -73,7 +71,6 @@ export async function POST(req: NextRequest) {
         break
       }
 
-      // ── Subscription cancelled ────────────────────────────────────────────
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
 
@@ -91,7 +88,6 @@ export async function POST(req: NextRequest) {
         break
       }
 
-      // ── Payment failed ────────────────────────────────────────────────────
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
         const subscriptionId =
