@@ -264,7 +264,6 @@ async function resolveChain(
     const results1: any[] = res1?.ok ? (await res1.json()).organic_results || [] : []
     const results2: any[] = res2?.ok ? (await res2.json()).organic_results || [] : []
 
-    const blob1 = results1.map((r: any) => `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`).join(' ').toLowerCase()
     const agentLower = agentName.toLowerCase()
     const allSignals: ChainSignal[] = []
 
@@ -276,14 +275,30 @@ async function resolveChain(
       const nameLower = partner.name.toLowerCase()
       const domainLower = partner.website.toLowerCase().replace('www.', '')
 
-      if (blob1.includes(domainLower)) {
-        score += 50
-        allSignals.push({ tier: 'HIGH', type: 'domain', entity: partner.name, text: `Domain ${partner.website} appears in search results alongside agent`, source: 'partner_query' })
-      }
+      // ── Per-result matching — both partner AND agent must be in the same result ──
+      // Old approach concatenated all results into one blob, which let partner
+      // appearing in result #6 and agent in result #2 count as a co-mention.
+      // Now each result is checked independently.
 
-      for (const r of results1.slice(0, 5)) {
+      for (const r of results1.slice(0, 8)) {
         const combined = `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`.toLowerCase()
-        if (combined.includes(nameLower) && combined.includes(agentLower)) {
+
+        // Agent must be present in this result for any signal to fire
+        if (!combined.includes(agentLower)) continue
+
+        // Domain match — strongest signal
+        if (combined.includes(domainLower)) {
+          score += 50
+          allSignals.push({
+            tier: 'HIGH', type: 'domain', entity: partner.name,
+            text: `Domain ${partner.website} co-appears with agent in: "${(r.title || '').slice(0, 70)}"`,
+            source: 'partner_query',
+          })
+          break
+        }
+
+        // Name co-mention
+        if (combined.includes(nameLower)) {
           score += 30
           const hasUpline = UPLINE_KEYWORDS.some(k => combined.includes(k))
           allSignals.push({
@@ -295,24 +310,22 @@ async function resolveChain(
           })
           break
         }
-      }
 
-      if (blob1.includes(nameLower) && score === 0) {
-        score += 25
-        allSignals.push({ tier: 'LOW', type: 'name', entity: partner.name, text: `"${partner.name}" appears in search results near agent`, source: 'partner_query' })
-      }
-
-      for (const alias of partner.aliases || []) {
-        const aliasLower = alias.toLowerCase()
-        if (blob1.includes(aliasLower)) {
-          const isShort = alias.length <= 4
-          score += isShort ? 15 : 30
-          allSignals.push({ tier: isShort ? 'LOW' : 'MED', type: 'alias', entity: partner.name, text: `Alias "${alias}" (${partner.name}) appears in search results`, source: 'partner_query' })
-          break
+        // Alias co-mention
+        for (const alias of partner.aliases || []) {
+          const aliasLower = alias.toLowerCase()
+          if (combined.includes(aliasLower)) {
+            const isShort = alias.length <= 4
+            score += isShort ? 15 : 30
+            allSignals.push({
+              tier: isShort ? 'LOW' : 'MED', type: 'alias', entity: partner.name,
+              text: `Alias "${alias}" (${partner.name}) co-appears with agent in results`,
+              source: 'partner_query',
+            })
+            break
+          }
         }
       }
-
-      // No geographic scoring — location doesn't imply relationship
 
       if (score > 0) candidateScores.push({ partner, score })
     }
