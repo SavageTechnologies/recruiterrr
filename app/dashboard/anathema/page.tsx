@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 
 import {
   type ChainSignal,
+  type SerpDebugEntry,
   type ScanResult,
   TREE_LABELS,
   TIER_CONFIG,
@@ -49,16 +50,44 @@ function TerminalLog({ lines }: { lines: string[] }) {
   )
 }
 
-function ChainSignalRow({ signal }: { signal: ChainSignal }) {
+function findSourceEvidence(entity: string, debugEntries: SerpDebugEntry[]): { url: string; title: string } | null {
+  const entityLower = entity.toLowerCase()
+  for (const entry of debugEntries) {
+    for (const r of entry.results) {
+      if (!r.url) continue
+      const combined = `${r.title} ${r.snippet}`.toLowerCase()
+      if (combined.includes(entityLower)) {
+        return { url: r.url, title: r.title || 'View source' }
+      }
+    }
+  }
+  return null
+}
+
+function ChainSignalRow({ signal, debugEntries }: { signal: ChainSignal; debugEntries?: SerpDebugEntry[] }) {
   const cfg = TIER_CONFIG[signal.tier]
+  const evidence = debugEntries ? findSourceEvidence(signal.entity, debugEntries) : null
+
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 10px', background: cfg.dimColor, borderLeft: `2px solid ${cfg.borderColor}`, marginBottom: 4 }}>
       <span style={{ flexShrink: 0, marginTop: 1, fontSize: 8, color: cfg.color, letterSpacing: 1.5, fontFamily: "'DM Mono', monospace", border: `1px solid ${cfg.borderColor}`, padding: '1px 5px', lineHeight: 1.8 }}>
         {cfg.label}
       </span>
-      <span style={{ fontSize: 11, lineHeight: 1.5, fontFamily: "'DM Mono', monospace", color: signal.tier === 'LOW' ? '#555' : signal.tier === 'MED' ? '#888' : '#aaa' }}>
-        {signal.text}
-      </span>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 11, lineHeight: 1.5, fontFamily: "'DM Mono', monospace", color: signal.tier === 'LOW' ? '#555' : signal.tier === 'MED' ? '#888' : '#aaa' }}>
+          {signal.text}
+        </div>
+        {evidence && (
+          <a
+            href={evidence.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'inline-block', marginTop: 3, fontSize: 10, color: 'rgba(0,230,118,0.55)', textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}
+          >
+            ↗ {evidence.title.slice(0, 70)}
+          </a>
+        )}
+      </div>
     </div>
   )
 }
@@ -67,55 +96,76 @@ function ChainSection({ result }: { result: ScanResult }) {
   const [expanded, setExpanded] = useState(false)
   const signals = result.predicted_sub_imo_signals || []
   const grouped = groupSignals(signals)
-  const hasAny = signals.length > 0
+  // LOW signals stored but never shown to recruiter
+  const visibleSignals = [...grouped.high, ...grouped.med]
+  const debugEntries = result.serp_debug || undefined
 
-  if (!hasAny && !result.predicted_sub_imo) return null
+  if (visibleSignals.length === 0 && !result.predicted_sub_imo) return null
+
+  const partnerEvidence = result.predicted_sub_imo && debugEntries
+    ? findSourceEvidence(result.predicted_sub_imo, debugEntries)
+    : null
 
   return (
     <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div style={{ fontSize: 9, color: '#555', letterSpacing: 3 }}>CHAIN INTELLIGENCE</div>
-        {hasAny && (
+        {visibleSignals.length > 0 && (
           <button onClick={() => setExpanded(v => !v)}
             style={{ background: 'transparent', border: '1px solid #2a2a2a', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>
-            {expanded ? 'COLLAPSE' : `SHOW ALL SIGNALS (${signals.length})`}
+            {expanded ? 'COLLAPSE' : `SHOW ALL SIGNALS (${visibleSignals.length})`}
           </button>
         )}
       </div>
 
+      {/* Resolved partner — the chain feeding the parent prediction */}
       {result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: hasAny ? 14 : 0, padding: '10px 16px', background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.2)' }}>
-          <div>
-            <div style={{ fontSize: 8, color: '#555', letterSpacing: 2, marginBottom: 4 }}>PREDICTED SUB-IMO</div>
-            <div style={{ fontSize: 20, color: 'var(--green)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 3 }}>{result.predicted_sub_imo}</div>
+        <div style={{
+          marginBottom: visibleSignals.length > 0 ? 14 : 0,
+          padding: '10px 16px',
+          background: 'rgba(0,230,118,0.04)',
+          border: `1px solid ${result.prediction_source === 'chain_resolver' ? 'rgba(0,230,118,0.4)' : 'rgba(0,230,118,0.2)'}`,
+        }}>
+          <div style={{ fontSize: 8, color: result.prediction_source === 'chain_resolver' ? 'rgba(0,230,118,0.6)' : '#555', letterSpacing: 2, marginBottom: 4 }}>
+            {result.prediction_source === 'chain_resolver' ? 'CHAIN-SOURCED · THIS IS WHY WE KNOW' : 'PREDICTED SUB-IMO'}
           </div>
+          <div style={{ fontSize: 20, color: 'var(--green)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 3, marginBottom: partnerEvidence ? 6 : 0 }}>
+            {result.predicted_sub_imo}
+          </div>
+          {/* The evidence link — click to see exactly what the system found */}
+          {partnerEvidence && (
+            <a
+              href={partnerEvidence.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-block', fontSize: 10, color: 'rgba(0,230,118,0.65)', textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5, marginBottom: 8 }}
+            >
+              ↗ {partnerEvidence.title.slice(0, 70)}
+            </a>
+          )}
           {result.predicted_sub_imo_confidence != null && (
-            <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-              <div style={{ fontSize: 8, color: '#555', letterSpacing: 2, marginBottom: 6 }}>CHAIN CONFIDENCE</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 100, height: 3, background: '#1e1e1e', position: 'relative' }}>
-                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.predicted_sub_imo_confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.3), var(--green))', transition: 'width 0.8s ease' }} />
-                </div>
-                <span style={{ fontSize: 11, color: 'var(--green)', letterSpacing: 1 }}>{result.predicted_sub_imo_confidence}%</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 100, height: 3, background: '#1e1e1e', position: 'relative' }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.predicted_sub_imo_confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.3), var(--green))', transition: 'width 0.8s ease' }} />
               </div>
+              <span style={{ fontSize: 11, color: 'var(--green)', letterSpacing: 1 }}>{result.predicted_sub_imo_confidence}%</span>
             </div>
           )}
         </div>
       )}
 
-      {hasAny && (
+      {/* Tier pills — HIGH and MED only */}
+      {visibleSignals.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: expanded ? 12 : 0, flexWrap: 'wrap' }}>
           {grouped.high.length > 0 && <div style={{ fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.HIGH.borderColor}`, color: TIER_CONFIG.HIGH.color, fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{grouped.high.length} HIGH</div>}
           {grouped.med.length > 0  && <div style={{ fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.MED.borderColor}`,  color: TIER_CONFIG.MED.color,  fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{grouped.med.length} MED</div>}
-          {grouped.low.length > 0  && <div style={{ fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.LOW.borderColor}`,  color: TIER_CONFIG.LOW.color,  fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{grouped.low.length} LOW</div>}
         </div>
       )}
 
-      {expanded && hasAny && (
+      {expanded && visibleSignals.length > 0 && (
         <div style={{ marginTop: 6 }}>
-          {grouped.high.map((s, i) => <ChainSignalRow key={`h${i}`} signal={s} />)}
-          {grouped.med.map((s, i)  => <ChainSignalRow key={`m${i}`} signal={s} />)}
-          {grouped.low.map((s, i)  => <ChainSignalRow key={`l${i}`} signal={s} />)}
+          {grouped.high.map((s, i) => <ChainSignalRow key={`h${i}`} signal={s} debugEntries={debugEntries} />)}
+          {grouped.med.map((s, i)  => <ChainSignalRow key={`m${i}`} signal={s} debugEntries={debugEntries} />)}
         </div>
       )}
     </div>
@@ -141,7 +191,6 @@ function AnathemaDashboardInner() {
   const [result, setResult] = useState<ScanResult | null>(null)
   const [error, setError] = useState('')
 
-  // Field observation state
   const [confirmedTree, setConfirmedTree] = useState('')
   const [confirmedOther, setConfirmedOther] = useState('')
   const [subImo, setSubImo] = useState('')
@@ -151,7 +200,6 @@ function AnathemaDashboardInner() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const searchParams = useSearchParams()
 
-  // Load saved scan if ?id= is in the URL
   useEffect(() => {
     const id = searchParams.get('id')
     if (!id) return
@@ -238,6 +286,7 @@ function AnathemaDashboardInner() {
       if (data.facebook_profile_url) addLog(`[FOUND] Facebook profile located`)
       if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence`)
       else if (data.predicted_sub_imo_signals?.length > 0) addLog(`[OK] Chain signals collected — no confident sub-IMO match`)
+      if (data.prediction_source === 'chain_resolver') addLog(`[FOUND] Prediction sourced from chain — partner resolved in network map`)
       setResult(data)
     } catch (err: any) {
       if (timerRef.current) clearTimeout(timerRef.current)
@@ -266,12 +315,14 @@ function AnathemaDashboardInner() {
           predicted_confidence: result.confidence,
           prediction_signals: result.signals_used,
           prediction_reasoning: result.reasoning,
+          prediction_source: result.prediction_source || null,
           facebook_profile_url: result.facebook_profile_url,
           facebook_about: result.facebook_about,
           predicted_sub_imo: result.predicted_sub_imo || null,
           predicted_sub_imo_confidence: result.predicted_sub_imo_confidence || null,
           predicted_sub_imo_signals: result.predicted_sub_imo_signals || [],
           predicted_sub_imo_partner_id: result.predicted_sub_imo_partner_id || null,
+          serp_debug: result.serp_debug || null,
           confirmed_tree: confirmedTree || null,
           confirmed_tree_other: confirmedOther || null,
           confirmed_sub_imo: subImo || null,
@@ -313,21 +364,7 @@ function AnathemaDashboardInner() {
         </div>
         <a
           href="/dashboard/anathema/map"
-          style={{
-            padding: '10px 24px',
-            background: 'transparent',
-            border: '1px solid rgba(0,230,118,0.3)',
-            color: 'var(--green)',
-            fontFamily: "'DM Mono', monospace",
-            fontSize: 11,
-            letterSpacing: 2,
-            textTransform: 'uppercase',
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            transition: 'border-color 0.15s, background 0.15s',
-          }}
+          style={{ padding: '10px 24px', background: 'transparent', border: '1px solid rgba(0,230,118,0.3)', color: 'var(--green)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'border-color 0.15s, background 0.15s' }}
           onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(0,230,118,0.06)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(0,230,118,0.6)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(0,230,118,0.3)' }}
         >
@@ -335,7 +372,7 @@ function AnathemaDashboardInner() {
         </a>
       </div>
 
-      {/* Input form */}
+      {/* Input */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, marginBottom: 2 }}>
         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 0, border: `1px solid ${scanning ? 'var(--green)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: scanning ? '0 0 0 1px rgba(0,230,118,0.3)' : 'none' }}>
           <input
@@ -356,29 +393,13 @@ function AnathemaDashboardInner() {
         </div>
       </div>
 
-      {/* Optional fields */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 2, marginBottom: 2 }}>
-        <input
-          value={website}
-          onChange={e => setWebsite(e.target.value)}
-          placeholder="Website URL (optional — improves accuracy)"
-          disabled={scanning}
-          style={{ padding: '12px 16px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5 }}
-        />
-        <input
-          value={city}
-          onChange={e => setCity(e.target.value)}
-          placeholder="City (optional)"
-          disabled={scanning}
-          style={{ padding: '12px 16px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5 }}
-        />
-        <input
-          value={state}
-          onChange={e => setState(e.target.value.toUpperCase().slice(0, 2))}
-          placeholder="State (optional)"
-          disabled={scanning}
-          style={{ padding: '12px 16px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5 }}
-        />
+        <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="Website URL (optional — improves accuracy)" disabled={scanning}
+          style={{ padding: '12px 16px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5 }} />
+        <input value={city} onChange={e => setCity(e.target.value)} placeholder="City (optional)" disabled={scanning}
+          style={{ padding: '12px 16px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5 }} />
+        <input value={state} onChange={e => setState(e.target.value.toUpperCase().slice(0, 2))} placeholder="State (optional)" disabled={scanning}
+          style={{ padding: '12px 16px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5 }} />
       </div>
 
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 1, marginBottom: 32 }}>
@@ -412,16 +433,13 @@ function AnathemaDashboardInner() {
         </div>
       )}
 
-      {/* Result panel */}
+      {/* Result */}
       {result && !scanning && (
         <div style={{ animation: 'slideIn 0.3s ease both' }}>
-
-          {/* Result header */}
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#555', letterSpacing: 2, marginBottom: 12 }}>
             SPECIMEN: {agencyName.toUpperCase()}{city ? ` · ${city.toUpperCase()}, ${state.toUpperCase()}` : ''}
           </div>
 
-          {/* ANATHEMA panel */}
           <div style={{ background: '#141210', border: '1px solid rgba(0,230,118,0.25)', fontFamily: "'DM Mono', monospace", position: 'relative', overflow: 'hidden', marginBottom: 2 }}>
             <div className="anathema-initial-scan" />
 
@@ -449,9 +467,7 @@ function AnathemaDashboardInner() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 6 }}>INFECTION STAGE</div>
-                <div style={{ fontSize: 56, color: result.predicted_tree !== 'unknown' ? 'var(--green)' : '#222', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, lineHeight: 1 }}>
-                  {stage?.roman || '—'}
-                </div>
+                <div style={{ fontSize: 56, color: result.predicted_tree !== 'unknown' ? 'var(--green)' : '#222', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, lineHeight: 1 }}>{stage?.roman || '—'}</div>
                 <div style={{ fontSize: 9, color: '#555', letterSpacing: 2 }}>{stage?.label}</div>
               </div>
             </div>
@@ -493,77 +509,35 @@ function AnathemaDashboardInner() {
 
               <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
                 {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setConfirmedTree(t === confirmedTree ? '' : t)}
-                    style={{
-                      background: confirmedTree === t ? 'rgba(0,230,118,0.1)' : 'transparent',
-                      border: `1px solid ${confirmedTree === t ? 'var(--green)' : '#333'}`,
-                      color: confirmedTree === t ? 'var(--green)' : '#555',
-                      fontFamily: "'DM Mono', monospace",
-                      fontSize: 10,
-                      letterSpacing: 2,
-                      padding: '6px 14px',
-                      cursor: 'pointer',
-                      transition: 'all 0.1s',
-                      textTransform: 'uppercase',
-                    }}
-                  >
+                  <button key={t} onClick={() => setConfirmedTree(t === confirmedTree ? '' : t)}
+                    style={{ background: confirmedTree === t ? 'rgba(0,230,118,0.1)' : 'transparent', border: `1px solid ${confirmedTree === t ? 'var(--green)' : '#333'}`, color: confirmedTree === t ? 'var(--green)' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '6px 14px', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }}>
                     {t === 'integrity' ? 'INTEGRITY' : t === 'amerilife' ? 'AMERILIFE' : t === 'sms' ? 'SMS' : 'OTHER'}
                   </button>
                 ))}
               </div>
 
               {confirmedTree === 'other' && (
-                <input
-                  value={confirmedOther}
-                  onChange={e => setConfirmedOther(e.target.value)}
-                  placeholder="FMO name..."
-                  style={{ display: 'block', width: '100%', background: '#0e0e0e', border: '1px solid #333', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 12, padding: '8px 12px', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }}
-                />
+                <input value={confirmedOther} onChange={e => setConfirmedOther(e.target.value)} placeholder="FMO name..."
+                  style={{ display: 'block', width: '100%', background: '#0e0e0e', border: '1px solid #333', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 12, padding: '8px 12px', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, marginBottom: 8 }}>
-                <input
-                  value={subImo}
-                  onChange={e => setSubImo(e.target.value)}
+                <input value={subImo} onChange={e => setSubImo(e.target.value)}
                   placeholder={result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 ? `Confirm or correct: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate (optional)...'}
-                  style={{ padding: '8px 12px', background: '#0e0e0e', border: `1px solid ${result.predicted_sub_imo && !subImo ? 'rgba(0,230,118,0.2)' : '#222'}`, color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }}
-                />
-                <input
-                  value={recruiterNotes}
-                  onChange={e => setRecruiterNotes(e.target.value)}
-                  placeholder="Field notes (optional)..."
-                  style={{ padding: '8px 12px', background: '#0e0e0e', border: '1px solid #222', color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }}
-                />
+                  style={{ padding: '8px 12px', background: '#0e0e0e', border: `1px solid ${result.predicted_sub_imo && !subImo ? 'rgba(0,230,118,0.2)' : '#222'}`, color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }} />
+                <input value={recruiterNotes} onChange={e => setRecruiterNotes(e.target.value)} placeholder="Field notes (optional)..."
+                  style={{ padding: '8px 12px', background: '#0e0e0e', border: '1px solid #222', color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }} />
               </div>
 
-              <button
-                onClick={logObservation}
-                disabled={saveState === 'saving'}
-                style={{
-                  background: saveState === 'saved' ? 'rgba(0,230,118,0.08)' : 'transparent',
-                  border: `1px solid ${saveState === 'saved' ? 'var(--green)' : '#333'}`,
-                  color: saveState === 'saved' ? 'var(--green)' : '#666',
-                  fontFamily: "'DM Mono', monospace",
-                  fontSize: 10,
-                  letterSpacing: 2,
-                  padding: '9px 20px',
-                  cursor: saveState === 'saving' ? 'default' : 'pointer',
-                  transition: 'all 0.2s',
-                }}
-              >
+              <button onClick={logObservation} disabled={saveState === 'saving'}
+                style={{ background: saveState === 'saved' ? 'rgba(0,230,118,0.08)' : 'transparent', border: `1px solid ${saveState === 'saved' ? 'var(--green)' : '#333'}`, color: saveState === 'saved' ? 'var(--green)' : '#666', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '9px 20px', cursor: saveState === 'saving' ? 'default' : 'pointer', transition: 'all 0.2s' }}>
                 {saveState === 'saved' ? 'OBSERVATION LOGGED · SPECIMEN DATABASE UPDATED' : saveState === 'saving' ? 'LOGGING...' : 'LOG OBSERVATION'}
               </button>
             </div>
           </div>
 
-          {/* Rescan */}
           <div style={{ marginTop: 12 }}>
-            <button
-              onClick={runScan}
-              style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: 'pointer' }}
-            >
+            <button onClick={runScan} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: 'pointer' }}>
               RUN NEW SCAN
             </button>
           </div>
@@ -583,12 +557,9 @@ function AnathemaDashboardInner() {
               { n: '05', title: 'Infection Staging', tip: 'STAGE I (trace) through STAGE IV (confirmed). Know how confident the signal is before you act on it.' },
               { n: '06', title: 'Specimen Database', tip: 'Every observation you log teaches the system. ANATHEMA gets smarter with every confirmed scan.' },
             ].map(c => (
-              <div
-                key={c.n}
-                style={{ background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.1)', padding: '20px 20px', transition: 'border-color 0.15s' }}
+              <div key={c.n} style={{ background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.1)', padding: '20px 20px', transition: 'border-color 0.15s' }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.3)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.1)')}
-              >
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.1)')}>
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 2, marginBottom: 10 }}>{c.n}</div>
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)', marginBottom: 8 }}>{c.title}</div>
                 <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" }}>{c.tip}</div>

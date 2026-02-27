@@ -9,6 +9,19 @@ export type ChainSignal = {
   source: 'partner_query' | 'relationship_query' | 'geographic'
 }
 
+export type SerpDebugResult = {
+  title: string
+  url: string | null
+  snippet: string
+  signals_matched: string[]
+}
+
+export type SerpDebugEntry = {
+  query: string
+  source: string
+  results: SerpDebugResult[]
+}
+
 export type ScanResult = {
   predicted_tree: 'integrity' | 'amerilife' | 'sms' | 'unknown'
   confidence: number
@@ -16,11 +29,14 @@ export type ScanResult = {
   reasoning: string
   facebook_profile_url: string | null
   facebook_about: string | null
+  prediction_source: 'brand_language' | 'chain_resolver' | 'both' | null
   // Chain resolver
   predicted_sub_imo: string | null
   predicted_sub_imo_confidence: number | null
   predicted_sub_imo_partner_id: number | null
   predicted_sub_imo_signals: ChainSignal[]
+  // Audit trail
+  serp_debug: SerpDebugEntry[] | null
 }
 
 export const TREE_LABELS: Record<string, string> = {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   type ChainSignal,
+  type SerpDebugEntry,
   type ScanResult,
   TREE_LABELS,
   TIER_CONFIG,
@@ -43,8 +44,25 @@ type SavedSpecimen = ScanResult & {
   recruiter_notes: string | null
 }
 
-function ChainSignalRow({ signal }: { signal: ChainSignal }) {
+// Find the best matching source URL + title for a given entity string
+function findSourceEvidence(entity: string, debugEntries: SerpDebugEntry[]): { url: string; title: string } | null {
+  const entityLower = entity.toLowerCase()
+  for (const entry of debugEntries) {
+    for (const r of entry.results) {
+      if (!r.url) continue
+      const combined = `${r.title} ${r.snippet}`.toLowerCase()
+      if (combined.includes(entityLower)) {
+        return { url: r.url, title: r.title || 'View source' }
+      }
+    }
+  }
+  return null
+}
+
+function ChainSignalRow({ signal, debugEntries }: { signal: ChainSignal; debugEntries?: SerpDebugEntry[] }) {
   const cfg = TIER_CONFIG[signal.tier]
+  const evidence = debugEntries ? findSourceEvidence(signal.entity, debugEntries) : null
+
   return (
     <div style={{
       display: 'flex', gap: 8, alignItems: 'flex-start',
@@ -58,12 +76,29 @@ function ChainSignalRow({ signal }: { signal: ChainSignal }) {
       }}>
         {cfg.label}
       </span>
-      <span style={{
-        fontSize: 10, lineHeight: 1.5, fontFamily: "'DM Mono', monospace",
-        color: signal.tier === 'LOW' ? '#555' : signal.tier === 'MED' ? '#888' : '#aaa',
-      }}>
-        {signal.text}
-      </span>
+      <div style={{ flex: 1 }}>
+        <div style={{
+          fontSize: 10, lineHeight: 1.5, fontFamily: "'DM Mono', monospace",
+          color: signal.tier === 'LOW' ? '#555' : signal.tier === 'MED' ? '#888' : '#aaa',
+        }}>
+          {signal.text}
+        </div>
+        {evidence && (
+          <a
+            href={evidence.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            style={{
+              display: 'inline-block', marginTop: 3,
+              fontSize: 9, color: 'rgba(0,230,118,0.5)',
+              textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5,
+            }}
+          >
+            ↗ {evidence.title.slice(0, 60)}
+          </a>
+        )}
+      </div>
     </div>
   )
 }
@@ -72,15 +107,22 @@ function ChainSection({ result }: { result: ScanResult }) {
   const [expanded, setExpanded] = useState(false)
   const signals = result.predicted_sub_imo_signals || []
   const grouped = groupSignals(signals)
-  const hasAny = signals.length > 0
+  // LOW signals collected but never surfaced to recruiter
+  const visibleSignals = [...grouped.high, ...grouped.med]
+  const debugEntries = result.serp_debug || undefined
 
-  if (!hasAny && !result.predicted_sub_imo) return null
+  if (visibleSignals.length === 0 && !result.predicted_sub_imo) return null
+
+  // Find evidence link for the resolved partner
+  const partnerEvidence = result.predicted_sub_imo && debugEntries
+    ? findSourceEvidence(result.predicted_sub_imo, debugEntries)
+    : null
 
   return (
     <div style={{ borderTop: '1px solid rgba(0,230,118,0.1)', padding: '10px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 9, color: '#555', letterSpacing: 3 }}>CHAIN INTELLIGENCE</div>
-        {hasAny && (
+        {visibleSignals.length > 0 && (
           <button
             onClick={e => { e.stopPropagation(); setExpanded(v => !v) }}
             style={{
@@ -89,44 +131,53 @@ function ChainSection({ result }: { result: ScanResult }) {
               padding: '3px 8px', cursor: 'pointer',
             }}
           >
-            {expanded ? 'COLLAPSE' : `SHOW ALL SIGNALS (${signals.length})`}
+            {expanded ? 'COLLAPSE' : `SHOW ALL SIGNALS (${visibleSignals.length})`}
           </button>
         )}
       </div>
 
+      {/* Resolved partner block */}
       {result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 && (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          marginBottom: hasAny ? 12 : 0, padding: '8px 12px',
-          background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.2)',
+          marginBottom: visibleSignals.length > 0 ? 10 : 0,
+          padding: '8px 12px',
+          background: 'rgba(0,230,118,0.04)',
+          border: `1px solid ${result.prediction_source === 'chain_resolver' ? 'rgba(0,230,118,0.35)' : 'rgba(0,230,118,0.2)'}`,
         }}>
-          <div>
-            <div style={{ fontSize: 8, color: '#555', letterSpacing: 2, marginBottom: 3 }}>PREDICTED SUB-IMO</div>
-            <div style={{ fontSize: 13, color: 'var(--green)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2 }}>
-              {result.predicted_sub_imo}
-            </div>
+          <div style={{ fontSize: 8, color: '#555', letterSpacing: 2, marginBottom: 3 }}>
+            {result.prediction_source === 'chain_resolver' ? 'CHAIN-SOURCED · THIS IS WHY WE KNOW' : 'PREDICTED SUB-IMO'}
           </div>
+          <div style={{ fontSize: 13, color: 'var(--green)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, marginBottom: partnerEvidence ? 4 : 0 }}>
+            {result.predicted_sub_imo}
+          </div>
+          {partnerEvidence && (
+            <a
+              href={partnerEvidence.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              style={{
+                display: 'inline-block', fontSize: 9,
+                color: 'rgba(0,230,118,0.6)', textDecoration: 'none',
+                fontFamily: "'DM Mono', monospace", letterSpacing: 0.5,
+              }}
+            >
+              ↗ {partnerEvidence.title.slice(0, 60)}
+            </a>
+          )}
           {result.predicted_sub_imo_confidence != null && (
-            <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-              <div style={{ fontSize: 8, color: '#555', letterSpacing: 2, marginBottom: 4 }}>CHAIN CONFIDENCE</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 60, height: 3, background: '#1e1e1e', position: 'relative' }}>
-                  <div style={{
-                    position: 'absolute', left: 0, top: 0, height: '100%',
-                    width: `${result.predicted_sub_imo_confidence}%`,
-                    background: 'linear-gradient(90deg, rgba(0,230,118,0.3), var(--green))',
-                  }} />
-                </div>
-                <span style={{ fontSize: 9, color: 'var(--green)', letterSpacing: 1 }}>
-                  {result.predicted_sub_imo_confidence}%
-                </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+              <div style={{ width: 60, height: 2, background: '#1e1e1e', position: 'relative' }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.predicted_sub_imo_confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.3), var(--green))' }} />
               </div>
+              <span style={{ fontSize: 9, color: '#555', letterSpacing: 1 }}>{result.predicted_sub_imo_confidence}%</span>
             </div>
           )}
         </div>
       )}
 
-      {hasAny && (
+      {/* Tier pills — HIGH and MED only */}
+      {visibleSignals.length > 0 && (
         <div style={{ display: 'flex', gap: 6, marginBottom: expanded ? 10 : 0, flexWrap: 'wrap' }}>
           {grouped.high.length > 0 && (
             <div style={{ fontSize: 9, padding: '2px 8px', border: `1px solid ${TIER_CONFIG.HIGH.borderColor}`, color: TIER_CONFIG.HIGH.color, fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>
@@ -138,19 +189,14 @@ function ChainSection({ result }: { result: ScanResult }) {
               {grouped.med.length} MED
             </div>
           )}
-          {grouped.low.length > 0 && (
-            <div style={{ fontSize: 9, padding: '2px 8px', border: `1px solid ${TIER_CONFIG.LOW.borderColor}`, color: TIER_CONFIG.LOW.color, fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>
-              {grouped.low.length} LOW
-            </div>
-          )}
         </div>
       )}
 
-      {expanded && hasAny && (
+      {/* Expanded signal rows with source links */}
+      {expanded && visibleSignals.length > 0 && (
         <div style={{ marginTop: 4 }}>
-          {grouped.high.map((s, i) => <ChainSignalRow key={`h${i}`} signal={s} />)}
-          {grouped.med.map((s, i)  => <ChainSignalRow key={`m${i}`} signal={s} />)}
-          {grouped.low.map((s, i)  => <ChainSignalRow key={`l${i}`} signal={s} />)}
+          {grouped.high.map((s, i) => <ChainSignalRow key={`h${i}`} signal={s} debugEntries={debugEntries} />)}
+          {grouped.med.map((s, i) => <ChainSignalRow key={`m${i}`} signal={s} debugEntries={debugEntries} />)}
         </div>
       )}
     </div>
@@ -187,10 +233,12 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
           reasoning: data.specimen.prediction_reasoning,
           facebook_profile_url: data.specimen.facebook_profile_url,
           facebook_about: data.specimen.facebook_about,
+          prediction_source: data.specimen.prediction_source || null,
           predicted_sub_imo: data.specimen.predicted_sub_imo || null,
           predicted_sub_imo_confidence: data.specimen.predicted_sub_imo_confidence || null,
           predicted_sub_imo_partner_id: data.specimen.predicted_sub_imo_partner_id || null,
           predicted_sub_imo_signals: data.specimen.predicted_sub_imo_signals || [],
+          serp_debug: data.specimen.serp_debug || null,
         })
         setConfirmedTree(data.specimen.confirmed_tree || '')
         setConfirmedOther(data.specimen.confirmed_tree_other || '')
@@ -235,12 +283,14 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
           predicted_confidence: result.confidence,
           prediction_signals: result.signals_used,
           prediction_reasoning: result.reasoning,
+          prediction_source: result.prediction_source || null,
           facebook_profile_url: result.facebook_profile_url,
           facebook_about: result.facebook_about,
           predicted_sub_imo: result.predicted_sub_imo || null,
           predicted_sub_imo_confidence: result.predicted_sub_imo_confidence || null,
           predicted_sub_imo_signals: result.predicted_sub_imo_signals || [],
           predicted_sub_imo_partner_id: result.predicted_sub_imo_partner_id || null,
+          serp_debug: result.serp_debug || null,
           confirmed_tree: confirmedTree || null,
           confirmed_tree_other: confirmedOther || null,
           confirmed_sub_imo: subImo || null,
