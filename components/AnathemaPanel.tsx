@@ -204,7 +204,8 @@ function ChainSection({ result }: { result: ScanResult }) {
 }
 
 export default function AnathemaPanel({ agent, city, state }: { agent: Agent; city: string; state: string }) {
-  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'done'>('idle')
+  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'done' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
   const [result, setResult] = useState<ScanResult | null>(null)
   const [existing, setExisting] = useState<SavedSpecimen | null>(null)
   const [confirmedTree, setConfirmedTree] = useState<string>('')
@@ -255,16 +256,26 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
     if (scanState === 'scanning') return
     setScanState('scanning')
     setResult(null)
+    setErrorMsg('')
     try {
       const res = await fetch('/api/anathema', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agent: { ...agent, city, state } }),
       })
+      if (res.status === 429) {
+        setScanState('error')
+        setErrorMsg('RATE LIMIT — Try again in a few minutes')
+        return
+      }
       const data = await res.json()
+      if (data.error) throw new Error(data.error)
       setResult(data)
       setScanState('done')
-    } catch { setScanState('idle') }
+    } catch (err: any) {
+      setScanState('error')
+      setErrorMsg(err.message || 'Scan failed')
+    }
   }
 
   async function logObservation(e: React.MouseEvent) {
@@ -326,6 +337,17 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
           <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 3, color: 'var(--green)' }}>SCANNING...</span>
           <style>{`@keyframes scanline{0%{top:0}100%{top:100%}}.anathema-scanline{position:absolute;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,#00e676,transparent);animation:scanline 1.2s linear infinite}`}</style>
           <div className="anathema-scanline" />
+        </div>
+      )}
+
+      {scanState === 'error' && (
+        <div style={{ border: '1px solid rgba(255,23,68,0.4)', padding: '8px 14px', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--red)' }}>
+            ⚠ {errorMsg}
+          </span>
+          <button onClick={runScan} style={{ background: 'transparent', border: '1px solid #333', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5, padding: '3px 8px', cursor: 'pointer' }}>
+            RETRY
+          </button>
         </div>
       )}
 
