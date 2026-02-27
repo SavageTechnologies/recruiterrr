@@ -151,4 +151,4 @@ Specimens are saved to the `anathema_scans` table in Supabase:
 
 Add lead start as a keyword to associate with Amerilife 
 Hunt for facebook groups for agents, comments, etc.
-fore vercel build
+fore vercel build try and force bulid again
