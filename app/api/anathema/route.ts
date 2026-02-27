@@ -605,9 +605,9 @@ export async function POST(req: NextRequest) {
         anathema_scanned_at:  new Date().toISOString(),
       })
       .eq('clerk_id', userId)
-      .ilike('name', agent_name)
-      .ilike('city', city)
-      .ilike('state', state)
+      .ilike('name', `%${agent_name}%`)
+      .ilike('city', `%${city}%`)
+      .ilike('state', `%${state}%`)
 
     return NextResponse.json({ ok: true })
   }
