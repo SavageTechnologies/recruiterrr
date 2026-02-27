@@ -3,9 +3,8 @@ import { Webhook } from 'svix'
 import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 
-const redis = Redis.fromEnv()
-
 export async function POST(req: NextRequest) {
+  const redis = Redis.fromEnv()
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET
 
   if (!webhookSecret) {

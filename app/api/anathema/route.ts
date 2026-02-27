@@ -6,12 +6,6 @@ import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 import { getCandidatePartners, matchPartnerByName, INTEGRITY_PARTNERS, AMERILIFE_PARTNERS, SMS_PARTNERS, type NetworkPartner } from '@/lib/networks'
 
-const ratelimit = new Ratelimit({
-  redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(20, '1 h'),
-  analytics: true,
-})
-
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 
 // ─── NETWORK SIGNAL INDEX ────────────────────────────────────────────────────
@@ -510,6 +504,7 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(20, '1 h'), analytics: true })
   const { success } = await ratelimit.limit(userId)
   if (!success) return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
 

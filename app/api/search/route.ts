@@ -5,12 +5,6 @@ import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 
-const ratelimit = new Ratelimit({
-  redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(15, '1 h'),
-  analytics: true,
-})
-
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', '::1']
 
@@ -568,6 +562,7 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(15, '1 h'), analytics: true })
   const { success, limit, reset } = await ratelimit.limit(userId)
   if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
 
