@@ -131,4 +131,4 @@ Enter any agent website or name. ANATHEMA predicts which major consolidation tre
 - CSV export — coming soon
 - CRM sync (HubSpot, Salesforce) — roadmap
 - Email / direct dial enrichment — not currently included
-FORCE VERCEL BUILD
+FORCE VERCEL
