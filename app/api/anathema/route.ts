@@ -606,8 +606,8 @@ export async function POST(req: NextRequest) {
       })
       .eq('clerk_id', userId)
       .ilike('name', agent_name)
-      .eq('city', city)
-      .eq('state', state)
+      .ilike('city', city)
+      .ilike('state', state)
 
     return NextResponse.json({ ok: true })
   }
