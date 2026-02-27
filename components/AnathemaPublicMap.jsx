@@ -227,7 +227,7 @@ export default function AnathemaPublicMap() {
             color: C.white, letterSpacing: 0.5, pointerEvents: 'none', whiteSpace: 'nowrap',
           }}>
             <span style={{ color: TREE_COLORS[tooltip.confirmed_tree]?.primary || C.green, marginRight: 8 }}>◈</span>
-            {tooltip.agent_name} · {tooltip.city}, {tooltip.state}
+            SPECIMEN CLASSIFIED · {tooltip.city?.toUpperCase()}, {tooltip.state?.toUpperCase()}
             <span style={{ color: TREE_COLORS[tooltip.confirmed_tree]?.primary || C.green, marginLeft: 10, fontSize: 9 }}>
               {TREE_COLORS[tooltip.confirmed_tree]?.label}
             </span>
@@ -246,10 +246,9 @@ export default function AnathemaPublicMap() {
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: TREE_COLORS[active.confirmed_tree]?.primary || C.green, letterSpacing: 2, marginBottom: 4 }}>
                   ● CONFIRMED · {TREE_COLORS[active.confirmed_tree]?.label}
                 </div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 1.5, marginBottom: 2 }}>{active.agent_name}</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 1.5, marginBottom: 2 }}>— CLASSIFIED —</div>
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: C.muted }}>
-                  {active.city}, {active.state}
-                  {active.confirmed_sub_imo && <span> · {active.confirmed_sub_imo}</span>}
+                  {active.city?.toUpperCase()}, {active.state?.toUpperCase()}
                 </div>
               </div>
               <button onClick={() => setActive(null)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>✕</button>
