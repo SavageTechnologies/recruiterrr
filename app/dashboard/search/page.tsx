@@ -80,7 +80,7 @@ function ScoreCircle({ score }: { score: number }) {
 }
 
 function RecruitBadge({ flag }: { flag: 'hot' | 'warm' | 'cold' }) {
-  const map = { hot: { color: 'var(--green)', label: '🔥 HOT' }, warm: { color: 'var(--yellow)', label: 'WARM' }, cold: { color: '#333', label: 'PASS' } }
+  const map = { hot: { color: 'var(--green)', label: '◈ HOT' }, warm: { color: 'var(--yellow)', label: 'WARM' }, cold: { color: '#333', label: 'PASS' } }
   const { color, label } = map[flag]
   return (
     <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', border: `1px solid ${color}`, color, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center' }}>
@@ -107,21 +107,21 @@ function AgentCard({ agent, index, city, state }: { agent: Agent; index: number;
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
             {agent.hiring && (
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', background: 'rgba(0,200,100,0.08)', border: '1px solid var(--green)', color: 'var(--green)', letterSpacing: 1 }}>
-                💼 HIRING{agent.hiring_roles.length > 0 ? ` — ${agent.hiring_roles[0]}` : ''}
+                ▸ HIRING{agent.hiring_roles.length > 0 ? ` — ${agent.hiring_roles[0]}` : ''}
               </div>
             )}
             {agent.youtube_channel && (
               <a href={agent.youtube_channel} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                 style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', background: 'rgba(255,0,0,0.08)', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1, textDecoration: 'none' }}>
-                🎬 YOUTUBE{agent.youtube_subscribers ? ` — ${agent.youtube_subscribers}` : ''}
+                ▸ YOUTUBE{agent.youtube_subscribers ? ` — ${agent.youtube_subscribers}` : ''}
               </a>
             )}
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 12 }}>
-            {agent.phone && <div style={{ fontSize: 13, color: 'var(--muted)' }}>📞 {agent.phone}</div>}
-            {agent.rating > 0 && <div style={{ fontSize: 13, color: 'var(--muted)' }}>⭐ {agent.rating} ({agent.reviews} reviews)</div>}
-            {agent.address && <div style={{ fontSize: 13, color: 'var(--muted)' }}>📍 {agent.address}</div>}
+            {agent.phone && <div style={{ fontSize: 13, color: 'var(--muted)' }}>{agent.phone}</div>}
+            {agent.rating > 0 && <div style={{ fontSize: 13, color: 'var(--muted)' }}>★ {agent.rating} ({agent.reviews} reviews)</div>}
+            {agent.address && <div style={{ fontSize: 13, color: 'var(--muted)' }}>◎ {agent.address}</div>}
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -154,11 +154,11 @@ function AgentCard({ agent, index, city, state }: { agent: Agent; index: number;
                   {agent.contact_email && (
                     <a href={`mailto:${agent.contact_email}`} onClick={e => e.stopPropagation()}
                       style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 1, textDecoration: 'none' }}>
-                      ✉ {agent.contact_email}
+                      @ {agent.contact_email}
                     </a>
                   )}
                   {(agent.social_links || []).map((link, i) => {
-                    const label = link.includes('facebook') ? '🔵 Facebook' : link.includes('linkedin') ? '💼 LinkedIn' : link.includes('instagram') ? '📸 Instagram' : link.includes('twitter') || link.includes('x.com') ? '🐦 Twitter' : '🔗 Social'
+                    const label = link.includes('facebook') ? 'FB' : link.includes('linkedin') ? 'LI' : link.includes('instagram') ? 'IG' : link.includes('twitter') || link.includes('x.com') ? 'TW' : '↗ SOCIAL'
                     return (
                       <a key={i} href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                         style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 1, textDecoration: 'none' }}>
@@ -524,7 +524,7 @@ function SearchPageInner() {
             </div>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)' }}>
-                🔥 {agents.filter(a => a.flag === 'hot').length} HOT
+                ◈ {agents.filter(a => a.flag === 'hot').length} HOT
               </div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--yellow)' }}>
                 {agents.filter(a => a.flag === 'warm').length} WARM
@@ -539,13 +539,13 @@ function SearchPageInner() {
           {agents.length > 0 && (
             <div style={{ display: 'flex', gap: 2, marginBottom: 24 }}>
               <div style={{ flex: 1, padding: '10px 16px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)' }}>
-                💼 {agents.filter(a => a.hiring).length} ACTIVELY HIRING
+                ◈ {agents.filter(a => a.hiring).length} ACTIVELY HIRING
               </div>
               <div style={{ flex: 1, padding: '10px 16px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#ff4444' }}>
-                🎬 {agents.filter(a => a.youtube_channel).length} HAVE YOUTUBE
+                ▸ {agents.filter(a => a.youtube_channel).length} HAVE YOUTUBE
               </div>
               <div style={{ flex: 1, padding: '10px 16px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)' }}>
-                🌐 {agents.filter(a => a.website).length} HAVE WEBSITE
+                ◎ {agents.filter(a => a.website).length} HAVE WEBSITE
               </div>
             </div>
           )}
