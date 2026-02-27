@@ -24,8 +24,11 @@ type AgentProfile = {
   youtube_channel: string | null
   anathema_run: boolean
   predicted_tree: string | null
+  predicted_confidence: number | null
   predicted_sub_imo: string | null
   unresolved_upline: string | null
+  anathema_signals: string[] | null
+  anathema_scanned_at: string | null
   first_seen: string
   last_seen: string
   search_count: number
@@ -271,23 +274,59 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
         )}
 
         {/* ANATHEMA section */}
-        <div style={{ padding: '16px', background: 'var(--card)', border: '1px solid var(--border)', marginBottom: 16 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 2, marginBottom: 10 }}>ANATHEMA ANALYSIS</div>
+        <div style={{ padding: '16px', background: 'var(--card)', border: '1px solid var(--border)', borderLeft: agent.anathema_run ? '2px solid var(--green)' : '2px solid #222', marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: agent.anathema_run ? 'var(--green)' : '#555', letterSpacing: 2 }}>ANATHEMA ANALYSIS</div>
+            {agent.anathema_scanned_at && (
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 1 }}>
+                {new Date(agent.anathema_scanned_at).toLocaleDateString()}
+              </div>
+            )}
+          </div>
           {agent.anathema_run ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: TREE_COLORS[agent.predicted_tree || 'unknown'] }}>
+              {/* Tree + Confidence */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: TREE_COLORS[agent.predicted_tree || 'unknown'] }}>
                   {agent.predicted_tree?.toUpperCase() || 'UNKNOWN'}
                 </span>
-                {agent.predicted_sub_imo && (
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>
-                    via {agent.predicted_sub_imo}
-                  </span>
+                {agent.predicted_confidence != null && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1 }}>CONFIDENCE</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: agent.predicted_confidence >= 70 ? 'var(--green)' : agent.predicted_confidence >= 40 ? 'var(--orange)' : '#ff4444', letterSpacing: 1 }}>
+                      {agent.predicted_confidence}%
+                    </div>
+                  </div>
                 )}
               </div>
+
+              {/* Sub-IMO */}
+              {agent.predicted_sub_imo && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1, marginBottom: 4 }}>PREDICTED UPLINE</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 1 }}>{agent.predicted_sub_imo}</div>
+                </div>
+              )}
+
+              {/* Unresolved */}
               {agent.unresolved_upline && (
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#ff9800', letterSpacing: 1 }}>
-                  ◎ UNRESOLVED: {agent.unresolved_upline}
+                <div style={{ marginBottom: 10, padding: '8px 10px', background: 'rgba(255,152,0,0.06)', border: '1px solid rgba(255,152,0,0.2)' }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#ff9800', letterSpacing: 1, marginBottom: 3 }}>◎ UNRESOLVED UPLINE</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#ff9800', letterSpacing: 1 }}>{agent.unresolved_upline}</div>
+                </div>
+              )}
+
+              {/* Signals */}
+              {agent.anathema_signals && agent.anathema_signals.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1, marginBottom: 6 }}>DETECTION SIGNALS</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {agent.anathema_signals.slice(0, 6).map((sig: string, i: number) => (
+                      <span key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 7px', border: '1px solid #2a2a2a', color: '#555', letterSpacing: 1 }}>
+                        {sig.length > 40 ? sig.slice(0, 40) + '…' : sig}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
             </>

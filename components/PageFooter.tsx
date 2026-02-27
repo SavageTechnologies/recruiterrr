@@ -16,9 +16,15 @@ const COLS = [
   {
     label: 'Intelligence',
     links: [
-      { href: '/prometheus',       label: 'Prometheus' },
-      { href: '/anathema',         label: 'ANATHEMA' },
-      { href: '/network',          label: 'Network' },
+      { href: '/prometheus', label: 'PROMETHEUS' },
+      { href: '/anathema',   label: 'ANATHEMA' },
+      { href: '/david',      label: 'DAVID' },
+    ],
+  },
+  {
+    label: 'Track Us',
+    links: [
+      { href: '/network',          label: 'Network Map' },
       { href: '/network/anathema', label: 'Infection Map' },
     ],
   },
@@ -54,7 +60,7 @@ export default function PageFooter() {
       <div style={{ padding: '48px 40px 32px', maxWidth: 1200 }}>
 
         {/* Top row — logo + columns */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(4, auto)', gap: '40px 64px', marginBottom: 48, flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(5, auto)', gap: '40px 64px', marginBottom: 48, flexWrap: 'wrap' }}>
 
           {/* Brand */}
           <div>
@@ -74,6 +80,9 @@ export default function PageFooter() {
               </div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1, padding: '3px 8px', border: '1px solid rgba(0,230,118,0.2)', color: 'rgba(0,230,118,0.35)' }}>
                 ANATHEMA
+              </div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1, padding: '3px 8px', border: '1px solid rgba(167,139,250,0.2)', color: 'rgba(167,139,250,0.35)' }}>
+                DAVID
               </div>
             </div>
 
