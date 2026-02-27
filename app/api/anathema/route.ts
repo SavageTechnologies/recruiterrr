@@ -6,8 +6,6 @@ import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 import { getCandidatePartners, matchPartnerByName, INTEGRITY_PARTNERS, AMERILIFE_PARTNERS, SMS_PARTNERS, type NetworkPartner } from '@/lib/networks'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
   limiter: Ratelimit.slidingWindow(20, '1 h'),
@@ -395,6 +393,7 @@ async function huntUnresolvedUpline(
   if (!allText.trim()) return null
 
   try {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const res = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 300,
@@ -876,6 +875,7 @@ Respond with ONLY valid JSON:
   }
 
   try {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const claudeRes = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 500,

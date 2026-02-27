@@ -5,8 +5,6 @@ import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
   limiter: Ratelimit.slidingWindow(20, '1 h'),
@@ -346,6 +344,7 @@ Return ONLY valid JSON — no markdown, no backticks:
   "confidence_note": "<why the confidence level is what it is — be honest about what data was and wasn't available>"
 }`
 
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-5',
     max_tokens: 3000,
