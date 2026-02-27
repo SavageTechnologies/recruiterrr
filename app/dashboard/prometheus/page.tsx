@@ -163,6 +163,83 @@ function CounterAngle({ angle, i }: { angle: string; i: number }) {
   )
 }
 
+const QUERY_KEY_LABELS: Record<string, string> = {
+  trips: 'TRIPS / INCENTIVES',
+  carriers: 'CARRIERS / CONTRACTS',
+  reviews: 'AGENT REVIEWS',
+  complaints: 'AGENT COMPLAINTS',
+  recruiting: 'RECRUITING PITCH',
+  news: 'RECENT NEWS',
+}
+
+function SerpEntry({ entry }: { entry: any }) {
+  const [open, setOpen] = useState(false)
+  const hasResults = (entry.results || []).length > 0
+  const label = QUERY_KEY_LABELS[entry.key] || entry.key.toUpperCase()
+
+  return (
+    <div style={{ border: '1px solid var(--border)', background: 'var(--dark)' }}>
+      {/* Header row */}
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer' }}
+      >
+        <span style={{
+          fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5,
+          color: hasResults ? 'var(--green)' : '#444',
+          minWidth: 16,
+        }}>
+          {hasResults ? '●' : '○'}
+        </span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 2, minWidth: 160 }}>
+          {label}
+        </span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {entry.query}
+        </span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', minWidth: 60, textAlign: 'right' }}>
+          {hasResults ? `${entry.results.length} results` : 'no results'}
+        </span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', marginLeft: 8 }}>
+          {open ? '▲' : '▼'}
+        </span>
+      </div>
+
+      {/* Expanded results */}
+      {open && (
+        <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {hasResults ? entry.results.map((r: any, i: number) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '16px 1fr', gap: 10, alignItems: 'start' }}>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', paddingTop: 2 }}>{i + 1}</span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+                  <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500, lineHeight: 1.4 }}>{r.title}</span>
+                  {r.link && (
+                    <a
+                      href={r.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', textDecoration: 'none', flexShrink: 0 }}
+                    >
+                      ↗
+                    </a>
+                  )}
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#555', lineHeight: 1.6 }}>{r.snippet}</div>
+              </div>
+            </div>
+          )) : (
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333' }}>
+              {(entry.signals_fired || []).join(' · ') || 'No results returned'}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PrometheusPageInner() {
   const searchParams = useSearchParams()
   const [fmoName, setFmoName] = useState('')
@@ -170,9 +247,9 @@ function PrometheusPageInner() {
   const [scanning, setScanning] = useState(false)
   const [currentStep, setCurrentStep] = useState(-1)
   const [logLines, setLogLines] = useState<string[]>([])
-  const [result, setResult] = useState<{ fmo_name: string; domain: string | null; pages: string[]; analysis: Analysis; cached?: boolean; cached_at?: string } | null>(null)
+  const [result, setResult] = useState<{ fmo_name: string; domain: string | null; pages: string[]; analysis: Analysis; cached?: boolean; cached_at?: string; serp_debug?: any[] } | null>(null)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'offer' | 'trips' | 'pitch' | 'weaknesses' | 'counter'>('offer')
+  const [activeTab, setActiveTab] = useState<'offer' | 'trips' | 'pitch' | 'weaknesses' | 'counter' | 'sources'>('offer')
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -191,6 +268,7 @@ function PrometheusPageInner() {
           domain: data.scan.analysis_json?.website || null,
           pages: data.scan.pages_scanned || [],
           analysis: data.scan.analysis_json,
+          serp_debug: data.scan.serp_debug || [],
         })
       }
     } catch {}
@@ -277,6 +355,7 @@ function PrometheusPageInner() {
     { key: 'pitch', label: 'THEIR PITCH' },
     { key: 'weaknesses', label: 'WEAK POINTS' },
     { key: 'counter', label: '▶ YOUR COUNTER' },
+    { key: 'sources', label: '⬡ SOURCES' },
   ] as const
 
   return (
@@ -561,6 +640,60 @@ function PrometheusPageInner() {
                   <div style={{ fontSize: 14, color: 'var(--black)', lineHeight: 1.6, fontWeight: 600 }}>{analysis.your_counter.close}</div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* SOURCES */}
+          {activeTab === 'sources' && (
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 24 }}>Evidence Trail</div>
+
+              {/* Domain discovery block */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, marginBottom: 12 }}>WEBSITE DISCOVERY</div>
+                {result.domain ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.15)', padding: '10px 16px' }}>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)' }}>● FOUND</span>
+                    <a href={`https://${result.domain}`} target="_blank" rel="noopener noreferrer"
+                      style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--white)', letterSpacing: 1, textDecoration: 'none' }}>
+                      {result.domain}
+                    </a>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)' }}>↗</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', marginLeft: 'auto' }}>
+                      {result.pages?.length || 0} pages crawled: {result.pages?.join(', ') || 'none'}
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ background: 'rgba(255,23,68,0.04)', border: '1px solid rgba(255,23,68,0.15)', padding: '10px 16px', fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#666', letterSpacing: 1 }}>
+                    ○ NO SITE FOUND — Intel is SERP-only. Carriers and details may be less reliable.
+                  </div>
+                )}
+                {/* Discovery debug entry */}
+                {(() => {
+                  const discoveryEntry = (result.serp_debug || []).find((e: any) => e.key === 'website_discovery')
+                  if (!discoveryEntry?.signals_fired?.length) return null
+                  return (
+                    <div style={{ marginTop: 6, fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 0.5, paddingLeft: 4 }}>
+                      {discoveryEntry.signals_fired.map((s: string, i: number) => <div key={i}>→ {s}</div>)}
+                    </div>
+                  )
+                })()}
+              </div>
+
+              {/* SERP query entries */}
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, marginBottom: 12 }}>SERP QUERIES FIRED</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {(result.serp_debug || [])
+                  .filter((e: any) => e.key !== 'website_discovery')
+                  .map((entry: any, ei: number) => (
+                  <SerpEntry key={ei} entry={entry} />
+                ))}
+                {!(result.serp_debug || []).filter((e: any) => e.key !== 'website_discovery').length && (
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333' }}>
+                    No SERP debug data — rescan to generate evidence trail.
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
