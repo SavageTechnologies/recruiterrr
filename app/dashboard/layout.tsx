@@ -44,6 +44,12 @@ export default function DashboardLayout({
           }}>
             Anathema
           </Link>
+          <Link href="/dashboard/database" style={{
+            fontFamily: "'DM Mono', monospace", fontSize: 11,
+            color: '#4fc3f7', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+          }}>
+            Database
+          </Link>
           <UserButton
             afterSignOutUrl="/"
             appearance={{
