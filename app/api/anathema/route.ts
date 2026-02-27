@@ -594,6 +594,25 @@ export async function POST(req: NextRequest) {
       predicted_tree, predicted_confidence,
     })
 
+// ── Write ANATHEMA results back to agent_profiles ─────────────────────────
+    // If this agent exists in the database (was surfaced by a search), update
+    // their record with the ANATHEMA intelligence. Non-blocking.
+    void supabase
+      .from('agent_profiles')
+      .update({
+        anathema_run:         true,
+        predicted_tree:       confirmed_tree || predicted_tree || null,
+        predicted_confidence: predicted_confidence || null,
+        predicted_sub_imo:    confirmed_sub_imo || predicted_sub_imo || null,
+        unresolved_upline:    body.unresolved_upline || null,
+        anathema_signals:     prediction_signals || null,
+        anathema_scanned_at:  new Date().toISOString(),
+      })
+      .eq('clerk_id', userId)
+      .ilike('name', agent_name)
+      .eq('city', city)
+      .eq('state', state)
+
     return NextResponse.json({ ok: true })
   }
 

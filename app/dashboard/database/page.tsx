@@ -323,6 +323,11 @@ export default function DatabasePage() {
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<'score' | 'last_seen' | 'search_count'>('last_seen')
 
+  // Pagination
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
+  const [pagination, setPagination] = useState<{ total: number; total_pages: number } | null>(null)
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -333,20 +338,26 @@ export default function DatabasePage() {
         state: filterState,
         search,
         sort: sortBy,
+        page: String(page),
+        per_page: String(perPage),
       })
       const res = await fetch(`/api/database?${params}`)
       if (!res.ok) throw new Error('Failed')
       const data = await res.json()
       setAgents(data.agents || [])
       setStats(data.stats || null)
+      setPagination(data.pagination || null)
     } catch {
       setAgents([])
     } finally {
       setLoading(false)
     }
-  }, [filterFlag, filterTree, filterAnathema, filterState, search, sortBy])
+  }, [filterFlag, filterTree, filterAnathema, filterState, search, sortBy, page, perPage])
 
   useEffect(() => { load() }, [load])
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setPage(1) }, [filterFlag, filterTree, filterAnathema, filterState, search, sortBy, perPage])
 
   const states = [...new Set(agents.map(a => a.state))].sort()
 
@@ -454,6 +465,20 @@ export default function DatabasePage() {
           <option value="score">HIGHEST SCORE</option>
           <option value="search_count">MOST SEARCHED</option>
         </select>
+
+        {/* Per page */}
+        <select
+          value={perPage}
+          onChange={e => setPerPage(Number(e.target.value))}
+          style={{
+            fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '7px 12px',
+            background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer',
+          }}
+        >
+          <option value={10}>10 / PAGE</option>
+          <option value={50}>50 / PAGE</option>
+          <option value={100}>100 / PAGE</option>
+        </select>
       </div>
 
       {/* Results count */}
@@ -492,7 +517,83 @@ export default function DatabasePage() {
         )}
       </div>
 
-      {/* Detail panel */}
+      {/* Pagination */}
+      {pagination && pagination.total_pages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2 }}>
+            PAGE {page} OF {pagination.total_pages} · {pagination.total} TOTAL
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 12px',
+                background: 'transparent', border: '1px solid var(--border)',
+                color: page === 1 ? '#333' : 'var(--muted)', cursor: page === 1 ? 'default' : 'crosshair',
+              }}
+            >«</button>
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 14px',
+                background: 'transparent', border: '1px solid var(--border)',
+                color: page === 1 ? '#333' : 'var(--muted)', cursor: page === 1 ? 'default' : 'crosshair',
+              }}
+            >PREV</button>
+
+            {/* Page number pills */}
+            {Array.from({ length: Math.min(7, pagination.total_pages) }, (_, i) => {
+              const totalPages = pagination.total_pages
+              let pageNum: number
+              if (totalPages <= 7) {
+                pageNum = i + 1
+              } else if (page <= 4) {
+                pageNum = i + 1
+              } else if (page >= totalPages - 3) {
+                pageNum = totalPages - 6 + i
+              } else {
+                pageNum = page - 3 + i
+              }
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
+                  style={{
+                    fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 12px',
+                    background: pageNum === page ? 'var(--border-light)' : 'transparent',
+                    border: `1px solid ${pageNum === page ? 'var(--border-light)' : 'var(--border)'}`,
+                    color: pageNum === page ? 'var(--white)' : 'var(--muted)', cursor: 'crosshair',
+                    minWidth: 32,
+                  }}
+                >{pageNum}</button>
+              )
+            })}
+
+            <button
+              onClick={() => setPage(p => Math.min(pagination.total_pages, p + 1))}
+              disabled={page === pagination.total_pages}
+              style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 14px',
+                background: 'transparent', border: '1px solid var(--border)',
+                color: page === pagination.total_pages ? '#333' : 'var(--muted)',
+                cursor: page === pagination.total_pages ? 'default' : 'crosshair',
+              }}
+            >NEXT</button>
+            <button
+              onClick={() => setPage(pagination.total_pages)}
+              disabled={page === pagination.total_pages}
+              style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 12px',
+                background: 'transparent', border: '1px solid var(--border)',
+                color: page === pagination.total_pages ? '#333' : 'var(--muted)',
+                cursor: page === pagination.total_pages ? 'default' : 'crosshair',
+              }}
+            >»</button>
+          </div>
+        </div>
+      )}
       {selected && <DetailPanel agent={selected} onClose={() => setSelected(null)} />}
 
       <style>{`

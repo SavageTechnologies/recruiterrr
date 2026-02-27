@@ -13,11 +13,14 @@ export async function GET(req: NextRequest) {
   const state     = searchParams.get('state') || 'all'
   const search    = searchParams.get('search') || ''
   const sort      = searchParams.get('sort') || 'last_seen'
+  const page      = Math.max(1, parseInt(searchParams.get('page') || '1'))
+  const perPage   = Math.min(100, Math.max(10, parseInt(searchParams.get('per_page') || '10')))
+  const offset    = (page - 1) * perPage
 
   // ── Base query ─────────────────────────────────────────────────────────────
   let query = supabase
     .from('agent_profiles')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('clerk_id', userId)
 
   // ── Filters ────────────────────────────────────────────────────────────────
@@ -37,16 +40,17 @@ export async function GET(req: NextRequest) {
     query = query.order('last_seen', { ascending: false })
   }
 
-  query = query.limit(200)
+  // ── Pagination ─────────────────────────────────────────────────────────────
+  query = query.range(offset, offset + perPage - 1)
 
-  const { data: agents, error } = await query
+  const { data: agents, error, count } = await query
 
   if (error) {
     console.error('[/api/database] query error:', error)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }
 
-  // ── Stats (always unfiltered for the current user) ─────────────────────────
+  // ── Stats (always unfiltered) ──────────────────────────────────────────────
   const { data: allProfiles } = await supabase
     .from('agent_profiles')
     .select('prometheus_flag, anathema_run, state, hiring')
@@ -60,5 +64,14 @@ export async function GET(req: NextRequest) {
     hiring:       allProfiles?.filter(a => a.hiring).length ?? 0,
   }
 
-  return NextResponse.json({ agents: agents || [], stats })
+  return NextResponse.json({
+    agents: agents || [],
+    stats,
+    pagination: {
+      total: count ?? 0,
+      page,
+      per_page: perPage,
+      total_pages: Math.ceil((count ?? 0) / perPage),
+    },
+  })
 }
