@@ -231,7 +231,7 @@ function AnathemaDashboardInner() {
   const [result, setResult] = useState<ScanResult | null>(null)
   const [error, setError] = useState('')
 
-  const [confirmedTree, setConfirmedTree] = useState('')
+  const [confirmedTrees, setConfirmedTrees] = useState<string[]>([])
   const [confirmedOther, setConfirmedOther] = useState('')
   const [subImo, setSubImo] = useState('')
   const [recruiterNotes, setRecruiterNotes] = useState('')
@@ -254,7 +254,11 @@ function AnathemaDashboardInner() {
         setCity(s.city || '')
         setState(s.state || '')
         if (s.analysis_json) setResult(s.analysis_json)
-        if (s.confirmed_tree) setConfirmedTree(s.confirmed_tree)
+        if (s.confirmed_tree) setConfirmedTrees(
+          Array.isArray(s.confirmed_tree)
+            ? s.confirmed_tree
+            : s.confirmed_tree ? [s.confirmed_tree] : []
+        )
         if (s.confirmed_tree_other) setConfirmedOther(s.confirmed_tree_other)
         if (s.sub_imo) setSubImo(s.sub_imo)
         if (s.recruiter_notes) setRecruiterNotes(s.recruiter_notes)
@@ -276,7 +280,7 @@ function AnathemaDashboardInner() {
     setLogLines([])
     setCurrentStep(0)
     setSaveState('idle')
-    setConfirmedTree('')
+    setConfirmedTrees([])
     setConfirmedOther('')
     setSubImo('')
     setRecruiterNotes('')
@@ -367,7 +371,7 @@ function AnathemaDashboardInner() {
           predicted_sub_imo_partner_id: result.predicted_sub_imo_partner_id || null,
           predicted_sub_imo_proof_url: result.predicted_sub_imo_proof_url || null,
           serp_debug: result.serp_debug || null,
-          confirmed_tree: confirmedTree || null,
+          confirmed_tree: confirmedTrees.length === 1 ? confirmedTrees[0] : confirmedTrees.length > 1 ? confirmedTrees.join(',') : null,
           confirmed_tree_other: confirmedOther || null,
           confirmed_sub_imo: subImo || null,
           recruiter_notes: recruiterNotes || null,
@@ -551,16 +555,26 @@ function AnathemaDashboardInner() {
             <div style={{ padding: '16px 24px' }}>
               <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 14 }}>FIELD OBSERVATION LOG</div>
 
+              <div style={{ fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 6, fontFamily: "'DM Mono', monospace" }}>
+                SELECT ALL THAT APPLY
+              </div>
               <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
-                {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => (
-                  <button key={t} onClick={() => setConfirmedTree(t === confirmedTree ? '' : t)}
-                    style={{ background: confirmedTree === t ? 'rgba(0,230,118,0.1)' : 'transparent', border: `1px solid ${confirmedTree === t ? 'var(--green)' : '#333'}`, color: confirmedTree === t ? 'var(--green)' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '6px 14px', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }}>
-                    {t === 'integrity' ? 'INTEGRITY' : t === 'amerilife' ? 'AMERILIFE' : t === 'sms' ? 'SMS' : 'OTHER'}
-                  </button>
-                ))}
+                {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => {
+                  const active = confirmedTrees.includes(t)
+                  return (
+                    <button key={t} onClick={() =>
+                      setConfirmedTrees(prev =>
+                        prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
+                      )
+                    }
+                      style={{ background: active ? 'rgba(0,230,118,0.1)' : 'transparent', border: `1px solid ${active ? 'var(--green)' : '#333'}`, color: active ? 'var(--green)' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '6px 14px', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }}>
+                      {active && '✓ '}{t === 'integrity' ? 'INTEGRITY' : t === 'amerilife' ? 'AMERILIFE' : t === 'sms' ? 'SMS' : 'OTHER'}
+                    </button>
+                  )
+                })}
               </div>
 
-              {confirmedTree === 'other' && (
+              {confirmedTrees.includes('other') && (
                 <input value={confirmedOther} onChange={e => setConfirmedOther(e.target.value)} placeholder="FMO name..."
                   style={{ display: 'block', width: '100%', background: '#0e0e0e', border: '1px solid #333', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 12, padding: '8px 12px', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
               )}

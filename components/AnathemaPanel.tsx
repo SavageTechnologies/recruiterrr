@@ -250,7 +250,7 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
   const [errorMsg, setErrorMsg] = useState('')
   const [result, setResult] = useState<ScanResult | null>(null)
   const [existing, setExisting] = useState<SavedSpecimen | null>(null)
-  const [confirmedTree, setConfirmedTree] = useState<string>('')
+  const [confirmedTrees, setConfirmedTrees] = useState<string[]>([])
   const [confirmedOther, setConfirmedOther] = useState('')
   const [subImo, setSubImo] = useState('')
   const [recruiterNotes, setRecruiterNotes] = useState('')
@@ -288,7 +288,11 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
           unresolved_upline_confidence: data.specimen.unresolved_upline_confidence || null,
           serp_debug: data.specimen.serp_debug || null,
         })
-        setConfirmedTree(data.specimen.confirmed_tree || '')
+        setConfirmedTrees(
+          Array.isArray(data.specimen.confirmed_tree)
+            ? data.specimen.confirmed_tree
+            : data.specimen.confirmed_tree ? [data.specimen.confirmed_tree] : []
+        )
         setConfirmedOther(data.specimen.confirmed_tree_other || '')
         // Auto-populate sub-IMO from confirmed value, or from prediction if not yet confirmed
         setSubImo(data.specimen.confirmed_sub_imo || data.specimen.predicted_sub_imo || '')
@@ -355,7 +359,7 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
           predicted_sub_imo_partner_id: result.predicted_sub_imo_partner_id || null,
           predicted_sub_imo_proof_url: result.predicted_sub_imo_proof_url || null,
           serp_debug: result.serp_debug || null,
-          confirmed_tree: confirmedTree || null,
+          confirmed_tree: confirmedTrees.length === 1 ? confirmedTrees[0] : confirmedTrees.length > 1 ? confirmedTrees.join(',') : null,
           confirmed_tree_other: confirmedOther || null,
           confirmed_sub_imo: subImo || null,
           recruiter_notes: recruiterNotes || null,
@@ -485,15 +489,26 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
                 FIELD OBSERVATION LOG
                 {existing?.confirmed_tree && <span style={{ color: 'var(--green)', marginLeft: 8 }}>[OBSERVATION ON FILE]</span>}
               </div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
-                {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => (
-                  <button key={t} onClick={e => { e.stopPropagation(); setConfirmedTree(t === confirmedTree ? '' : t) }}
-                    style={{ background: confirmedTree === t ? 'rgba(0,230,118,0.1)' : 'transparent', border: `1px solid ${confirmedTree === t ? 'var(--green)' : '#333'}`, color: confirmedTree === t ? 'var(--green)' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '5px 10px', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }}>
-                    {t === 'integrity' ? 'INTEGRITY' : t === 'amerilife' ? 'AMERILIFE' : t === 'sms' ? 'SMS' : 'OTHER'}
-                  </button>
-                ))}
+              <div style={{ fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 6, fontFamily: "'DM Mono', monospace" }}>
+                SELECT ALL THAT APPLY
               </div>
-              {confirmedTree === 'other' && (
+              <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
+                {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => {
+                  const active = confirmedTrees.includes(t)
+                  return (
+                    <button key={t} onClick={e => {
+                      e.stopPropagation()
+                      setConfirmedTrees(prev =>
+                        prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
+                      )
+                    }}
+                      style={{ background: active ? 'rgba(0,230,118,0.1)' : 'transparent', border: `1px solid ${active ? 'var(--green)' : '#333'}`, color: active ? 'var(--green)' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '5px 10px', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }}>
+                      {active && '✓ '}{t === 'integrity' ? 'INTEGRITY' : t === 'amerilife' ? 'AMERILIFE' : t === 'sms' ? 'SMS' : 'OTHER'}
+                    </button>
+                  )
+                })}
+              </div>
+              {confirmedTrees.includes('other') && (
                 <input value={confirmedOther} onChange={e => setConfirmedOther(e.target.value)} onClick={e => e.stopPropagation()} placeholder="FMO name..."
                   style={{ display: 'block', width: '100%', background: '#0e0e0e', border: '1px solid #333', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '7px 10px', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
               )}
