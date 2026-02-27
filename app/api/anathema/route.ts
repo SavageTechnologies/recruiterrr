@@ -116,17 +116,40 @@ type NetworkMatch = {
   matchedPhrase: string
 }
 
-function scanResultAgainstNetwork(title: string, snippet: string, url: string): NetworkMatch[] {
+function scanResultAgainstNetwork(title: string, snippet: string, url: string, agentName?: string): NetworkMatch[] {
   const haystack = `${title} ${snippet} ${url}`.toLowerCase()
+  const agentLower = agentName?.toLowerCase() || ''
   const matches: NetworkMatch[] = []
   const firedPhrases = new Set<string>()
 
   for (const signal of NETWORK_SIGNALS) {
     if (firedPhrases.has(signal.phrase)) continue
-    if (haystack.includes(signal.phrase)) {
-      matches.push({ signal, proofUrl: url, proofTitle: title, proofSnippet: snippet.slice(0, 200), matchedPhrase: signal.phrase })
-      firedPhrases.add(signal.phrase)
-    }
+    if (!haystack.includes(signal.phrase)) continue
+
+    // ── Co-mention requirement ───────────────────────────────────────────────
+    // For partner name/alias/domain signals: the agent's name must also appear
+    // in this result. If Ritter ranks for every KC insurance search, that's
+    // Ritter's SEO — not evidence of this agent's affiliation.
+    // Parent brand signals (amerilife, integrity marketing group, etc.) are
+    // exempt — those are explicit brand language, not ambient SEO noise.
+    if (signal.partner !== null && agentLower && !haystack.includes(agentLower)) continue
+
+    // ── Proof URL ────────────────────────────────────────────────────────────
+    // Domain matches: link directly to the partner's site — unambiguous.
+    // Name/alias matches: link to the SERP result that contained both names.
+    const isDomainSignal = signal.phrase.includes('.') && !signal.isAlias
+    const proofUrl = isDomainSignal
+      ? `https://${signal.phrase}`
+      : url
+
+    matches.push({
+      signal,
+      proofUrl,
+      proofTitle: isDomainSignal ? signal.partner?.name || signal.phrase : title,
+      proofSnippet: snippet.slice(0, 200),
+      matchedPhrase: signal.phrase,
+    })
+    firedPhrases.add(signal.phrase)
   }
   return matches
 }
@@ -333,7 +356,81 @@ async function resolveChain(
   }
 }
 
-// ─── GET ──────────────────────────────────────────────────────────────────────
+// ─── UNRESOLVED UPLINE HUNTER ─────────────────────────────────────────────────
+// When the network scanner and chain resolver both come up empty or low-confidence,
+// this runs against Facebook post content and SERP snippets using Claude to hunt
+// for FMO/IMO entities that aren't in the 286-partner network map.
+//
+// Returns a detected upline name + evidence quote + source URL, or null.
+// This is what catches Compass Health Consultants from a Punta Cana trip post.
+
+type UnresolvedUpline = {
+  name: string           // extracted entity name e.g. "Compass Health Consultants"
+  evidence: string       // the quote that revealed it e.g. "CHC's Annual Sales Trip in Punta Cana"
+  sourceUrl: string      // where we found it
+  confidence: 'HIGH' | 'MED'
+}
+
+async function huntUnresolvedUpline(
+  agentName: string,
+  facebookPostText: string,
+  facebookProfileUrl: string,
+  serpSnippets: string[],
+): Promise<UnresolvedUpline | null> {
+  // Combine all available text
+  const allText = [facebookPostText, ...serpSnippets].filter(Boolean).join('\n\n')
+  if (!allText.trim()) return null
+
+  try {
+    const res = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: `You are analyzing public web content about an insurance agent named "${agentName}" to find their upline FMO or IMO organization.
+
+CONTENT TO ANALYZE:
+${allText.slice(0, 3000)}
+
+Look for any of these signals that would identify an upline FMO/IMO:
+- Sales trip or incentive trip announcements ("sales trip to X sponsored by Y", "Y's annual trip")
+- Logo mentions or company names on swag/merchandise
+- "Appointed through", "contracted with", "writing under", "my upline", "my FMO", "my IMO"
+- Leaderboard or award mentions from a specific company
+- Company-branded content they are posting/sharing
+
+If you find a clear FMO/IMO organization name, respond with ONLY this JSON:
+{
+  "found": true,
+  "name": "exact organization name",
+  "evidence": "the exact quote or context that reveals this",
+  "confidence": "HIGH" or "MED"
+}
+
+If nothing clear found, respond with ONLY:
+{ "found": false }
+
+Do NOT guess. Do NOT include generic insurance companies (Humana, Aetna, UnitedHealth). Only name an FMO/IMO upline organization you can clearly identify from the text.`,
+      }],
+    })
+
+    const raw = ((res.content[0] as any).text || '').replace(/```json|```/g, '').trim()
+    const parsed = JSON.parse(raw)
+
+    if (!parsed.found || !parsed.name) return null
+
+    return {
+      name: parsed.name,
+      evidence: parsed.evidence || '',
+      sourceUrl: facebookProfileUrl || '',
+      confidence: parsed.confidence === 'HIGH' ? 'HIGH' : 'MED',
+    }
+  } catch {
+    return null
+  }
+}
+
+
 
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
@@ -560,7 +657,7 @@ export async function POST(req: NextRequest) {
       const debugEntry: typeof serpDebug[0] = { query: q1, source: 'pass1_broad', results: [] }
 
       for (const r of results1) {
-        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '')
+        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '', agent.name)
         allNetworkMatches.push(...matches)
         debugEntry.results.push({
           title: r.title || '',
@@ -588,7 +685,7 @@ export async function POST(req: NextRequest) {
       const debugEntry: typeof serpDebug[0] = { query: q2, source: 'pass2_fmo', results: [] }
 
       for (const r of results2) {
-        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '')
+        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '', agent.name)
         allNetworkMatches.push(...matches)
         debugEntry.results.push({
           title: r.title || '',
@@ -614,6 +711,16 @@ export async function POST(req: NextRequest) {
   }
 
   // ── SERP Pass 3: Facebook ─────────────────────────────────────────────────
+  let facebookPostText = ''  // collected post content for unresolved upline hunter
+  const serpSnippetsForHunter: string[] = []  // SERP snippets for hunter fallback
+
+  // Collect SERP snippets from both passes for hunter use
+  for (const entry of serpDebug) {
+    for (const r of entry.results) {
+      if (r.snippet) serpSnippetsForHunter.push(r.snippet)
+    }
+  }
+
   try {
     const fbQ = `"${agent.name}" site:facebook.com`
     const fbSearchRes = await fetch(
@@ -647,9 +754,21 @@ export async function POST(req: NextRequest) {
             if (fbProfileRes.ok) {
               const fbProfile = await fbProfileRes.json()
               const about = fbProfile?.about || fbProfile?.description || ''
-              if (about) {
-                facebookAbout = about
-                const fbMatches = scanResultAgainstNetwork('', about, facebookProfileUrl || '')
+
+              // Collect posts for the unresolved upline hunter
+              const posts: any[] = fbProfile?.posts || fbProfile?.updates || []
+              const postText = posts
+                .slice(0, 10)
+                .map((p: any) => p.snippet || p.text || p.description || '')
+                .filter(Boolean)
+                .join('\n')
+
+              facebookPostText = [about, postText].filter(Boolean).join('\n')
+
+              const allFbText = facebookPostText
+              if (allFbText) {
+                facebookAbout = about || postText.slice(0, 500)
+                const fbMatches = scanResultAgainstNetwork('', allFbText, facebookProfileUrl || '', agent.name)
                 const fbAgg = aggregateMatches(fbMatches)
                 integrityScore += fbAgg.integrity
                 amerilifeScore += fbAgg.amerilife
@@ -661,7 +780,7 @@ export async function POST(req: NextRequest) {
                   results: [{
                     title: `Facebook profile — ${handle}`,
                     url: facebookProfileUrl || '',
-                    snippet: about.slice(0, 200),
+                    snippet: allFbText.slice(0, 200),
                     signals_matched: fbMatches.map(m => `"${m.matchedPhrase}" → ${m.signal.partner?.name || m.signal.tree}`),
                   }],
                 })
@@ -670,10 +789,10 @@ export async function POST(req: NextRequest) {
                   allSignals.push(...fbAgg.signals.map(s => `Facebook: ${s}`))
                   if (fbAgg.topPartnerMatch && !autoDetectedSubImo) autoDetectedSubImo = fbAgg.topPartnerMatch
                 } else {
-                  allSignals.push('Facebook profile found — no affiliation language detected')
+                  allSignals.push('Facebook profile found — no network affiliation detected')
                 }
               } else {
-                allSignals.push('Facebook: Profile located — about section empty')
+                allSignals.push('Facebook: Profile located — no readable content')
               }
             }
           } catch {}
@@ -782,17 +901,13 @@ Respond with ONLY valid JSON:
   }
 
   // ── Sub-IMO resolution ────────────────────────────────────────────────────
-  // Priority: chain resolver (deeper analysis) > autoDetectedSubImo (network scanner)
-  // autoDetectedSubImo fires when the scanner found a specific partner name/domain
-  // directly in SERP results — no chain query needed.
-
   const subImoPartner = chainResult?.resolved_partner_name
     ? {
         name: chainResult.resolved_partner_name,
         id: chainResult.resolved_partner_id,
         confidence: chainResult.resolved_confidence,
         signals: chainResult.chain_signals,
-        proofUrl: null,  // chain resolver uses SERP queries, not direct URL proofs
+        proofUrl: null,
       }
     : autoDetectedSubImo
     ? {
@@ -810,6 +925,32 @@ Respond with ONLY valid JSON:
       }
     : null
 
+  // ── Unresolved upline hunter ──────────────────────────────────────────────
+  // Runs when: tree is unknown OR confidence < 50 AND no sub-IMO detected yet.
+  // Reads Facebook posts + SERP snippets through Claude to find entities
+  // that aren't in the 286-partner network — Compass Health Consultants,
+  // any FMO we haven't mapped yet. Auto-logs without recruiter action.
+
+  let unresolvedUpline: UnresolvedUpline | null = null
+  const shouldHunt = (
+    (finalTree === 'unknown' || finalConfidence < 50) &&
+    !subImoPartner &&
+    (facebookPostText || serpSnippetsForHunter.length > 0)
+  )
+
+  if (shouldHunt) {
+    unresolvedUpline = await huntUnresolvedUpline(
+      agent.name,
+      facebookPostText,
+      facebookProfileUrl || '',
+      serpSnippetsForHunter,
+    )
+
+    if (unresolvedUpline) {
+      allSignals.push(`Unresolved upline detected: "${unresolvedUpline.name}" — "${unresolvedUpline.evidence}"`)
+    }
+  }
+
   return NextResponse.json({
     predicted_tree: finalTree,
     confidence: finalConfidence,
@@ -822,7 +963,12 @@ Respond with ONLY valid JSON:
     predicted_sub_imo_confidence: subImoPartner?.confidence ?? null,
     predicted_sub_imo_signals: subImoPartner?.signals ?? [],
     predicted_sub_imo_partner_id: subImoPartner?.id ?? null,
-    predicted_sub_imo_proof_url: subImoPartner?.proofUrl ?? null,  // NEW: direct proof link
+    predicted_sub_imo_proof_url: subImoPartner?.proofUrl ?? null,
+    // Unresolved upline — entity found but not in network map
+    unresolved_upline: unresolvedUpline?.name ?? null,
+    unresolved_upline_evidence: unresolvedUpline?.evidence ?? null,
+    unresolved_upline_source_url: unresolvedUpline?.sourceUrl ?? null,
+    unresolved_upline_confidence: unresolvedUpline?.confidence ?? null,
     serp_debug: serpDebug,
   })
 }

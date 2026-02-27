@@ -113,7 +113,7 @@ function ChainSection({ result }: { result: ScanResult }) {
   const visibleSignals = [...grouped.high, ...grouped.med]
   const debugEntries = result.serp_debug || undefined
 
-  if (visibleSignals.length === 0 && !result.predicted_sub_imo) return null
+  if (visibleSignals.length === 0 && !result.predicted_sub_imo && !result.unresolved_upline) return null
 
   // Find evidence link for the resolved partner
   const partnerEvidence = result.predicted_sub_imo && debugEntries
@@ -177,6 +177,44 @@ function ChainSection({ result }: { result: ScanResult }) {
               <span style={{ fontSize: 9, color: '#555', letterSpacing: 1 }}>{result.predicted_sub_imo_confidence}%</span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Unresolved upline — found but not in network map */}
+      {result.unresolved_upline && (
+        <div style={{
+          marginBottom: visibleSignals.length > 0 ? 10 : 0,
+          padding: '8px 12px',
+          background: 'rgba(255,152,0,0.04)',
+          border: '1px solid rgba(255,152,0,0.35)',
+        }}>
+          <div style={{ fontSize: 8, color: '#777', letterSpacing: 2, marginBottom: 3 }}>
+            UNRESOLVED UPLINE · NOT IN NETWORK MAP
+          </div>
+          <div style={{ fontSize: 13, color: '#ff9800', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, marginBottom: 4 }}>
+            {result.unresolved_upline}
+          </div>
+          {result.unresolved_upline_evidence && (
+            <div style={{ fontSize: 10, color: '#666', fontFamily: "'DM Mono', monospace", marginBottom: 4, lineHeight: 1.5 }}>
+              "{result.unresolved_upline_evidence}"
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {result.unresolved_upline_source_url && (
+              <a
+                href={result.unresolved_upline_source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{ fontSize: 9, color: 'rgba(255,152,0,0.7)', textDecoration: 'none', fontFamily: "'DM Mono', monospace" }}
+              >
+                ↗ View source
+              </a>
+            )}
+            <span style={{ fontSize: 9, color: '#444', fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>
+              {result.unresolved_upline_confidence} CONFIDENCE · Add to network map to improve future scans
+            </span>
+          </div>
         </div>
       )}
 
@@ -244,6 +282,10 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
           predicted_sub_imo_partner_id: data.specimen.predicted_sub_imo_partner_id || null,
           predicted_sub_imo_signals: data.specimen.predicted_sub_imo_signals || [],
           predicted_sub_imo_proof_url: data.specimen.predicted_sub_imo_proof_url || null,
+          unresolved_upline: data.specimen.unresolved_upline || null,
+          unresolved_upline_evidence: data.specimen.unresolved_upline_evidence || null,
+          unresolved_upline_source_url: data.specimen.unresolved_upline_source_url || null,
+          unresolved_upline_confidence: data.specimen.unresolved_upline_confidence || null,
           serp_debug: data.specimen.serp_debug || null,
         })
         setConfirmedTree(data.specimen.confirmed_tree || '')

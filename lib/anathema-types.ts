@@ -35,7 +35,12 @@ export type ScanResult = {
   predicted_sub_imo_confidence: number | null
   predicted_sub_imo_partner_id: number | null
   predicted_sub_imo_signals: ChainSignal[]
-  predicted_sub_imo_proof_url: string | null  // direct URL proof when found by network scanner
+  predicted_sub_imo_proof_url: string | null
+  // Unresolved upline — found but not in the 286-partner network map
+  unresolved_upline: string | null
+  unresolved_upline_evidence: string | null
+  unresolved_upline_source_url: string | null
+  unresolved_upline_confidence: 'HIGH' | 'MED' | null
   // Audit trail
   serp_debug: SerpDebugEntry[] | null
 }

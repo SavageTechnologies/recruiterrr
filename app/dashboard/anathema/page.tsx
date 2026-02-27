@@ -101,7 +101,7 @@ function ChainSection({ result }: { result: ScanResult }) {
   const visibleSignals = [...grouped.high, ...grouped.med]
   const debugEntries = result.serp_debug || undefined
 
-  if (visibleSignals.length === 0 && !result.predicted_sub_imo) return null
+  if (visibleSignals.length === 0 && !result.predicted_sub_imo && !result.unresolved_upline) return null
 
   const partnerEvidence = result.predicted_sub_imo && debugEntries
     ? findSourceEvidence(result.predicted_sub_imo, debugEntries, result.predicted_sub_imo_proof_url)
@@ -154,6 +154,43 @@ function ChainSection({ result }: { result: ScanResult }) {
               <span style={{ fontSize: 11, color: 'var(--green)', letterSpacing: 1 }}>{result.predicted_sub_imo_confidence}%</span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Unresolved upline — found but not in network map */}
+      {result.unresolved_upline && (
+        <div style={{
+          marginBottom: visibleSignals.length > 0 ? 12 : 0,
+          padding: '10px 16px',
+          background: 'rgba(255,152,0,0.04)',
+          border: '1px solid rgba(255,152,0,0.35)',
+        }}>
+          <div style={{ fontSize: 9, color: '#777', letterSpacing: 2, marginBottom: 4 }}>
+            UNRESOLVED UPLINE · NOT IN NETWORK MAP
+          </div>
+          <div style={{ fontSize: 15, color: '#ff9800', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, marginBottom: 6 }}>
+            {result.unresolved_upline}
+          </div>
+          {result.unresolved_upline_evidence && (
+            <div style={{ fontSize: 11, color: '#666', fontFamily: "'DM Mono', monospace", marginBottom: 6, lineHeight: 1.6 }}>
+              "{result.unresolved_upline_evidence}"
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {result.unresolved_upline_source_url && (
+              <a
+                href={result.unresolved_upline_source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: 10, color: 'rgba(255,152,0,0.7)', textDecoration: 'none', fontFamily: "'DM Mono', monospace" }}
+              >
+                ↗ View source
+              </a>
+            )}
+            <span style={{ fontSize: 9, color: '#444', fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>
+              {result.unresolved_upline_confidence} CONFIDENCE · Add to network map to improve future scans
+            </span>
+          </div>
         </div>
       )}
 
@@ -288,6 +325,7 @@ function AnathemaDashboardInner() {
         : `[WARN] STRAIN: UNCLASSIFIED — Insufficient markers`)
       if (data.facebook_profile_url) addLog(`[FOUND] Facebook profile located`)
       if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence${data.predicted_sub_imo_proof_url ? ' · proof linked' : ''}`)
+      else if (data.unresolved_upline) addLog(`[ALERT] UNRESOLVED UPLINE: ${data.unresolved_upline} — not in network map`)
       else if (data.predicted_sub_imo_signals?.length > 0) addLog(`[OK] Chain signals collected — no confident sub-IMO match`)
       if (data.prediction_source === 'chain_resolver') addLog(`[FOUND] Prediction sourced from chain — partner resolved in network map`)
       setResult(data)
