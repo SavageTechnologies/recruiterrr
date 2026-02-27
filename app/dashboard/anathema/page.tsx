@@ -83,7 +83,7 @@ function ChainSection({ result }: { result: ScanResult }) {
         )}
       </div>
 
-      {result.predicted_sub_imo && (
+      {result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: hasAny ? 14 : 0, padding: '10px 16px', background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.2)' }}>
           <div>
             <div style={{ fontSize: 8, color: '#555', letterSpacing: 2, marginBottom: 4 }}>PREDICTED SUB-IMO</div>
@@ -527,7 +527,7 @@ function AnathemaDashboardInner() {
                 <input
                   value={subImo}
                   onChange={e => setSubImo(e.target.value)}
-                  placeholder={result.predicted_sub_imo ? `Confirm or correct: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate (optional)...'}
+                  placeholder={result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 ? `Confirm or correct: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate (optional)...'}
                   style={{ padding: '8px 12px', background: '#0e0e0e', border: `1px solid ${result.predicted_sub_imo && !subImo ? 'rgba(0,230,118,0.2)' : '#222'}`, color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }}
                 />
                 <input

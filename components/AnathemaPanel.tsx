@@ -94,7 +94,7 @@ function ChainSection({ result }: { result: ScanResult }) {
         )}
       </div>
 
-      {result.predicted_sub_imo && (
+      {result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           marginBottom: hasAny ? 12 : 0, padding: '8px 12px',
@@ -376,7 +376,7 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
                 value={subImo}
                 onChange={e => setSubImo(e.target.value)}
                 onClick={e => e.stopPropagation()}
-                placeholder={result.predicted_sub_imo ? `Confirm or correct: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate (optional)...'}
+                placeholder={result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 ? `Confirm or correct: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate (optional)...'}
                 style={{ display: 'block', width: '100%', background: '#0e0e0e', border: `1px solid ${result.predicted_sub_imo && !subImo ? 'rgba(0,230,118,0.2)' : '#222'}`, color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '7px 10px', marginBottom: 6, outline: 'none', boxSizing: 'border-box' }}
               />
               <textarea value={recruiterNotes} onChange={e => setRecruiterNotes(e.target.value)} onClick={e => e.stopPropagation()} placeholder="Field notes (optional)..." rows={2}

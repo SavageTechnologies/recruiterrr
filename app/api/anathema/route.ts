@@ -315,7 +315,7 @@ async function resolveChain(
 
     // Minimum threshold to name a predicted sub-IMO — keeps noise out of the top field
     // but we still return all signals regardless
-    const hasBestCandidate = best && best.score >= 40
+    const hasBestCandidate = best && best.score >= 65
     const confidence = hasBestCandidate
       ? Math.min(92, Math.round((best.score / 145) * 100))
       : null
