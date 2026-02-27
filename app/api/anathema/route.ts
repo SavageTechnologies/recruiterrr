@@ -299,6 +299,7 @@ export async function GET(req: NextRequest) {
           predicted_sub_imo_signals: specimen.predicted_sub_imo_signals || [],
           predicted_sub_imo_partner_id: specimen.predicted_sub_imo_partner_id || null,
           prediction_source: specimen.prediction_source || null,
+          serp_debug: specimen.serp_debug || null,
         },
       }
     })
@@ -342,6 +343,7 @@ export async function POST(req: NextRequest) {
       confirmed_tree, confirmed_tree_other, confirmed_sub_imo, recruiter_notes,
       agent_website, agent_address,
       predicted_sub_imo, predicted_sub_imo_confidence, predicted_sub_imo_signals, predicted_sub_imo_partner_id,
+      serp_debug,
     } = body
 
     // Resolve confirmed_sub_imo free text against the network map
@@ -375,6 +377,7 @@ export async function POST(req: NextRequest) {
           ...(predicted_sub_imo_confidence !== undefined && { predicted_sub_imo_confidence }),
           ...(predicted_sub_imo_signals !== undefined && { predicted_sub_imo_signals }),
           ...(predicted_sub_imo_partner_id !== undefined && { predicted_sub_imo_partner_id }),
+          ...(serp_debug !== undefined && { serp_debug }),
         })
         .eq('id', existing.id)
     } else {
@@ -392,6 +395,7 @@ export async function POST(req: NextRequest) {
           predicted_sub_imo_confidence: predicted_sub_imo_confidence || null,
           predicted_sub_imo_signals: predicted_sub_imo_signals || null,
           predicted_sub_imo_partner_id: predicted_sub_imo_partner_id || null,
+          serp_debug: serp_debug || null,
         })
         .select('id')
         .single()
@@ -433,6 +437,16 @@ export async function POST(req: NextRequest) {
   let facebookProfileUrl: string | null = null
   let facebookAbout: string | null = null
 
+  // ── serp_debug: audit trail of every query run and every match found ──────
+  // Stored as jsonb on the specimen so any result can be traced back to its
+  // exact source. Each entry records: the query string, the raw result titles
+  // and snippets, and which signals fired from that result.
+  const serpDebug: Array<{
+    query: string
+    source: string
+    results: Array<{ title: string; url: string; snippet: string; signals_matched: string[] }>
+  }> = []
+
   // ── SMS carrier check (only meaningful carrier signal) ────────────────────
   if (agent.carriers?.length > 0) {
     const smsCarriers = scoreSMSCarriers(agent.carriers)
@@ -450,7 +464,7 @@ export async function POST(req: NextRequest) {
     allSignals.push(...textResult.signals)
   }
 
-  // ── SERP: explicit brand phrase search ───────────────────────────────────
+  // ── SERP: explicit brand phrase search ────────────────────────────────────
   // Using quoted multi-word phrases only — no bare single words like "integrity"
   try {
     const q = `"${agent.name}" "Integrity Marketing Group" OR "family first life" OR "integrityconnect" OR "medicarecenter" OR "amerilife" OR "USABG" OR "senior market sales" OR "rethinking retirement"`
@@ -461,6 +475,10 @@ export async function POST(req: NextRequest) {
     if (serpRes.ok) {
       const serpData = await serpRes.json()
       const results = serpData.organic_results || []
+
+      // Build debug entry for this query
+      const debugEntry: typeof serpDebug[0] = { query: q, source: 'brand_serp', results: [] }
+
       for (const r of results.slice(0, 4)) {
         const combined = `${r.title || ''} ${r.snippet || ''}`.toLowerCase()
         const textResult = scoreText(combined)
@@ -468,19 +486,42 @@ export async function POST(req: NextRequest) {
         amerilifeScore += textResult.amerilife
         smsScore += textResult.sms
         allSignals.push(...textResult.signals.map(s => `Google: ${s}`))
+
+        // Record this result with what it matched
+        debugEntry.results.push({
+          title: r.title || '',
+          url: r.link || '',
+          snippet: (r.snippet || '').slice(0, 200),
+          signals_matched: textResult.signals,
+        })
       }
+
+      serpDebug.push(debugEntry)
     }
   } catch {}
 
   // ── Facebook profile ──────────────────────────────────────────────────────
   try {
+    const fbQ = `"${agent.name}" site:facebook.com`
     const fbSearchRes = await fetch(
-      `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(`"${agent.name}" site:facebook.com`)}&num=3&api_key=${serpKey}`,
+      `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(fbQ)}&num=3&api_key=${serpKey}`,
       { signal: AbortSignal.timeout(5000) }
     )
     if (fbSearchRes.ok) {
       const fbSearchData = await fbSearchRes.json()
       const fbResult = (fbSearchData.organic_results || []).find((r: any) => r.link?.includes('facebook.com'))
+
+      serpDebug.push({
+        query: fbQ,
+        source: 'facebook_search',
+        results: (fbSearchData.organic_results || []).slice(0, 3).map((r: any) => ({
+          title: r.title || '',
+          url: r.link || '',
+          snippet: (r.snippet || '').slice(0, 200),
+          signals_matched: [],
+        })),
+      })
+
       if (fbResult?.link) {
         const handle = extractFacebookHandle(fbResult.link)
         if (handle) {
@@ -499,6 +540,18 @@ export async function POST(req: NextRequest) {
                 integrityScore += fbResult2.integrity
                 amerilifeScore += fbResult2.amerilife
                 smsScore += fbResult2.sms
+
+                serpDebug.push({
+                  query: `facebook_profile:${handle}`,
+                  source: 'facebook_profile',
+                  results: [{
+                    title: `Facebook profile — ${handle}`,
+                    url: facebookProfileUrl,
+                    snippet: about.slice(0, 200),
+                    signals_matched: fbResult2.signals,
+                  }],
+                })
+
                 if (fbResult2.signals.length > 0) {
                   allSignals.push(...fbResult2.signals.map(s => `Facebook: ${s}`))
                 } else {
@@ -635,5 +688,7 @@ Respond with ONLY valid JSON:
     predicted_sub_imo_confidence: chainResult?.resolved_confidence ?? null,
     predicted_sub_imo_signals: chainResult?.chain_signals ?? [],
     predicted_sub_imo_partner_id: chainResult?.resolved_partner_id ?? null,
+    // Audit trail — every query run, every result returned, every signal matched
+    serp_debug: serpDebug,
   })
 }
