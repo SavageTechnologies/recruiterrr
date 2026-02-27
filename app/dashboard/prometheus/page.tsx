@@ -170,7 +170,7 @@ function PrometheusPageInner() {
   const [scanning, setScanning] = useState(false)
   const [currentStep, setCurrentStep] = useState(-1)
   const [logLines, setLogLines] = useState<string[]>([])
-  const [result, setResult] = useState<{ fmo_name: string; domain: string | null; pages: string[]; analysis: Analysis } | null>(null)
+  const [result, setResult] = useState<{ fmo_name: string; domain: string | null; pages: string[]; analysis: Analysis; cached?: boolean; cached_at?: string } | null>(null)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'offer' | 'trips' | 'pitch' | 'weaknesses' | 'counter'>('offer')
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -200,7 +200,7 @@ function PrometheusPageInner() {
     setLogLines(prev => [...prev.slice(-50), line])
   }
 
-  async function runScan() {
+  async function runScan(forceRefresh = false) {
     if (!fmoName.trim() || scanning) return
     setScanning(true)
     setResult(null)
@@ -228,15 +228,31 @@ function PrometheusPageInner() {
       const res = await fetch('/api/prometheus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fmo_name: fmoName.trim(), website: website.trim() || undefined }),
+        body: JSON.stringify({ fmo_name: fmoName.trim(), website: website.trim() || undefined, force_refresh: forceRefresh }),
       })
+
+      if (res.status === 429) {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        addLog('[ALERT] Rate limit hit — try again in a few minutes')
+        setError('RATE LIMIT — Too many scans. Try again in a few minutes.')
+        setScanning(false)
+        setCurrentStep(-1)
+        return
+      }
+
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       if (timerRef.current) clearTimeout(timerRef.current)
       setCurrentStep(LOADING_STEPS.length - 1)
-      addLog(`[OK] Scan complete — ${fmoName.trim()}`)
-      addLog(`[FOUND] ${data.pages?.length || 0} pages crawled · ${data.analysis?.data_confidence || 'MEDIUM'} confidence`)
-      if (data.analysis?.incentive_trips?.current_trip) {
+
+      if (data.cached) {
+        addLog(`[OK] Cached scan loaded — ${fmoName.trim()}`)
+        addLog(`[OK] Scanned ${new Date(data.cached_at).toLocaleDateString()} · ${data.pages?.length || 0} pages`)
+      } else {
+        addLog(`[OK] Scan complete — ${fmoName.trim()}`)
+        addLog(`[FOUND] ${data.pages?.length || 0} pages crawled · ${data.analysis?.data_confidence || 'MEDIUM'} confidence`)
+      }
+      if (data.analysis?.incentive_trips?.current_trip && data.analysis.incentive_trips.current_trip !== 'Not found in scan') {
         addLog(`[FOUND] Trip intel: ${data.analysis.incentive_trips.current_trip}`)
       }
       if (data.analysis?.what_they_offer?.carriers?.length) {
@@ -286,13 +302,13 @@ function PrometheusPageInner() {
         <input
           value={fmoName}
           onChange={e => setFmoName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && runScan()}
+          onKeyDown={e => e.key === 'Enter' && runScan(false)}
           placeholder="FMO or IMO name — e.g. Integrity Marketing Group, AmeriLife, Brokers Alliance"
           disabled={scanning}
           style={{ flex: 1, padding: '18px 24px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
         />
         <button
-          onClick={runScan}
+          onClick={runScan.bind(null, false)}
           disabled={scanning || !fmoName.trim()}
           style={{ padding: '18px 32px', background: scanning ? '#333' : 'var(--orange)', border: 'none', cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap' }}
         >
@@ -344,6 +360,21 @@ function PrometheusPageInner() {
       {/* Results */}
       {result && analysis && !scanning && (
         <div style={{ animation: 'slideIn 0.3s ease both' }}>
+
+          {/* Cached notice */}
+          {result.cached && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #2a2a1a', background: 'rgba(255,200,0,0.04)', padding: '8px 16px', marginBottom: 12 }}>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#887a3a', letterSpacing: 1.5 }}>
+                ◷ CACHED SCAN · {result.cached_at ? new Date(result.cached_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+              </span>
+              <button
+                onClick={() => runScan(true)}
+                style={{ background: 'transparent', border: '1px solid #333', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5, padding: '3px 10px', cursor: 'pointer' }}
+              >
+                FORCE REFRESH
+              </button>
+            </div>
+          )}
 
           {/* Result header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
@@ -534,13 +565,21 @@ function PrometheusPageInner() {
           )}
 
           {/* Rescan */}
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
             <button
               onClick={() => { setResult(null); setFmoName(''); setWebsite('') }}
               style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: 'pointer' }}
             >
               RUN NEW SCAN
             </button>
+            {!result?.cached && (
+              <button
+                onClick={() => runScan(true)}
+                style={{ background: 'transparent', border: '1px solid #333', color: '#444', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: 'pointer' }}
+              >
+                FORCE REFRESH
+              </button>
+            )}
           </div>
         </div>
       )}
