@@ -165,7 +165,7 @@ export default function PageNav() {
           }}>
             Sign In
           </Link>
-          <Link href="/pricing" style={{
+          <Link href="/sign-up" style={{
             padding: '10px 20px',
             background: 'var(--orange)',
             color: 'var(--black)',
@@ -236,7 +236,7 @@ export default function PageNav() {
             style={{ padding: '14px 0', textAlign: 'center', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none' }}>
             Sign In
           </Link>
-          <Link href="/pricing" onClick={() => setMenuOpen(false)}
+          <Link href="/sign-up" onClick={() => setMenuOpen(false)}
             style={{ padding: '14px 0', textAlign: 'center', background: 'var(--orange)', color: 'var(--black)', fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 3, textDecoration: 'none' }}>
             REQUEST ACCESS
           </Link>
