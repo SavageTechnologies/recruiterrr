@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import AnathemaPanel from '@/components/AnathemaPanel'
+import DavidBrain from '@/components/DavidBrain'
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
 
@@ -298,6 +299,16 @@ function DetailPanel({
 
       {/* ANATHEMA Panel — keyed on agent name forces full remount on switch */}
       <AnathemaPanel key={agent.name} agent={agent} city={city} state={state} cachedResult={cachedResult} onResult={onResult} />
+
+      <DavidBrain
+        agentName={agent.name}
+        recruitFlag={agent.flag.toUpperCase() as 'HOT' | 'WARM' | 'COLD'}
+        recruitScore={agent.score}
+        predictedTree={cachedResult?.predicted_tree || 'UNKNOWN'}
+        treeConfidence={cachedResult?.confidence || 0}
+        davidFacts={cachedResult?.david_facts?.facts || []}
+        isLoading={false}
+      />
     </div>
   )
 }
