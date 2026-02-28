@@ -296,8 +296,8 @@ function DetailPanel({
       {/* Divider */}
       <div style={{ margin: '16px 0', borderTop: '1px solid var(--border)' }} />
 
-      {/* ANATHEMA Panel */}
-      <AnathemaPanel agent={agent} city={city} state={state} cachedResult={cachedResult} onResult={onResult} />
+      {/* ANATHEMA Panel — keyed on agent name forces full remount on switch */}
+      <AnathemaPanel key={agent.name} agent={agent} city={city} state={state} cachedResult={cachedResult} onResult={onResult} />
     </div>
   )
 }
@@ -751,15 +751,18 @@ function SearchPageInner() {
               </div>
 
               {/* RIGHT: Detail / Scan Panel */}
-              <div ref={panelRef} style={{ position: 'sticky', top: 16 }}>
-                <DetailPanel
-                  agent={selectedAgent}
-                  city={city}
-                  state={state}
-                  cachedResult={selectedIndex !== null ? anathemaCache[selectedIndex] : undefined}
-                  onResult={selectedIndex !== null ? (r) => setAnathemaCache(prev => ({ ...prev, [selectedIndex]: r })) : undefined}
-                />
-              </div>
+              {(capturedIdx => (
+                <div ref={panelRef} style={{ position: 'sticky', top: 16 }}>
+                  <DetailPanel
+                    key={capturedIdx ?? 'empty'}
+                    agent={selectedAgent}
+                    city={city}
+                    state={state}
+                    cachedResult={capturedIdx !== null ? anathemaCache[capturedIdx] : undefined}
+                    onResult={capturedIdx !== null ? (r) => setAnathemaCache(prev => ({ ...prev, [capturedIdx]: r })) : undefined}
+                  />
+                </div>
+              ))(selectedIndex)}
             </div>
           )}
         </>
