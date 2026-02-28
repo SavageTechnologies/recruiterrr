@@ -236,6 +236,7 @@ function AnathemaDashboardInner() {
   const [subImo, setSubImo] = useState('')
   const [recruiterNotes, setRecruiterNotes] = useState('')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [davidFacts, setDavidFacts] = useState<any>(null)
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const searchParams = useSearchParams()
@@ -333,6 +334,7 @@ function AnathemaDashboardInner() {
       else if (data.predicted_sub_imo_signals?.length > 0) addLog(`[OK] Chain signals collected — no confident sub-IMO match`)
       if (data.prediction_source === 'chain_resolver') addLog(`[FOUND] Prediction sourced from chain — partner resolved in network map`)
       setResult(data)
+      setDavidFacts(data.david_facts || null)
       // Auto-populate sub-IMO field when detected
       if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
     } catch (err: any) {
@@ -375,6 +377,7 @@ function AnathemaDashboardInner() {
           confirmed_tree_other: confirmedOther || null,
           confirmed_sub_imo: subImo || null,
           recruiter_notes: recruiterNotes || null,
+          david_facts: davidFacts,
         }),
       })
       setSaveState('saved')
