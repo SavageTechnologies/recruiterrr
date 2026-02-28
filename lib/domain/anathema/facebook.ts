@@ -47,23 +47,32 @@ export async function fetchFacebookProfile(
     const handle = extractFacebookHandle(fbResult.link)
     if (!handle) return { result: null, searchResults }
 
-    const fbProfileRes = await fetch(
-      `https://serpapi.com/search.json?engine=facebook_profile&profile_id=${handle}&api_key=${serpKey}`,
-      { signal: AbortSignal.timeout(12000) }
-    )
-    if (!fbProfileRes.ok) return { result: null, searchResults }
+    // We have a confirmed FB URL from Google — store it now.
+    // The profile content fetch below is best-effort; if it fails or times out
+    // we still return the URL so Apify can do the real scraping.
+    let about = ''
+    let postText = ''
 
-    const fbProfile = await fbProfileRes.json()
-    const about = fbProfile?.about || fbProfile?.description || ''
-    const posts: any[] = fbProfile?.posts || fbProfile?.updates || []
-    const postText = posts
-      .slice(0, 10)
-      .map((p: any) => p.snippet || p.text || p.description || '')
-      .filter(Boolean)
-      .join('\n')
+    try {
+      const fbProfileRes = await fetch(
+        `https://serpapi.com/search.json?engine=facebook_profile&profile_id=${handle}&api_key=${serpKey}`,
+        { signal: AbortSignal.timeout(12000) }
+      )
+      if (fbProfileRes.ok) {
+        const fbProfile = await fbProfileRes.json()
+        about = fbProfile?.about || fbProfile?.description || ''
+        const posts: any[] = fbProfile?.posts || fbProfile?.updates || []
+        postText = posts
+          .slice(0, 10)
+          .map((p: any) => p.snippet || p.text || p.description || '')
+          .filter(Boolean)
+          .join('\n')
+      }
+    } catch {
+      // Profile content fetch failed — URL is still valid for Apify
+    }
 
     const allText = [about, postText].filter(Boolean).join('\n')
-    if (!allText) return { result: null, searchResults }
 
     return {
       result: {
