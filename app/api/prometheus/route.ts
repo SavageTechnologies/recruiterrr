@@ -269,81 +269,83 @@ async function runClaudeAnalysis(
     .join('\n\n---\n\n')
     .slice(0, 18000)
 
-  const prompt = `You are an elite insurance industry competitive intelligence analyst. A recruiter is on a call with an agent who works with this FMO/IMO. Give the recruiter a complete intelligence briefing so they know exactly what they're up against and how to win.
+  const prompt = `You are a competitive intelligence analyst for an insurance recruiter. Extract FACTS from the raw data below — not scripts, not coaching, not arguments. The recruiter decides how to use the intel. If a fact isn't in the data, say "Not found in scan" — never invent.
 
-FMO/IMO NAME: ${fmoName}
+FMO/IMO: ${fmoName}
 WEBSITE: ${domain || 'Not found'}
-PAGES CRAWLED: ${foundPages.join(', ') || 'None accessible'}
+PAGES CRAWLED: ${foundPages.join(', ') || 'None'}
 
 WEBSITE CONTENT:
 ${pageContent || 'No website content available.'}
 
 SERP INTELLIGENCE:
-TRIPS/INCENTIVES: ${serpIntel.trips || 'No data found.'}
-CARRIERS/CONTRACTS: ${serpIntel.carriers || 'No data found.'}
-AGENT REVIEWS: ${serpIntel.reviews || 'No data found.'}
-AGENT COMPLAINTS: ${serpIntel.complaints || 'No data found.'}
-RECRUITING PITCH: ${serpIntel.recruiting || 'No data found.'}
-RECENT NEWS: ${serpIntel.news || 'No data found.'}
+TRIPS: ${serpIntel.trips || 'No data.'}
+CARRIERS: ${serpIntel.carriers || 'No data.'}
+AGENT VOICE (Reddit/Forums): ${serpIntel.agent_voice || 'No data.'}
+AGENT COMPLAINTS: ${serpIntel.complaints || 'No data.'}
+CONTRACT INTEL: ${serpIntel.contracts || 'No data.'}
+RECENT NEWS: ${serpIntel.news || 'No data.'}
+GLASSDOOR: ${serpIntel.glassdoor || 'No data.'}
 
-CRITICAL RULES:
-- Be specific — name actual carriers, actual trip destinations, actual tools, actual dollar amounts when found in the data above.
-- If a piece of data (carriers, trips, etc.) is NOT present in the content above, say "Not found in scan" — do NOT guess or invent.
-- Never fabricate. If you don't have it, say so.
-- data_confidence should be LOW if website wasn't found or fewer than 2 pages were crawled.
+EXTRACTION RULES:
+- agent_quotes: pull verbatim or close paraphrase from SERP data. Include source. Empty array if none found.
+- contract_flags: specific clauses or terms agents flag — captive language, release issues, chargebacks. Not generic warnings.
+- carriers: actual names found in data only. Empty array if none.
+- missing_carriers: carriers commonly sought by agents in this market that don't appear in their lineup.
+- recent_news: actual events found in news SERP — acquisitions, ownership, rebrands. Not guesses.
+- data_confidence: HIGH = 5+ pages + SERP hits. MEDIUM = 1-4 pages OR solid SERP. LOW = no site found.
 
-Return ONLY valid JSON — no markdown, no backticks:
+Return ONLY valid JSON, no markdown, no backticks:
 {
-  "fmo_name": "<official name as found>",
-  "website": "<domain>",
-  "overview": "<2-3 sentence summary of who this FMO is, how big, what market, how long operating>",
+  "fmo_name": "<official name as found in data>",
+  "website": "<domain or null>",
+  "tree_affiliation": "<Integrity | AmeriLife | SMS | Independent | Unknown — only if determinable from data>",
   "size_signal": "LARGE" | "MID-SIZE" | "SMALL" | "UNKNOWN",
+  "overview": "<2-3 sentences: who they are, size, market focus, how long operating. Specific numbers when found in data.>",
+  "recent_news": "<specific acquisitions, ownership changes, rebrands, or notable 2024-2025 events found — or 'None found in scan'>",
   "what_they_offer": {
-    "carriers": ["specific carrier names — every one you can identify. If none found, empty array."],
-    "contract_highlights": "<specific contract terms, commission levels, release policies, ownership language found — or 'Not found in scan'>",
-    "lead_program": "<exactly what they offer for leads — or 'Not found in scan'>",
-    "technology": ["specific tools, CRMs, portals, quoting platforms mentioned"],
-    "training": "<training or onboarding they advertise — or 'Not found in scan'>",
-    "marketing_support": "<marketing co-op, materials, or support mentioned — or 'Not found in scan'>"
+    "carriers": ["every carrier name found in data — empty array if none found"],
+    "products": ["product lines they work: Medicare Advantage, Final Expense, Life, Annuities, etc."],
+    "contract_terms": "<specific commission levels, release policy wording, vesting schedule, ownership language found in data — or 'Not found in scan'>",
+    "lead_program": "<exactly what they say about leads — cost, exclusivity, volume, quality claims found in data — or 'Not found in scan'>",
+    "technology": ["specific tools, CRMs, quoting platforms named in data"],
+    "training": "<training or onboarding specifics found — or 'Not found in scan'>",
+    "trip_current": "<2025 or 2026 trip destination found in data — or 'Not found in scan'>",
+    "trip_threshold": "<production threshold or qualification criteria for trip found in data — or 'Not found in scan'>",
+    "trip_past": ["past trip destinations mentioned in data"]
   },
-  "incentive_trips": {
-    "current_trip": "<2025 or 2026 trip destination if found — or 'Not found in scan'>",
-    "past_trips": ["past destinations mentioned"],
-    "qualification": "<threshold or criteria to qualify if mentioned — or 'Not found in scan'>",
-    "trip_intel": "<additional context about their trip program>"
+  "agent_sentiment": {
+    "agent_quotes": [
+      {
+        "quote": "<verbatim or close paraphrase of what an actual agent said>",
+        "sentiment": "positive" | "negative" | "mixed",
+        "topic": "<commissions | leads | support | contracts | culture | trips | technology>",
+        "source": "<reddit | glassdoor | forum | google review | other>"
+      }
+    ],
+    "common_praise": ["specific things agents praise — only from found data"],
+    "common_complaints": ["specific complaints — only from found data"],
+    "contract_flags": ["specific contract terms agents flag as problems — from found data only"]
   },
-  "their_pitch": {
-    "headline_claim": "<the #1 thing they tell agents about why to join>",
-    "key_selling_points": ["specific claims they make to agents"],
-    "target_agent": "<what type of agent they recruit>",
-    "differentiators": "<what they claim makes them different>"
+  "recruiting_pitch": {
+    "headline": "<the main hook they use to recruit agents — from their website or SERP>",
+    "claims": ["specific claims they make — pulled directly from data, not inferred"],
+    "target_agent": "<what type of agent they pursue>"
   },
-  "weak_points": {
-    "agent_complaints": "<complaints, negative reviews, or agent frustrations found in reviews/complaints data — or 'None found in scan'>",
-    "gaps": "<what they don't offer or are weak on>",
-    "red_flags": "<contract ownership, captive language, release issues, anything agents complain about — or 'None found in scan'>"
-  },
-  "competitive_intel": {
-    "tree_affiliation": "<which of the three major trees — Integrity, AmeriLife, SMS — this FMO rolls up through if determinable — or 'Unknown'>",
-    "recent_changes": "<acquisitions, rebrands, ownership changes, news in 2024-2025 — or 'None found'>",
-    "market_position": "<how they position themselves>"
-  },
-  "your_counter": {
-    "opening_line": "<single best opening line to say to an agent at this FMO — specific, not generic>",
-    "key_angles": ["3-5 specific angles based on their weak points"],
-    "trip_angle": "<how to use their trip program in conversation — tactical>",
-    "carrier_angle": "<what to say about carriers — what they're missing>",
-    "close": "<most compelling reason for this specific agent to have the conversation>"
+  "gaps": {
+    "missing_carriers": ["carriers commonly sought that don't appear in their lineup"],
+    "weak_areas": "<specific weaknesses based on what's absent or complained about in data>",
+    "ownership_risk": "<specific captive, non-vested, or release concerns found in data — or 'None found in scan'>"
   },
   "pages_found": ${JSON.stringify(foundPages)},
   "data_confidence": "HIGH" | "MEDIUM" | "LOW",
-  "confidence_note": "<why the confidence level is what it is — be honest about what data was and wasn't available>"
+  "confidence_note": "<honest summary of what data was available and what wasn't>"
 }`
 
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-5',
-    max_tokens: 3000,
+    max_tokens: 4000,
     messages: [{ role: 'user', content: prompt }],
   })
 
