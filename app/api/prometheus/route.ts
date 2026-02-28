@@ -369,7 +369,7 @@ async function checkRecentScan(userId: string, fmoName: string): Promise<any | n
     .gte('created_at', sevenDaysAgo)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
   return data || null
 }
 
