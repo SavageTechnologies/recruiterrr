@@ -306,7 +306,7 @@ function DetailPanel({
         recruitScore={agent.score}
         predictedTree={cachedResult?.predicted_tree || 'UNKNOWN'}
         treeConfidence={cachedResult?.confidence || 0}
-        davidFacts={cachedResult?.david_facts?.facts || []}
+        davidFacts={cachedResult?.davidFacts?.facts || []}
         isLoading={false}
       />
     </div>

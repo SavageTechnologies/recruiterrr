@@ -264,10 +264,11 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
         setSubImo(si)
         setRecruiterNotes(data.specimen.recruiter_notes || '')
         setScanState('done')
-        bubble({ result: r, existing: data.specimen, confirmedTrees: trees, confirmedOther: data.specimen.confirmed_tree_other || '', subImo: si, recruiterNotes: data.specimen.recruiter_notes || '', scanState: 'done' })
-      }
-    } catch {}
-    setCheckDone(true)
+        const df = data.specimen.david_facts || null
+        setDavidFacts(df)
+        bubble({ result: r, existing: data.specimen, confirmedTrees: trees, confirmedOther: data.specimen.confirmed_tree_other || '', subImo: si, recruiterNotes: data.specimen.recruiter_notes || '', scanState: 'done', davidFacts: df })      }
+            } catch {}
+            setCheckDone(true)
   }
 
   async function runScan() {
@@ -294,7 +295,7 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
             setScanState('done')
             const si = data.predicted_sub_imo && !subImo ? data.predicted_sub_imo : subImo
             if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
-            bubble({ result: data, scanState: 'done', subImo: si })
+            bubble({ result: data, scanState: 'done', subImo: si, davidFacts: data.david_facts || null })
             if (data.david_facts) {
               void fetch('/api/anathema', {
                 method: 'POST',
