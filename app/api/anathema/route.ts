@@ -13,6 +13,7 @@ import type { ChainResult } from '@/lib/domain/anathema/chain-resolver'
 import { huntUnresolvedUpline } from '@/lib/domain/anathema/upline-hunter'
 import { fetchFacebookProfile } from '@/lib/domain/anathema/facebook'
 import { extractDavidFacts } from '@/lib/domain/anathema/david-facts'
+import { enrichWithApify, apifyToSerpSnippets } from '@/lib/domain/anathema/apify'
 import type { DavidFactsInput } from '@/lib/domain/anathema/david-facts'
 import { saveObservation, checkExistingSpecimen, getSpecimen, getScan, saveDavidFacts } from '@/lib/db/anathema'
 
@@ -418,10 +419,10 @@ Respond with ONLY valid JSON:
     }
   }
 
-  // ── DAVID facts extraction ──────────────────────────────────────────────
-  // Runs in parallel with nothing — same data, separate Claude call.
-  // Zero influence on scores above. Stored in david_facts column, sits
-  // dormant until DAVID is ready to query it across all specimens.
+  // ── DAVID facts extraction (SERP-only, fast) ────────────────────────────
+  // Runs immediately so the response is never blocked.
+  // Apify deep enrichment runs in the background after response is sent
+  // and overwrites david_facts in the DB — client picks it up on next load.
   const davidFactsInput: DavidFactsInput = {
     agentName: agent.name,
     serpSnippets: serpDebug.flatMap(e => e.results.map(r => ({
@@ -435,9 +436,48 @@ Respond with ONLY valid JSON:
     agentWebsite: agent.website || null,
     agentNotes: agent.notes || null,
     agentAbout: agent.about || null,
+    apifyFacebookPostCount: 0,
+    apifyYouTubeVideoCount: 0,
   }
 
   const davidFacts = await extractDavidFacts(davidFactsInput)
+
+  // ── Apify deep enrichment (non-blocking background job) ─────────────────
+  // Fired AFTER the response is sent. Does not affect scan latency at all.
+  // When complete, saves enriched david_facts to DB — visible on next open.
+  const hasApifyTargets = !!(facebookProfileUrl || agent.youtube_channel)
+  if (hasApifyTargets && process.env.APIFY_API_KEY) {
+    enrichWithApify({
+      facebookProfileUrl: facebookProfileUrl,
+      youtubeChannelUrl: agent.youtube_channel || null,
+    }).then(async (apifyEnrichment) => {
+      if (!apifyEnrichment.facebookText.trim() && !apifyEnrichment.youtubeText.trim()) return
+      const apifySnippets = apifyToSerpSnippets(apifyEnrichment)
+      const enrichedInput: DavidFactsInput = {
+        agentName: agent.name,
+        serpSnippets: [
+          ...serpDebug.flatMap(e => e.results.map(r => ({
+            title: r.title,
+            url: r.url,
+            snippet: r.snippet,
+          }))),
+          ...apifySnippets,
+        ],
+        facebookAbout: facebookAbout,
+        facebookPostText: [facebookPostText, apifyEnrichment.facebookText].filter(Boolean).join('\n') || null,
+        facebookProfileUrl: facebookProfileUrl,
+        agentWebsite: agent.website || null,
+        agentNotes: agent.notes || null,
+        agentAbout: agent.about || null,
+        apifyFacebookPostCount: apifyEnrichment.facebookPosts.length,
+        apifyYouTubeVideoCount: apifyEnrichment.youtubVideos.length,
+      }
+      const enrichedFacts = await extractDavidFacts(enrichedInput)
+      if (enrichedFacts) {
+        await saveDavidFacts(userId, agent.name, agent.city, agent.state, enrichedFacts)
+      }
+    }).catch(err => console.warn('[Apify background] enrichment failed:', err))
+  }
 
   // ── Return ──────────────────────────────────────────────────────────────
   return NextResponse.json({
