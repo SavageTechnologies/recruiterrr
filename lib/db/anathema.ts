@@ -153,7 +153,7 @@ export async function checkExistingSpecimen(
     .eq('agent_name', agent_name)
     .eq('city', city)
     .eq('state', state)
-    .single()
+    .maybeSingle()
   return data || null
 }
 

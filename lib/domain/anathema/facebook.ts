@@ -34,7 +34,7 @@ export async function fetchFacebookProfile(
     const fbQ = `"${agentName}" site:facebook.com`
     const fbSearchRes = await fetch(
       `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(fbQ)}&num=3&api_key=${serpKey}`,
-      { signal: AbortSignal.timeout(5000) }
+      { signal: AbortSignal.timeout(12000) }
     )
     if (!fbSearchRes.ok) return { result: null, searchResults: [] }
 
@@ -49,7 +49,7 @@ export async function fetchFacebookProfile(
 
     const fbProfileRes = await fetch(
       `https://serpapi.com/search.json?engine=facebook_profile&profile_id=${handle}&api_key=${serpKey}`,
-      { signal: AbortSignal.timeout(5000) }
+      { signal: AbortSignal.timeout(12000) }
     )
     if (!fbProfileRes.ok) return { result: null, searchResults }
 
