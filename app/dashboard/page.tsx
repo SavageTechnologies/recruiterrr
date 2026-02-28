@@ -79,11 +79,17 @@ export default async function DashboardPage() {
           </span>
           <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2 }}>FMO INTEL →</span>
         </Link>
-        <Link href="/dashboard/anathema" style={{ display: 'inline-flex', alignItems: 'center', gap: 16, padding: '20px 32px', background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.25)', textDecoration: 'none', transition: 'border-color 0.15s' }}>
-          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: 'var(--green)' }}>
+        <Link href="/dashboard/anathema" style={{ display: 'inline-flex', alignItems: 'center', gap: 16, padding: '20px 32px', background: 'var(--card)', border: '1px solid var(--border)', textDecoration: 'none', transition: 'border-color 0.15s' }}>
+          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: 'var(--white)' }}>
             ANATHEMA
           </span>
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)', letterSpacing: 2, opacity: 0.6 }}>STRAIN SCAN →</span>
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2 }}>STRAIN SCAN →</span>
+        </Link>
+        <Link href="/dashboard/david" style={{ display: 'inline-flex', alignItems: 'center', gap: 16, padding: '20px 32px', background: 'var(--card)', border: '1px solid var(--border)', textDecoration: 'none', transition: 'border-color 0.15s' }}>
+          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: 'var(--white)' }}>
+            DAVID
+          </span>
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2 }}>NETWORK →</span>
         </Link>
       </div>
 
@@ -127,12 +133,12 @@ export default async function DashboardPage() {
       </div>
 
       {/* ANATHEMA RECENT SPECIMENS */}
-      <div style={{ background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.15)', padding: '32px', marginBottom: 2 }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '32px', marginBottom: 2 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--green)', letterSpacing: 2, textTransform: 'uppercase' }}>
-            ◈ Anathema — Recent Specimens
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
+            Anathema — Recent Specimens
           </div>
-          <Link href="/dashboard/anathema" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none' }}>
+          <Link href="/dashboard/anathema" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none' }}>
             NEW SCAN →
           </Link>
         </div>

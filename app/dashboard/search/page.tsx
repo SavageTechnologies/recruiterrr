@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import AnathemaPanel from '@/components/AnathemaPanel'
-import DavidBrain from '@/components/DavidBrain'
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
 
@@ -147,14 +146,14 @@ function CompactAgentCard({
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={onAnathema}
-              style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 7px', background: 'transparent', border: '1px solid var(--green)', color: 'var(--green)', letterSpacing: 1, cursor: 'pointer', textTransform: 'uppercase', transition: 'background 0.1s', flexShrink: 0 }}
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 7px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', letterSpacing: 1, cursor: 'pointer', textTransform: 'uppercase', transition: 'background 0.1s', flexShrink: 0 }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,230,118,0.08)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
             >
               ◈ ANATHEMA
             </button>
             {agent.hiring && (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid var(--green)', color: 'var(--green)', letterSpacing: 1 }}>HIRING</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid var(--border)', color: 'var(--muted)', letterSpacing: 1 }}>HIRING</div>
             )}
             {agent.youtube_channel && (
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1 }}>YT</div>
@@ -233,7 +232,7 @@ function DetailPanel({
         {/* Badges */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {agent.hiring && (
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', background: 'rgba(0,200,100,0.08)', border: '1px solid var(--green)', color: 'var(--green)', letterSpacing: 1 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', letterSpacing: 1 }}>
               ▸ HIRING{agent.hiring_roles.length > 0 ? ` — ${agent.hiring_roles[0]}` : ''}
             </div>
           )}
@@ -299,17 +298,6 @@ function DetailPanel({
 
       {/* ANATHEMA Panel — keyed on agent name forces full remount on switch */}
       <AnathemaPanel key={agent.name} agent={agent} city={city} state={state} cachedResult={cachedResult} onResult={onResult} />
-
-      <DavidBrain
-        agentName={agent.name}
-        recruitFlag={agent.flag.toUpperCase() as 'HOT' | 'WARM' | 'COLD'}
-        recruitScore={agent.score}
-        predictedTree={cachedResult?.predicted_tree || 'UNKNOWN'}
-        treeConfidence={cachedResult?.confidence || 0}
-        davidFacts={cachedResult?.davidFacts?.facts || []}
-        scanSourcesUsed={cachedResult?.davidFacts?.scan_sources_used || []}
-        isLoading={false}
-      />
     </div>
   )
 }

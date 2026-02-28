@@ -40,15 +40,21 @@ export default function DashboardLayout({
           </Link>
           <Link href="/dashboard/anathema" style={{
             fontFamily: "'DM Mono', monospace", fontSize: 11,
-            color: 'var(--green)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
           }}>
             Anathema
           </Link>
           <Link href="/dashboard/database" style={{
             fontFamily: "'DM Mono', monospace", fontSize: 11,
-            color: '#4fc3f7', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
           }}>
             Database
+          </Link>
+          <Link href="/dashboard/david" style={{
+            fontFamily: "'DM Mono', monospace", fontSize: 11,
+            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+          }}>
+            David
           </Link>
           <UserButton
             afterSignOutUrl="/"
