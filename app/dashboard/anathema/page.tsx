@@ -320,31 +320,44 @@ function AnathemaDashboardInner() {
         }),
       })
       const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      if (timerRef.current) clearTimeout(timerRef.current)
-      setCurrentStep(LOADING_STEPS.length - 1)
-      const tree = TREE_LABELS[data.predicted_tree] || 'UNCLASSIFIED'
-      addLog(`[OK] Scan complete — ${agencyName.trim()}`)
-      addLog(data.predicted_tree !== 'unknown'
-        ? `[FOUND] STRAIN: ${tree} — CONFIDENCE: ${data.confidence}%`
-        : `[WARN] STRAIN: UNCLASSIFIED — Insufficient markers`)
-      if (data.facebook_profile_url) addLog(`[FOUND] Facebook profile located`)
-      if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence${data.predicted_sub_imo_proof_url ? ' · proof linked' : ''}`)
-      else if (data.unresolved_upline) addLog(`[ALERT] UNRESOLVED UPLINE: ${data.unresolved_upline} — not in network map`)
-      else if (data.predicted_sub_imo_signals?.length > 0) addLog(`[OK] Chain signals collected — no confident sub-IMO match`)
-      if (data.prediction_source === 'chain_resolver') addLog(`[FOUND] Prediction sourced from chain — partner resolved in network map`)
-      setResult(data)
-      setDavidFacts(data.david_facts || null)
-      // Auto-populate sub-IMO field when detected
-      if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
-    } catch (err: any) {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      addLog(`[ALERT] Scan failed: ${err.message}`)
-      setError(err.message || 'Scan failed. Please try again.')
-    }
-    setScanning(false)
-    setCurrentStep(-1)
-  }
+            if (data.error) throw new Error(data.error)
+            if (timerRef.current) clearTimeout(timerRef.current)
+            setCurrentStep(LOADING_STEPS.length - 1)
+            const tree = TREE_LABELS[data.predicted_tree] || 'UNCLASSIFIED'
+            addLog(`[OK] Scan complete — ${agencyName.trim()}`)
+            addLog(data.predicted_tree !== 'unknown'
+              ? `[FOUND] STRAIN: ${tree} — CONFIDENCE: ${data.confidence}%`
+              : `[WARN] STRAIN: UNCLASSIFIED — Insufficient markers`)
+            if (data.facebook_profile_url) addLog(`[FOUND] Facebook profile located`)
+            if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence${data.predicted_sub_imo_proof_url ? ' · proof linked' : ''}`)
+            else if (data.unresolved_upline) addLog(`[ALERT] UNRESOLVED UPLINE: ${data.unresolved_upline} — not in network map`)
+            else if (data.predicted_sub_imo_signals?.length > 0) addLog(`[OK] Chain signals collected — no confident sub-IMO match`)
+            if (data.prediction_source === 'chain_resolver') addLog(`[FOUND] Prediction sourced from chain — partner resolved in network map`)
+            setResult(data)
+            setDavidFacts(data.david_facts || null)
+            if (data.david_facts) {
+              void fetch('/api/anathema', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'save_david_facts',
+                  agent_name: agencyName.trim(),
+                  city: city.trim(),
+                  state: state.trim().toUpperCase(),
+                  david_facts: data.david_facts,
+                }),
+              })
+            }
+            // Auto-populate sub-IMO field when detected
+            if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
+          } catch (err: any) {
+            if (timerRef.current) clearTimeout(timerRef.current)
+            addLog(`[ALERT] Scan failed: ${err.message}`)
+            setError(err.message || 'Scan failed. Please try again.')
+          }
+          setScanning(false)
+          setCurrentStep(-1)
+        }
 
   async function logObservation() {
     if (!result || saveState === 'saving') return

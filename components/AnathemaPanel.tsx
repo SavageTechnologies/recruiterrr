@@ -288,18 +288,31 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
         return
       }
       const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      setResult(data)
-      setDavidFacts(data.david_facts || null)
-      setScanState('done')
-      const si = data.predicted_sub_imo && !subImo ? data.predicted_sub_imo : subImo
-      if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
-      bubble({ result: data, scanState: 'done', subImo: si })
-    } catch (err: any) {
-      setScanState('error')
-      setErrorMsg(err.message || 'Scan failed')
-    }
-  }
+            if (data.error) throw new Error(data.error)
+            setResult(data)
+            setDavidFacts(data.david_facts || null)
+            setScanState('done')
+            const si = data.predicted_sub_imo && !subImo ? data.predicted_sub_imo : subImo
+            if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
+            bubble({ result: data, scanState: 'done', subImo: si })
+            if (data.david_facts) {
+              void fetch('/api/anathema', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'save_david_facts',
+                  agent_name: agent.name,
+                  city,
+                  state,
+                  david_facts: data.david_facts,
+                }),
+              })
+            }
+          } catch (err: any) {
+            setScanState('error')
+            setErrorMsg(err.message || 'Scan failed')
+          }
+        }
 
   async function logObservation() {
     if (!result || saveState === 'saving') return
