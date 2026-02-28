@@ -26,14 +26,14 @@ type Tier = {
   comingSoon?: boolean
   cta: string
   ctaHref: string
-  ctaStyle: 'outline' | 'filled' | 'outline-green'
+  ctaStyle: 'outline' | 'filled' | 'outline-purple'
   features: Feature[]
 }
 
-const API_PLANS: ApiPlan[] = [
-  { label: 'PAY AS YOU GO', price: '$0.75',   detail: 'per query' },
-  { label: 'STARTER',       price: '$299/mo', detail: '5,000 queries' },
-  { label: 'PRO',           price: '$999/mo', detail: '25,000 queries' },
+const DAVID_API_PLANS: ApiPlan[] = [
+  { label: 'PAY AS YOU GO', price: '$0.75',   detail: 'per agent payload' },
+  { label: 'STARTER',       price: '$299/mo', detail: '5,000 payloads' },
+  { label: 'PRO',           price: '$999/mo', detail: '25,000 payloads' },
   { label: 'ENTERPRISE',    price: 'CUSTOM',  detail: 'Volume + SLA' },
 ]
 
@@ -91,24 +91,25 @@ const TIERS: Tier[] = [
     ],
   },
   {
-    name: 'ANATHEMA API',
+    name: 'DAVID API',
     price: 'USAGE',
     period: 'based pricing',
     tag: 'COMING SOON',
-    tagColor: '#00e676',
-    accent: '#00e676',
+    tagColor: '#a78bfa',
+    accent: '#a78bfa',
     featured: false,
     comingSoon: true,
     cta: 'JOIN WAITLIST',
     ctaHref: '/contact',
-    ctaStyle: 'outline-green',
+    ctaStyle: 'outline-purple',
     features: [
-      { label: 'Agent affiliation lookup',      detail: 'Name → Tree + confidence' },
-      { label: 'Confirmed tree classification', detail: 'Integrity / AmeriLife / SMS' },
-      { label: 'Sub-IMO / affiliate data',      detail: 'Where available' },
-      { label: 'Confidence score',              detail: '0–100' },
-      { label: 'Bulk query support',            detail: 'Batch up to 1,000' },
+      { label: 'Agent intelligence payload',  detail: 'Structured JSON per agent' },
+      { label: 'Distribution tree + upline',  detail: 'Tree, sub-IMO, confidence' },
+      { label: 'Personal facts layer',        detail: 'YouTube, press, reviews, social' },
+      { label: 'Recruit score + flag',        detail: 'HOT / WARM / COLD' },
+      { label: 'Bulk query support',          detail: 'Batch up to 1,000' },
       { label: 'REST API + documentation' },
+      { label: 'Drop into any AI writer or CRM' },
     ],
   },
 ]
@@ -139,8 +140,8 @@ export default function PricingPage() {
           <div
             key={tier.name}
             style={{
-              background: tier.featured ? '#1e1b17' : 'var(--card)',
-              border: `1px solid ${tier.featured ? 'var(--orange)' : tier.comingSoon ? 'rgba(0,230,118,0.25)' : 'var(--border)'}`,
+              background: tier.featured ? '#1e1b17' : tier.comingSoon ? '#0e0c14' : 'var(--card)',
+              border: `1px solid ${tier.featured ? 'var(--orange)' : tier.comingSoon ? 'rgba(167,139,250,0.25)' : 'var(--border)'}`,
               display: 'flex',
               flexDirection: 'column',
               position: 'relative',
@@ -166,9 +167,9 @@ export default function PricingPage() {
                   {tier.tag}
                 </div>
                 {tier.comingSoon && (
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1, color: '#00e676', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: '#00e676', animation: 'apiPulse 2s ease infinite' }} />
-                    ANATHEMA DATA NETWORK
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: '#a78bfa', animation: 'apiPulse 2s ease infinite' }} />
+                    DAVID INTELLIGENCE LAYER
                   </div>
                 )}
               </div>
@@ -181,16 +182,16 @@ export default function PricingPage() {
               {/* Price */}
               {tier.comingSoon ? (
                 <div style={{ marginBottom: 28 }}>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, letterSpacing: 1, lineHeight: 1, color: '#00e676', marginBottom: 4 }}>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, letterSpacing: 1, lineHeight: 1, color: '#a78bfa', marginBottom: 4 }}>
                     $0.75
                   </div>
                   <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 14 }}>
-                    per query · pay as you go
+                    per agent payload · pay as you go
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    {API_PLANS.map((p: ApiPlan) => (
-                      <div key={p.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.1)' }}>
-                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#00e676', letterSpacing: 1 }}>{p.label}</span>
+                    {DAVID_API_PLANS.map((p: ApiPlan) => (
+                      <div key={p.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(167,139,250,0.04)', border: '1px solid rgba(167,139,250,0.12)' }}>
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#a78bfa', letterSpacing: 1 }}>{p.label}</span>
                         <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, color: 'var(--white)', letterSpacing: 1 }}>{p.price}</span>
                         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>{p.detail}</span>
                       </div>
@@ -227,8 +228,7 @@ export default function PricingPage() {
                       color: f.excluded
                         ? '#333'
                         : tier.accent === 'var(--orange)' ? 'var(--orange)'
-                        : tier.accent === 'var(--green)'  ? 'var(--green)'
-                        : tier.accent === '#00e676'        ? '#00e676'
+                        : tier.accent === '#a78bfa' ? '#a78bfa'
                         : 'var(--muted)',
                       marginTop: 1,
                       flexShrink: 0,
@@ -262,8 +262,8 @@ export default function PricingPage() {
                   textDecoration: 'none',
                   ...(tier.ctaStyle === 'filled'
                     ? { background: 'var(--orange)', color: 'var(--black)', border: '1px solid var(--orange)' }
-                    : tier.ctaStyle === 'outline-green'
-                    ? { background: 'transparent', color: 'var(--green)', border: '1px solid var(--green)' }
+                    : tier.ctaStyle === 'outline-purple'
+                    ? { background: 'transparent', color: '#a78bfa', border: '1px solid #a78bfa' }
                     : { background: 'transparent', color: 'var(--white)', border: '1px solid var(--border)' }
                   ),
                 }}

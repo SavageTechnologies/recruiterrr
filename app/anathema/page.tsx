@@ -12,10 +12,10 @@ const STAGES = [
 ]
 
 const SIGNALS = [
-  { n: '01', title: 'Carrier Fingerprint', body: 'Every tree has its carriers. Integrity runs Humana + Aetna. SMS runs Mutual of Omaha + Medico. AmeriLife pushes UHC. The carriers an agent writes tell you more than they know.' },
-  { n: '02', title: 'Language Markers', body: 'Website copy, About pages, and notes contain embedded signals — "FFL agent", "IntegrityCONNECT", "USABG", "Rethinking Retirement." These aren\'t accidents. They\'re brand contamination.' },
-  { n: '03', title: 'Web Intelligence', body: 'A live Google search cross-references the agency name against Integrity, AmeriLife, and SMS. Partner directories, press releases, and association pages surface what no agent voluntarily tells you.' },
-  { n: '04', title: 'Facebook Profile Scan', body: 'The most unguarded signal. Trip photos with FMO branding. "Proud Integrity partner" in the bio. Retreat announcements. Agents post what they won\'t say on the phone. ANATHEMA reads it.' },
+  { n: '01', title: 'Carrier Fingerprint', body: "Every tree has its carriers. The carrier mix an agent writes is one of the strongest affiliation signals available — most agents don't realize their appointments are a fingerprint." },
+  { n: '02', title: 'Language Markers', body: "Website copy, About pages, and social bios contain embedded signals — branded program names, platform references, event language. These aren't accidents. They're brand contamination." },
+  { n: '03', title: 'Web Intelligence', body: 'A live search cross-references the agent against the full distribution network index — partner directories, press releases, association pages, and co-mentions that no agent voluntarily surfaces.' },
+  { n: '04', title: 'Facebook Profile Scan', body: "The most unguarded signal. Trip photos with FMO branding. Affiliation language in the bio. Retreat announcements. Agents post what they won't say on the phone. ANATHEMA reads it." },
 ]
 
 export default function AnathemaLandingPage() {
@@ -80,7 +80,7 @@ export default function AnathemaLandingPage() {
         </h1>
 
         <p style={{ fontSize: 16, color: 'var(--muted)', fontFamily: "'DM Mono', monospace", maxWidth: 560, lineHeight: 1.7, marginBottom: 48, letterSpacing: 0.3 }}>
-          In the US insurance market, no agent operates independently. Every one of them rolls up through a distribution hierarchy to Integrity, AmeriLife, or SMS. They don't advertise it. But the pathogen leaves traces. ANATHEMA reads them.
+          In the US insurance market, no agent operates independently. Every one of them rolls up through a distribution hierarchy — a tree they didn't choose and won't tell you about. They don't advertise it. But the pathogen leaves traces. ANATHEMA reads them.
         </p>
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -127,7 +127,7 @@ export default function AnathemaLandingPage() {
       {/* STATS ROW */}
       <div style={{ display: 'flex', gap: 0, borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
         {[
-          { main: '3', accent: '', label: 'Distribution Trees' },
+          { main: '∞', accent: '', label: 'Distribution Trees' },
           { main: '4', accent: '', label: 'Signal Tiers' },
           { main: 'IV', accent: '', label: 'Infection Stages' },
           { main: '∞', accent: '', label: 'Specimen Learning' },
@@ -150,10 +150,10 @@ export default function AnathemaLandingPage() {
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
           {[
-            { title: 'The Three Trees Control Everything', body: 'Integrity Marketing Group, AmeriLife, and Senior Market Sales collectively control the vast majority of the independent distribution market. There is no truly independent agent.' },
+            { title: 'The Major Trees Control Most of the Market', body: 'A small number of large consolidators — Integrity Marketing Group, AmeriLife, Senior Market Sales, and others — collectively control the majority of the independent distribution market. Most agents who call themselves independent are affiliated with one of them.' },
             { title: 'The Hierarchy Is Invisible', body: 'No public registry. No disclosure requirement. The distribution tree can be 3–5 layers deep — IMO to sub-FMO to affiliate to agent — and none of it is documented anywhere.' },
-            { title: 'You\'re Wasting Calls', body: 'If you\'re recruiting for Integrity and you spend 45 minutes pitching an Integrity-affiliated agent, you just wasted your time. ANATHEMA tells you before you dial.' },
-            { title: 'Competitive Intel Is Currency', body: 'Knowing an agent rolls up through AmeriLife means you know their contracts, their carriers, their incentives, and exactly what you need to offer to get them to switch.' },
+            { title: 'You\'re Wasting Calls', body: 'If you\'re recruiting for one tree and you spend 45 minutes pitching an agent already in it, you just wasted your time. ANATHEMA tells you before you dial.' },
+            { title: 'Competitive Intel Is Currency', body: 'Knowing which tree an agent rolls up through tells you their contracts, their carriers, their incentives, and exactly what you need to offer to get them to move.' },
           ].map(s => (
             <div key={s.title} style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 24px' }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)', marginBottom: 12, letterSpacing: 1 }}>▸</div>
@@ -166,11 +166,14 @@ export default function AnathemaLandingPage() {
 
       {/* THE THREE TREES */}
       <section style={{ padding: '0 40px 80px', maxWidth: 900 }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#555', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>The Strains</div>
-        <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: 'var(--white)', marginBottom: 40 }}>
-          THREE TREES.<br />
-          <span style={{ color: 'var(--green)' }}>ONE MARKET.</span>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#555', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>Mapped Hierarchies</div>
+        <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: 'var(--white)', marginBottom: 16 }}>
+          KNOWN TREES.<br />
+          <span style={{ color: 'var(--green)' }}>MORE BEING MAPPED.</span>
         </h2>
+        <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#555', letterSpacing: 1, marginBottom: 40, maxWidth: 560, lineHeight: 1.7 }}>
+          These are the three largest consolidators currently in the detection index. ANATHEMA also detects unresolved uplines — FMOs and IMOs outside the mapped network — and flags them for field confirmation. The index grows with every scan.
+        </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 2 }}>
           {[
             {
