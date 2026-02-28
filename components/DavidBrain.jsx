@@ -37,7 +37,7 @@ const TREE_COLORS = {
   INTEGRITY:  "#f4621f",
   AMERILIFE:  "#4fc3f7",
   SMS:        "#ce93d8",
-  UNKNOWN:    "#444",
+  UNKNOWN:    "#444444",
   OTHER:      "#00e676",
 }
 
