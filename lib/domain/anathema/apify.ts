@@ -134,12 +134,13 @@ export async function fetchYouTubeVideosApify(
 ): Promise<{ videos: ApifyYouTubeVideo[]; error: string | null }> {
   // Actor: apify/youtube-scraper (streamers~youtube-scraper)
   // Handles @handle, /channel/, /c/ URL formats
+  // YouTube cold starts are slow — needs 120s timeout
   const items = await runActor('streamers~youtube-scraper', {
     startUrls: [{ url: channelUrl }],
     maxResults: maxVideos,
     type: 'channel',
     includeDescription: true,
-  })
+  }, 120)
 
   if (!items) return { videos: [], error: 'Actor run failed or API key missing' }
 
