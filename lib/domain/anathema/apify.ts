@@ -102,10 +102,11 @@ export async function fetchFacebookPostsApify(
   profileUrl: string,
   maxPosts = 25
 ): Promise<{ posts: ApifyFacebookPost[]; error: string | null }> {
+  // Facebook cold starts are slow — needs 120s timeout
   const items = await runActor('KoJrdxJCTtpon81KY', {
     startUrls: [{ url: profileUrl }],
     resultsLimit: maxPosts,
-  })
+  }, 120)
 
   if (!items) return { posts: [], error: 'Actor run failed or API key missing' }
 
