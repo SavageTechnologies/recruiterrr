@@ -155,6 +155,36 @@ function ProfileRow({ agent, onClick }: { agent: AgentProfile; onClick: () => vo
 }
 
 function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => void }) {
+  const [specimen, setSpecimen] = useState<any>(null)
+  const [specimenLoading, setSpecimenLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchSpecimen() {
+      setSpecimenLoading(true)
+      try {
+        const res = await fetch('/api/anathema', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'check_existing', agent_name: agent.name, city: agent.city, state: agent.state }),
+        })
+        const data = await res.json()
+        if (data.specimen) setSpecimen(data.specimen)
+      } catch {}
+      setSpecimenLoading(false)
+    }
+    fetchSpecimen()
+  }, [agent.name, agent.city, agent.state])
+
+  // Prefer live specimen data over agent_profiles back-fill
+  const anathemaRun = !!specimen || agent.anathema_run
+  const predictedTree = specimen?.predicted_tree || agent.predicted_tree
+  const predictedConfidence = specimen?.predicted_confidence ?? agent.predicted_confidence
+  const predictedSubImo = specimen?.confirmed_sub_imo || specimen?.predicted_sub_imo || agent.predicted_sub_imo
+  const unresolvedUpline = specimen?.unresolved_upline || agent.unresolved_upline
+  const anathemaSignals = specimen?.prediction_signals || agent.anathema_signals
+  const anathemaScannedAt = specimen?.created_at || agent.anathema_scanned_at
+  const confirmedTree = specimen?.confirmed_tree || null
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
@@ -274,54 +304,70 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
         )}
 
         {/* ANATHEMA section */}
-        <div style={{ padding: '16px', background: 'var(--card)', border: '1px solid var(--border)', borderLeft: agent.anathema_run ? '2px solid var(--green)' : '2px solid #222', marginBottom: 16 }}>
+        <div style={{ padding: '16px', background: 'var(--card)', border: '1px solid var(--border)', borderLeft: anathemaRun ? '2px solid var(--green)' : '2px solid #222', marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: agent.anathema_run ? 'var(--green)' : '#555', letterSpacing: 2 }}>ANATHEMA ANALYSIS</div>
-            {agent.anathema_scanned_at && (
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: anathemaRun ? 'var(--green)' : '#555', letterSpacing: 2 }}>
+              ANATHEMA ANALYSIS
+              {confirmedTree && <span style={{ color: 'var(--green)', marginLeft: 8 }}>[OBSERVATION ON FILE]</span>}
+            </div>
+            {anathemaScannedAt && (
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 1 }}>
-                {new Date(agent.anathema_scanned_at).toLocaleDateString()}
+                {new Date(anathemaScannedAt).toLocaleDateString()}
               </div>
             )}
           </div>
-          {agent.anathema_run ? (
+
+          {specimenLoading ? (
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 2 }}>CHECKING SPECIMEN DATABASE...</div>
+          ) : anathemaRun ? (
             <>
-              {/* Tree + Confidence */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: TREE_COLORS[agent.predicted_tree || 'unknown'] }}>
-                  {agent.predicted_tree?.toUpperCase() || 'UNKNOWN'}
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: TREE_COLORS[predictedTree || 'unknown'] }}>
+                  {predictedTree?.toUpperCase() || 'UNKNOWN'}
                 </span>
-                {agent.predicted_confidence != null && (
+                {predictedConfidence != null && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1 }}>CONFIDENCE</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: agent.predicted_confidence >= 70 ? 'var(--green)' : agent.predicted_confidence >= 40 ? 'var(--orange)' : '#ff4444', letterSpacing: 1 }}>
-                      {agent.predicted_confidence}%
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: predictedConfidence >= 70 ? 'var(--green)' : predictedConfidence >= 40 ? 'var(--orange)' : '#ff4444', letterSpacing: 1 }}>
+                      {predictedConfidence}%
                     </div>
+                  </div>
+                )}
+                {confirmedTree && (
+                  <div style={{ marginLeft: 'auto', fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '3px 8px', border: '1px solid var(--green)', color: 'var(--green)', letterSpacing: 1 }}>
+                    ✓ CONFIRMED
                   </div>
                 )}
               </div>
 
-              {/* Sub-IMO */}
-              {agent.predicted_sub_imo && (
+              {predictedSubImo && (
                 <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1, marginBottom: 4 }}>PREDICTED UPLINE</div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 1 }}>{agent.predicted_sub_imo}</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1, marginBottom: 4 }}>
+                    {specimen?.confirmed_sub_imo ? 'CONFIRMED UPLINE' : 'PREDICTED UPLINE'}
+                  </div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 1 }}>{predictedSubImo}</div>
                 </div>
               )}
 
-              {/* Unresolved */}
-              {agent.unresolved_upline && (
+              {unresolvedUpline && (
                 <div style={{ marginBottom: 10, padding: '8px 10px', background: 'rgba(255,152,0,0.06)', border: '1px solid rgba(255,152,0,0.2)' }}>
                   <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#ff9800', letterSpacing: 1, marginBottom: 3 }}>◎ UNRESOLVED UPLINE</div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#ff9800', letterSpacing: 1 }}>{agent.unresolved_upline}</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#ff9800', letterSpacing: 1 }}>{unresolvedUpline}</div>
                 </div>
               )}
 
-              {/* Signals */}
-              {agent.anathema_signals && agent.anathema_signals.length > 0 && (
+              {specimen?.recruiter_notes && (
+                <div style={{ marginBottom: 10, padding: '8px 10px', background: '#0f0f0d', border: '1px solid var(--border)' }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1, marginBottom: 3 }}>FIELD NOTES</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#888', letterSpacing: 0.5, lineHeight: 1.5 }}>{specimen.recruiter_notes}</div>
+                </div>
+              )}
+
+              {anathemaSignals && anathemaSignals.length > 0 && (
                 <div style={{ marginTop: 10 }}>
                   <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1, marginBottom: 6 }}>DETECTION SIGNALS</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {agent.anathema_signals.slice(0, 6).map((sig: string, i: number) => (
+                    {anathemaSignals.slice(0, 6).map((sig: string, i: number) => (
                       <span key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 7px', border: '1px solid #2a2a2a', color: '#555', letterSpacing: 1 }}>
                         {sig.length > 40 ? sig.slice(0, 40) + '…' : sig}
                       </span>
