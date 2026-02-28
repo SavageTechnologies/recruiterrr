@@ -157,6 +157,49 @@ export async function checkExistingSpecimen(
   return data || null
 }
 
+// ─── SAVE DAVID FACTS ─────────────────────────────────────────────────────────
+// Upserts specimen with just david_facts — no observation log required.
+// Called automatically on every scan so David data is never lost.
+
+export async function saveDavidFacts(
+  userId: string,
+  agent_name: string,
+  city: string,
+  state: string,
+  david_facts: DavidFactsResult
+): Promise<void> {
+  const { data: existing } = await supabase
+    .from('anathema_specimens')
+    .select('id')
+    .eq('clerk_id', userId)
+    .eq('agent_name', agent_name)
+    .eq('city', city)
+    .eq('state', state)
+    .single()
+
+  if (existing?.id) {
+    await supabase
+      .from('anathema_specimens')
+      .update({ david_facts })
+      .eq('id', existing.id)
+  } else {
+    await supabase
+      .from('anathema_specimens')
+      .insert({
+        clerk_id: userId,
+        agent_name, city, state,
+        david_facts,
+        predicted_tree: 'unknown',
+        predicted_confidence: 0,
+        prediction_signals: [],
+        prediction_reasoning: '',
+        prediction_source: null,
+        facebook_profile_url: null,
+        facebook_about: null,
+      })
+  }
+}
+
 // ─── GET SPECIMEN ─────────────────────────────────────────────────────────────
 
 export async function getSpecimen(userId: string, id: string) {

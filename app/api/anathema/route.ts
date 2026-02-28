@@ -14,7 +14,8 @@ import { huntUnresolvedUpline } from '@/lib/domain/anathema/upline-hunter'
 import { fetchFacebookProfile } from '@/lib/domain/anathema/facebook'
 import { extractDavidFacts } from '@/lib/domain/anathema/david-facts'
 import type { DavidFactsInput } from '@/lib/domain/anathema/david-facts'
-import { saveObservation, checkExistingSpecimen, getSpecimen, getScan } from '@/lib/db/anathema'
+import { saveObservation, checkExistingSpecimen, getSpecimen, getScan, saveDavidFacts } from '@/lib/db/anathema'
+
 
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 
@@ -114,16 +115,9 @@ export async function POST(req: NextRequest) {
   }
 
     // ─── SAVE DAVID FACTS ─────────────────────────────────────────────────────
-      if (action === 'save_david_facts') {
+    if (action === 'save_david_facts') {
         if (body.david_facts) {
-          const { supabase } = await import('@/lib/supabase.server')
-          await supabase
-            .from('anathema_specimens')
-            .update({ david_facts: body.david_facts })
-            .eq('clerk_id', userId)
-            .eq('agent_name', body.agent_name)
-            .eq('city', body.city)
-            .eq('state', body.state)
+          await saveDavidFacts(userId, body.agent_name, body.city, body.state, body.david_facts)
         }
         return NextResponse.json({ ok: true })
       }
