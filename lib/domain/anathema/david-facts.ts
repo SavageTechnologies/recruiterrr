@@ -43,6 +43,8 @@ export type DavidFactsInput = {
   agentWebsite: string | null
   agentNotes: string | null
   agentAbout: string | null
+  apifyFacebookPostCount?: number   // how many posts Apify pulled (0 = didn't fire)
+  apifyYouTubeVideoCount?: number   // how many videos Apify pulled (0 = didn't fire)
 }
 
 // ─── EXTRACTOR ────────────────────────────────────────────────────────────────
@@ -78,6 +80,14 @@ export async function extractDavidFacts(
       sections.push(`=== AGENT WEBSITE / PROFILE ===\n${profileText.slice(0, 800)}`)
       sourcesUsed.push('WEBSITE')
     }
+  }
+
+  // Track Apify enrichment in sources so UI can show "FB deep ✓ YT deep ✓"
+  if (input.apifyFacebookPostCount && input.apifyFacebookPostCount > 0) {
+    sourcesUsed.push(`APIFY_FACEBOOK:${input.apifyFacebookPostCount}`)
+  }
+  if (input.apifyYouTubeVideoCount && input.apifyYouTubeVideoCount > 0) {
+    sourcesUsed.push(`APIFY_YOUTUBE:${input.apifyYouTubeVideoCount}`)
   }
 
   if (sections.length === 0) return null

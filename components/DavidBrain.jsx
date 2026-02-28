@@ -37,6 +37,7 @@ export default function DavidBrain({
   predictedTree = "UNKNOWN",
   treeConfidence = 0,
   davidFacts = [],
+  scanSourcesUsed = [],
   isLoading = false,
 }) {
   const [expanded, setExpanded] = useState(null)
@@ -49,6 +50,12 @@ export default function DavidBrain({
   const medFacts  = davidFacts?.filter(f => f.usability === "MED")  || []
   const lowFacts  = davidFacts?.filter(f => f.usability === "LOW")  || []
   const sorted = [...highFacts, ...medFacts, ...lowFacts]
+
+  // Parse Apify enrichment from scan_sources_used
+  const apifyFbEntry = scanSourcesUsed?.find(s => s.startsWith("APIFY_FACEBOOK:"))
+  const apifyYtEntry = scanSourcesUsed?.find(s => s.startsWith("APIFY_YOUTUBE:"))
+  const apifyFbCount = apifyFbEntry ? parseInt(apifyFbEntry.split(":")[1]) : 0
+  const apifyYtCount = apifyYtEntry ? parseInt(apifyYtEntry.split(":")[1]) : 0
 
   return (
     <div style={{ background: "#040404", border: "1px solid #141414", width: "100%" }}>
@@ -66,6 +73,17 @@ export default function DavidBrain({
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 5, height: 5, borderRadius: "50%", background: treeColor, boxShadow: `0 0 5px ${treeColor}` }} />
           <span style={{ ...mono, fontSize: 8, color: "#2a2a2a", letterSpacing: 3, textTransform: "uppercase" }}>◈ DAVID PROFILE</span>
+          {/* Apify enrichment badges — only show when data was actually pulled */}
+          {apifyFbCount > 0 && (
+            <span style={{ ...mono, fontSize: 7, color: "#4fc3f7", border: "1px solid #4fc3f722", padding: "1px 5px", letterSpacing: 1 }}>
+              FB×{apifyFbCount}
+            </span>
+          )}
+          {apifyYtCount > 0 && (
+            <span style={{ ...mono, fontSize: 7, color: "#ff4444", border: "1px solid #ff444422", padding: "1px 5px", letterSpacing: 1 }}>
+              YT×{apifyYtCount}
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           {factCount > 0 && (

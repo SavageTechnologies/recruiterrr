@@ -307,6 +307,7 @@ function DetailPanel({
         predictedTree={cachedResult?.predicted_tree || 'UNKNOWN'}
         treeConfidence={cachedResult?.confidence || 0}
         davidFacts={cachedResult?.davidFacts?.facts || []}
+        scanSourcesUsed={cachedResult?.davidFacts?.scan_sources_used || []}
         isLoading={false}
       />
     </div>
