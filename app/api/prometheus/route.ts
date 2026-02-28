@@ -265,8 +265,10 @@ async function crawlFMOSite(baseUrl: string): Promise<{ pages: Record<string, st
     .map(u => { try { return new URL(u).pathname } catch { return null } })
     .filter((p): p is string => !!p && p !== '/')
 
-  // Merge: sitemap + nav + fallback, deduplicate, score by relevance
-  const allSlugs = [...new Set([...sitemapSlugs, ...navSlugs, ...SLUG_FALLBACK])]
+  // Merge: sitemap + nav first. Only use fallback if we discovered nothing real.
+  const discoveredSlugs = [...new Set([...sitemapSlugs, ...navSlugs])]
+  const useFallback = discoveredSlugs.length < 3
+  const allSlugs = [...new Set([...discoveredSlugs, ...(useFallback ? SLUG_FALLBACK : [])])]
     .filter(s => s !== '/' && !foundPages.includes(s))
     .sort((a, b) => scoreSlug(b) - scoreSlug(a))
     .slice(0, 30) // Cap candidates to avoid hammering
