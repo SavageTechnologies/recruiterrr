@@ -44,9 +44,7 @@ type SavedSpecimen = ScanResult & {
   recruiter_notes: string | null
 }
 
-// Find the best matching source URL + title for a given entity string
 function findSourceEvidence(entity: string, debugEntries: SerpDebugEntry[], directProofUrl?: string | null): { url: string; title: string } | null {
-  // Prefer the direct proof URL from the network scanner — it's ground truth
   if (directProofUrl) return { url: directProofUrl, title: 'View source ↗' }
   const entityLower = entity.toLowerCase()
   for (const entry of debugEntries) {
@@ -86,17 +84,8 @@ function ChainSignalRow({ signal, debugEntries }: { signal: ChainSignal; debugEn
           {signal.text}
         </div>
         {evidence && (
-          <a
-            href={evidence.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
-            style={{
-              display: 'inline-block', marginTop: 3,
-              fontSize: 9, color: 'rgba(0,230,118,0.5)',
-              textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5,
-            }}
-          >
+          <a href={evidence.url} target="_blank" rel="noopener noreferrer"
+            style={{ display: 'inline-block', marginTop: 3, fontSize: 9, color: 'rgba(0,230,118,0.5)', textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}>
             ↗ {evidence.title.slice(0, 60)}
           </a>
         )}
@@ -109,13 +98,11 @@ function ChainSection({ result }: { result: ScanResult }) {
   const [expanded, setExpanded] = useState(false)
   const signals = result.predicted_sub_imo_signals || []
   const grouped = groupSignals(signals)
-  // LOW signals collected but never surfaced to recruiter
   const visibleSignals = [...grouped.high, ...grouped.med]
   const debugEntries = result.serp_debug || undefined
 
   if (visibleSignals.length === 0 && !result.predicted_sub_imo && !result.unresolved_upline) return null
 
-  // Find evidence link for the resolved partner
   const partnerEvidence = result.predicted_sub_imo && debugEntries
     ? findSourceEvidence(result.predicted_sub_imo, debugEntries, result.predicted_sub_imo_proof_url)
     : result.predicted_sub_imo_proof_url
@@ -127,27 +114,15 @@ function ChainSection({ result }: { result: ScanResult }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 9, color: '#555', letterSpacing: 3 }}>CHAIN INTELLIGENCE</div>
         {visibleSignals.length > 0 && (
-          <button
-            onClick={e => { e.stopPropagation(); setExpanded(v => !v) }}
-            style={{
-              background: 'transparent', border: '1px solid #2a2a2a', color: '#555',
-              fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1.5,
-              padding: '3px 8px', cursor: 'pointer',
-            }}
-          >
+          <button onClick={() => setExpanded(v => !v)}
+            style={{ background: 'transparent', border: '1px solid #2a2a2a', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1.5, padding: '3px 8px', cursor: 'pointer' }}>
             {expanded ? 'COLLAPSE' : `SHOW ALL SIGNALS (${visibleSignals.length})`}
           </button>
         )}
       </div>
 
-      {/* Resolved partner block */}
       {result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 && (
-        <div style={{
-          marginBottom: visibleSignals.length > 0 ? 10 : 0,
-          padding: '8px 12px',
-          background: 'rgba(0,230,118,0.04)',
-          border: `1px solid ${result.prediction_source === 'chain_resolver' ? 'rgba(0,230,118,0.35)' : 'rgba(0,230,118,0.2)'}`,
-        }}>
+        <div style={{ marginBottom: visibleSignals.length > 0 ? 10 : 0, padding: '8px 12px', background: 'rgba(0,230,118,0.04)', border: `1px solid ${result.prediction_source === 'chain_resolver' ? 'rgba(0,230,118,0.35)' : 'rgba(0,230,118,0.2)'}` }}>
           <div style={{ fontSize: 8, color: '#555', letterSpacing: 2, marginBottom: 3 }}>
             {result.prediction_source === 'chain_resolver' ? 'CHAIN-SOURCED · THIS IS WHY WE KNOW' : 'PREDICTED SUB-IMO'}
           </div>
@@ -155,17 +130,8 @@ function ChainSection({ result }: { result: ScanResult }) {
             {result.predicted_sub_imo}
           </div>
           {partnerEvidence && (
-            <a
-              href={partnerEvidence.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
-              style={{
-                display: 'inline-block', fontSize: 9,
-                color: 'rgba(0,230,118,0.6)', textDecoration: 'none',
-                fontFamily: "'DM Mono', monospace", letterSpacing: 0.5,
-              }}
-            >
+            <a href={partnerEvidence.url} target="_blank" rel="noopener noreferrer"
+              style={{ display: 'inline-block', fontSize: 9, color: 'rgba(0,230,118,0.6)', textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}>
               ↗ {partnerEvidence.title.slice(0, 60)}
             </a>
           )}
@@ -180,34 +146,17 @@ function ChainSection({ result }: { result: ScanResult }) {
         </div>
       )}
 
-      {/* Unresolved upline — found but not in network map */}
       {result.unresolved_upline && (
-        <div style={{
-          marginBottom: visibleSignals.length > 0 ? 10 : 0,
-          padding: '8px 12px',
-          background: 'rgba(255,152,0,0.04)',
-          border: '1px solid rgba(255,152,0,0.35)',
-        }}>
-          <div style={{ fontSize: 8, color: '#777', letterSpacing: 2, marginBottom: 3 }}>
-            UNRESOLVED UPLINE · NOT IN NETWORK MAP
-          </div>
-          <div style={{ fontSize: 13, color: '#ff9800', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, marginBottom: 4 }}>
-            {result.unresolved_upline}
-          </div>
+        <div style={{ marginBottom: visibleSignals.length > 0 ? 10 : 0, padding: '8px 12px', background: 'rgba(255,152,0,0.04)', border: '1px solid rgba(255,152,0,0.35)' }}>
+          <div style={{ fontSize: 8, color: '#777', letterSpacing: 2, marginBottom: 3 }}>UNRESOLVED UPLINE · NOT IN NETWORK MAP</div>
+          <div style={{ fontSize: 13, color: '#ff9800', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, marginBottom: 4 }}>{result.unresolved_upline}</div>
           {result.unresolved_upline_evidence && (
-            <div style={{ fontSize: 10, color: '#666', fontFamily: "'DM Mono', monospace", marginBottom: 4, lineHeight: 1.5 }}>
-              "{result.unresolved_upline_evidence}"
-            </div>
+            <div style={{ fontSize: 10, color: '#666', fontFamily: "'DM Mono', monospace", marginBottom: 4, lineHeight: 1.5 }}>"{result.unresolved_upline_evidence}"</div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {result.unresolved_upline_source_url && (
-              <a
-                href={result.unresolved_upline_source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                style={{ fontSize: 9, color: 'rgba(255,152,0,0.7)', textDecoration: 'none', fontFamily: "'DM Mono', monospace" }}
-              >
+              <a href={result.unresolved_upline_source_url} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 9, color: 'rgba(255,152,0,0.7)', textDecoration: 'none', fontFamily: "'DM Mono', monospace" }}>
                 ↗ View source
               </a>
             )}
@@ -218,7 +167,6 @@ function ChainSection({ result }: { result: ScanResult }) {
         </div>
       )}
 
-      {/* Tier pills — HIGH and MED only */}
       {visibleSignals.length > 0 && (
         <div style={{ display: 'flex', gap: 6, marginBottom: expanded ? 10 : 0, flexWrap: 'wrap' }}>
           {grouped.high.length > 0 && (
@@ -234,7 +182,6 @@ function ChainSection({ result }: { result: ScanResult }) {
         </div>
       )}
 
-      {/* Expanded signal rows with source links */}
       {expanded && visibleSignals.length > 0 && (
         <div style={{ marginTop: 4 }}>
           {grouped.high.map((s, i) => <ChainSignalRow key={`h${i}`} signal={s} debugEntries={debugEntries} />)}
@@ -245,19 +192,37 @@ function ChainSection({ result }: { result: ScanResult }) {
   )
 }
 
-export default function AnathemaPanel({ agent, city, state }: { agent: Agent; city: string; state: string }) {
-  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'done' | 'error'>('idle')
-  const [errorMsg, setErrorMsg] = useState('')
-  const [result, setResult] = useState<ScanResult | null>(null)
-  const [existing, setExisting] = useState<SavedSpecimen | null>(null)
-  const [confirmedTrees, setConfirmedTrees] = useState<string[]>([])
-  const [confirmedOther, setConfirmedOther] = useState('')
-  const [subImo, setSubImo] = useState('')
-  const [recruiterNotes, setRecruiterNotes] = useState('')
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
-  const [checkDone, setCheckDone] = useState(false)
+interface AnathamaPanelProps {
+  agent: Agent
+  city: string
+  state: string
+  cachedResult?: any
+  onResult?: (result: any) => void
+}
 
-  useEffect(() => { checkExisting() }, [])
+export default function AnathemaPanel({ agent, city, state, cachedResult, onResult }: AnathamaPanelProps) {
+  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'done' | 'error'>(
+    cachedResult?.scanState || 'idle'
+  )
+  const [errorMsg, setErrorMsg] = useState('')
+  const [result, setResult] = useState<ScanResult | null>(cachedResult?.result || null)
+  const [existing, setExisting] = useState<SavedSpecimen | null>(cachedResult?.existing || null)
+  const [confirmedTrees, setConfirmedTrees] = useState<string[]>(cachedResult?.confirmedTrees || [])
+  const [confirmedOther, setConfirmedOther] = useState(cachedResult?.confirmedOther || '')
+  const [subImo, setSubImo] = useState(cachedResult?.subImo || '')
+  const [recruiterNotes, setRecruiterNotes] = useState(cachedResult?.recruiterNotes || '')
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [checkDone, setCheckDone] = useState(!!cachedResult)
+
+  useEffect(() => {
+    if (!cachedResult) {
+      checkExisting()
+    }
+  }, [agent.name])
+
+  function bubble(update: object) {
+    if (onResult) onResult({ result, existing, confirmedTrees, confirmedOther, subImo, recruiterNotes, scanState, ...update })
+  }
 
   async function checkExisting() {
     try {
@@ -268,8 +233,7 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
       })
       const data = await res.json()
       if (data.specimen) {
-        setExisting(data.specimen)
-        setResult({
+        const r: ScanResult = {
           predicted_tree: data.specimen.predicted_tree,
           confidence: data.specimen.predicted_confidence,
           signals_used: data.specimen.prediction_signals || [],
@@ -287,28 +251,30 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
           unresolved_upline_source_url: data.specimen.unresolved_upline_source_url || null,
           unresolved_upline_confidence: data.specimen.unresolved_upline_confidence || null,
           serp_debug: data.specimen.serp_debug || null,
-        })
-        setConfirmedTrees(
-          Array.isArray(data.specimen.confirmed_tree)
-            ? data.specimen.confirmed_tree
-            : data.specimen.confirmed_tree ? [data.specimen.confirmed_tree] : []
-        )
+        }
+        const trees = Array.isArray(data.specimen.confirmed_tree)
+          ? data.specimen.confirmed_tree
+          : data.specimen.confirmed_tree ? [data.specimen.confirmed_tree] : []
+        const si = data.specimen.confirmed_sub_imo || data.specimen.predicted_sub_imo || ''
+        setResult(r)
+        setExisting(data.specimen)
+        setConfirmedTrees(trees)
         setConfirmedOther(data.specimen.confirmed_tree_other || '')
-        // Auto-populate sub-IMO from confirmed value, or from prediction if not yet confirmed
-        setSubImo(data.specimen.confirmed_sub_imo || data.specimen.predicted_sub_imo || '')
+        setSubImo(si)
         setRecruiterNotes(data.specimen.recruiter_notes || '')
         setScanState('done')
+        bubble({ result: r, existing: data.specimen, confirmedTrees: trees, confirmedOther: data.specimen.confirmed_tree_other || '', subImo: si, recruiterNotes: data.specimen.recruiter_notes || '', scanState: 'done' })
       }
     } catch {}
     setCheckDone(true)
   }
 
-  async function runScan(e: React.MouseEvent) {
-    e.stopPropagation()
+  async function runScan() {
     if (scanState === 'scanning') return
     setScanState('scanning')
     setResult(null)
     setErrorMsg('')
+    bubble({ scanState: 'scanning', result: null })
     try {
       const res = await fetch('/api/anathema', {
         method: 'POST',
@@ -324,18 +290,16 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
       if (data.error) throw new Error(data.error)
       setResult(data)
       setScanState('done')
-      // Auto-populate sub-IMO when network scanner or chain resolver identifies one
-      if (data.predicted_sub_imo && !subImo) {
-        setSubImo(data.predicted_sub_imo)
-      }
+      const si = data.predicted_sub_imo && !subImo ? data.predicted_sub_imo : subImo
+      if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
+      bubble({ result: data, scanState: 'done', subImo: si })
     } catch (err: any) {
       setScanState('error')
       setErrorMsg(err.message || 'Scan failed')
     }
   }
 
-  async function logObservation(e: React.MouseEvent) {
-    e.stopPropagation()
+  async function logObservation() {
     if (!result || saveState === 'saving') return
     setSaveState('saving')
     try {
@@ -379,156 +343,158 @@ export default function AnathemaPanel({ agent, city, state }: { agent: Agent; ci
     buttonTitle = existing ? ' [SPECIMEN ON FILE]' : ''
   }
 
-  return (
-    <div style={{ marginTop: 16 }} onClick={e => e.stopPropagation()}>
-      {scanState === 'idle' && checkDone && (
-        <button onClick={runScan} style={{ background: 'transparent', border: '1px solid var(--green)', color: 'var(--green)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 3, padding: '8px 20px', cursor: 'pointer', textTransform: 'uppercase', transition: 'background 0.15s' }}
+  if (scanState === 'idle' && checkDone) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '40px 24px', gap: 16 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 3, textTransform: 'uppercase', textAlign: 'center' }}>
+          ANATHEMA · PATHOGEN ANALYSIS SYSTEM v1
+        </div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, color: '#333', letterSpacing: 4, textAlign: 'center' }}>
+          {agent.name.toUpperCase()}
+        </div>
+        <button onClick={runScan}
+          style={{ background: 'transparent', border: '1px solid var(--green)', color: 'var(--green)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 3, padding: '12px 32px', cursor: 'pointer', textTransform: 'uppercase', transition: 'background 0.15s', marginTop: 8 }}
           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,230,118,0.07)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}>
-          ◈ ANATHEMA SCAN
+          ◈ RUN ANATHEMA SCAN
         </button>
-      )}
+      </div>
+    )
+  }
 
-      {scanState === 'scanning' && (
-        <div style={{ border: '1px solid var(--green)', padding: '8px 20px', display: 'inline-flex', alignItems: 'center', gap: 8, position: 'relative', overflow: 'hidden' }}>
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 3, color: 'var(--green)' }}>SCANNING...</span>
+  if (scanState === 'scanning') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '40px 24px' }}>
+        <div style={{ border: '1px solid var(--green)', padding: '12px 28px', display: 'inline-flex', alignItems: 'center', gap: 10, position: 'relative', overflow: 'hidden' }}>
           <style>{`@keyframes scanline{0%{top:0}100%{top:100%}}.anathema-scanline{position:absolute;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,#00e676,transparent);animation:scanline 1.2s linear infinite}`}</style>
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 3, color: 'var(--green)' }}>SCANNING {agent.name.slice(0, 20).toUpperCase()}...</span>
           <div className="anathema-scanline" />
         </div>
-      )}
+      </div>
+    )
+  }
 
-      {scanState === 'error' && (
-        <div style={{ border: '1px solid rgba(255,23,68,0.4)', padding: '8px 14px', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--red)' }}>
-            ⚠ {errorMsg}
-          </span>
-          <button onClick={runScan} style={{ background: 'transparent', border: '1px solid #333', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5, padding: '3px 8px', cursor: 'pointer' }}>
-            RETRY
+  if (scanState === 'error') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '40px 24px', gap: 12 }}>
+        <div style={{ border: '1px solid rgba(255,23,68,0.4)', padding: '10px 18px', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, color: 'var(--red)' }}>⚠ {errorMsg}</span>
+        </div>
+        <button onClick={runScan}
+          style={{ background: 'transparent', border: '1px solid #333', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5, padding: '5px 12px', cursor: 'pointer' }}>
+          RETRY
+        </button>
+      </div>
+    )
+  }
+
+  if (scanState === 'done' && result) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderBottom: '1px solid rgba(0,230,118,0.1)', background: '#141210' }}>
+          <div style={{ border: '1px solid var(--green)', background: 'rgba(0,230,118,0.05)', padding: '5px 12px', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 3, color: 'var(--green)' }}>
+            ◈ {buttonLabel}{buttonTitle}
+          </div>
+          <button onClick={runScan}
+            style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '5px 10px', cursor: 'pointer' }}>
+            RESCAN
           </button>
         </div>
-      )}
 
-      {scanState === 'done' && result && (
-        <>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <div style={{ border: '1px solid var(--green)', background: 'rgba(0,230,118,0.05)', padding: '6px 14px', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 3, color: 'var(--green)' }}>
-              ◈ {buttonLabel}{buttonTitle}
+        <div style={{ background: '#141210', fontFamily: "'DM Mono', monospace", position: 'relative', overflow: 'hidden' }}>
+          <style>{`@keyframes initialScan{0%{top:-2px;opacity:1}100%{top:100%;opacity:0}}.anathema-initial-scan{position:absolute;left:0;width:100%;height:2px;z-index:10;background:linear-gradient(90deg,transparent,#00e676,transparent);animation:initialScan 1.2s ease-out 1 forwards}`}</style>
+          <div className="anathema-initial-scan" />
+
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,230,118,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: 3 }}>◈ ANATHEMA · PATHOGEN ANALYSIS SYSTEM v1</div>
+            <div style={{ fontSize: 9, color: '#444', letterSpacing: 1 }}>SPECIMEN: {agent.name.toUpperCase().slice(0, 20)}</div>
+          </div>
+
+          <div style={{ padding: '16px', borderBottom: '1px solid rgba(0,230,118,0.1)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 6 }}>STRAIN DETECTED</div>
+              <div style={{ fontSize: result.predicted_tree !== 'unknown' ? 22 : 16, color: result.predicted_tree !== 'unknown' ? 'var(--green)' : '#555', letterSpacing: 2, marginBottom: 8, fontFamily: "'Bebas Neue', sans-serif" }}>
+                {treeLabel}
+              </div>
+              {result.predicted_tree !== 'unknown' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 120, height: 4, background: '#1e1e1e', position: 'relative' }}>
+                    <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.4), #00e676)', transition: 'width 0.8s ease' }} />
+                  </div>
+                  <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: 1 }}>{result.confidence}%</div>
+                </div>
+              )}
             </div>
-            <button onClick={runScan} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '6px 10px', cursor: 'pointer' }}>
-              RESCAN
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 4 }}>INFECTION STAGE</div>
+              <div style={{ fontSize: 28, color: result.predicted_tree !== 'unknown' ? 'var(--green)' : '#333', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, lineHeight: 1 }}>{stage?.roman || '—'}</div>
+              <div style={{ fontSize: 8, color: '#555', letterSpacing: 2 }}>{stage?.label}</div>
+            </div>
+          </div>
+
+          {result.reasoning && result.predicted_tree !== 'unknown' && (
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,230,118,0.1)', fontSize: 10, color: '#666', lineHeight: 1.6, letterSpacing: 0.3 }}>
+              {result.reasoning}
+            </div>
+          )}
+
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,230,118,0.1)' }}>
+            <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 10 }}>PATHOGEN MARKERS</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {(result.signals_used || []).map((sig, i) => (
+                <div key={i} style={{ fontSize: 10, color: '#888', display: 'flex', gap: 8, lineHeight: 1.4 }}>
+                  <span style={{ color: 'var(--green)', flexShrink: 0 }}>▸</span>
+                  <span>{sig}</span>
+                </div>
+              ))}
+              {result.facebook_profile_url && (
+                <div style={{ fontSize: 10, color: '#555', display: 'flex', gap: 8, marginTop: 2 }}>
+                  <span style={{ color: '#444', flexShrink: 0 }}>▸</span>
+                  <a href={result.facebook_profile_url} target="_blank" rel="noopener noreferrer" style={{ color: '#555', textDecoration: 'none' }}>
+                    Facebook profile located ↗
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <ChainSection result={result} />
+
+          <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(0,230,118,0.1)' }}>
+            <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 12 }}>
+              FIELD OBSERVATION LOG
+              {existing?.confirmed_tree && <span style={{ color: 'var(--green)', marginLeft: 8 }}>[OBSERVATION ON FILE]</span>}
+            </div>
+            <div style={{ fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 6, fontFamily: "'DM Mono', monospace" }}>SELECT ALL THAT APPLY</div>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
+              {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => {
+                const active = confirmedTrees.includes(t)
+                return (
+                  <button key={t} onClick={() => setConfirmedTrees(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                    style={{ background: active ? 'rgba(0,230,118,0.1)' : 'transparent', border: `1px solid ${active ? 'var(--green)' : '#333'}`, color: active ? 'var(--green)' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '5px 10px', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }}>
+                    {active && '✓ '}{t === 'integrity' ? 'INTEGRITY' : t === 'amerilife' ? 'AMERILIFE' : t === 'sms' ? 'SMS' : 'OTHER'}
+                  </button>
+                )
+              })}
+            </div>
+            {confirmedTrees.includes('other') && (
+              <input value={confirmedOther} onChange={e => setConfirmedOther(e.target.value)} placeholder="FMO name..."
+                style={{ display: 'block', width: '100%', background: '#0e0e0e', border: '1px solid #333', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '7px 10px', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
+            )}
+            <input value={subImo} onChange={e => setSubImo(e.target.value)}
+              placeholder={result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 ? `Confirm or correct: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate (optional)...'}
+              style={{ display: 'block', width: '100%', background: '#0e0e0e', border: `1px solid ${result.predicted_sub_imo && !subImo ? 'rgba(0,230,118,0.2)' : '#222'}`, color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '7px 10px', marginBottom: 6, outline: 'none', boxSizing: 'border-box' }} />
+            <textarea value={recruiterNotes} onChange={e => setRecruiterNotes(e.target.value)} placeholder="Field notes (optional)..." rows={2}
+              style={{ display: 'block', width: '100%', background: '#0e0e0e', border: '1px solid #222', color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '7px 10px', marginBottom: 10, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+            <button onClick={logObservation} disabled={saveState === 'saving'}
+              style={{ background: saveState === 'saved' ? 'rgba(0,230,118,0.08)' : 'transparent', border: `1px solid ${saveState === 'saved' ? 'var(--green)' : '#333'}`, color: saveState === 'saved' ? 'var(--green)' : '#666', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: saveState === 'saving' ? 'default' : 'pointer', textTransform: 'uppercase', transition: 'all 0.2s' }}>
+              {saveState === 'saved' ? 'OBSERVATION LOGGED · SPECIMEN DATABASE UPDATED' : saveState === 'saving' ? 'LOGGING...' : existing?.confirmed_tree ? 'UPDATE OBSERVATION' : 'LOG OBSERVATION'}
             </button>
           </div>
+        </div>
+      </div>
+    )
+  }
 
-          <div style={{ background: '#141210', border: '1px solid rgba(0,230,118,0.25)', fontFamily: "'DM Mono', monospace", position: 'relative', overflow: 'hidden' }}>
-            <style>{`@keyframes initialScan{0%{top:-2px;opacity:1}100%{top:100%;opacity:0}}.anathema-initial-scan{position:absolute;left:0;width:100%;height:2px;z-index:10;background:linear-gradient(90deg,transparent,#00e676,transparent);animation:initialScan 1.2s ease-out 1 forwards}`}</style>
-            <div className="anathema-initial-scan" />
-
-            {/* Header */}
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,230,118,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: 3 }}>◈ ANATHEMA · PATHOGEN ANALYSIS SYSTEM v1</div>
-              <div style={{ fontSize: 9, color: '#444', letterSpacing: 1 }}>SPECIMEN: {agent.name.toUpperCase().slice(0, 20)}</div>
-            </div>
-
-            {/* Strain + Stage */}
-            <div style={{ padding: '16px', borderBottom: '1px solid rgba(0,230,118,0.1)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 6 }}>STRAIN DETECTED</div>
-                <div style={{ fontSize: result.predicted_tree !== 'unknown' ? 22 : 16, color: result.predicted_tree !== 'unknown' ? 'var(--green)' : '#555', letterSpacing: 2, marginBottom: 8, fontFamily: "'Bebas Neue', sans-serif" }}>
-                  {treeLabel}
-                </div>
-                {result.predicted_tree !== 'unknown' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 120, height: 4, background: '#1e1e1e', position: 'relative' }}>
-                      <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.4), #00e676)', transition: 'width 0.8s ease' }} />
-                    </div>
-                    <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: 1 }}>{result.confidence}%</div>
-                  </div>
-                )}
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 4 }}>INFECTION STAGE</div>
-                <div style={{ fontSize: 28, color: result.predicted_tree !== 'unknown' ? 'var(--green)' : '#333', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, lineHeight: 1 }}>{stage?.roman || '—'}</div>
-                <div style={{ fontSize: 8, color: '#555', letterSpacing: 2 }}>{stage?.label}</div>
-              </div>
-            </div>
-
-            {/* Reasoning */}
-            {result.reasoning && result.predicted_tree !== 'unknown' && (
-              <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,230,118,0.1)', fontSize: 10, color: '#666', lineHeight: 1.6, letterSpacing: 0.3 }}>
-                {result.reasoning}
-              </div>
-            )}
-
-            {/* Pathogen Markers */}
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,230,118,0.1)' }}>
-              <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 10 }}>PATHOGEN MARKERS</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {(result.signals_used || []).map((sig, i) => (
-                  <div key={i} style={{ fontSize: 10, color: '#888', display: 'flex', gap: 8, lineHeight: 1.4 }}>
-                    <span style={{ color: 'var(--green)', flexShrink: 0 }}>▸</span>
-                    <span>{sig}</span>
-                  </div>
-                ))}
-                {result.facebook_profile_url && (
-                  <div style={{ fontSize: 10, color: '#555', display: 'flex', gap: 8, marginTop: 2 }}>
-                    <span style={{ color: '#444', flexShrink: 0 }}>▸</span>
-                    <a href={result.facebook_profile_url} target="_blank" rel="noopener noreferrer" style={{ color: '#555', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>
-                      Facebook profile located ↗
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Chain Intelligence */}
-            <ChainSection result={result} />
-
-            {/* Field Observation Log */}
-            <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(0,230,118,0.1)' }}>
-              <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 12 }}>
-                FIELD OBSERVATION LOG
-                {existing?.confirmed_tree && <span style={{ color: 'var(--green)', marginLeft: 8 }}>[OBSERVATION ON FILE]</span>}
-              </div>
-              <div style={{ fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 6, fontFamily: "'DM Mono', monospace" }}>
-                SELECT ALL THAT APPLY
-              </div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
-                {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => {
-                  const active = confirmedTrees.includes(t)
-                  return (
-                    <button key={t} onClick={e => {
-                      e.stopPropagation()
-                      setConfirmedTrees(prev =>
-                        prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
-                      )
-                    }}
-                      style={{ background: active ? 'rgba(0,230,118,0.1)' : 'transparent', border: `1px solid ${active ? 'var(--green)' : '#333'}`, color: active ? 'var(--green)' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '5px 10px', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }}>
-                      {active && '✓ '}{t === 'integrity' ? 'INTEGRITY' : t === 'amerilife' ? 'AMERILIFE' : t === 'sms' ? 'SMS' : 'OTHER'}
-                    </button>
-                  )
-                })}
-              </div>
-              {confirmedTrees.includes('other') && (
-                <input value={confirmedOther} onChange={e => setConfirmedOther(e.target.value)} onClick={e => e.stopPropagation()} placeholder="FMO name..."
-                  style={{ display: 'block', width: '100%', background: '#0e0e0e', border: '1px solid #333', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '7px 10px', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
-              )}
-              <input
-                value={subImo}
-                onChange={e => setSubImo(e.target.value)}
-                onClick={e => e.stopPropagation()}
-                placeholder={result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 ? `Confirm or correct: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate (optional)...'}
-                style={{ display: 'block', width: '100%', background: '#0e0e0e', border: `1px solid ${result.predicted_sub_imo && !subImo ? 'rgba(0,230,118,0.2)' : '#222'}`, color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '7px 10px', marginBottom: 6, outline: 'none', boxSizing: 'border-box' }}
-              />
-              <textarea value={recruiterNotes} onChange={e => setRecruiterNotes(e.target.value)} onClick={e => e.stopPropagation()} placeholder="Field notes (optional)..." rows={2}
-                style={{ display: 'block', width: '100%', background: '#0e0e0e', border: '1px solid #222', color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '7px 10px', marginBottom: 10, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
-              <button onClick={logObservation} disabled={saveState === 'saving'}
-                style={{ background: saveState === 'saved' ? 'rgba(0,230,118,0.08)' : 'transparent', border: `1px solid ${saveState === 'saved' ? 'var(--green)' : '#333'}`, color: saveState === 'saved' ? 'var(--green)' : '#666', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: saveState === 'saving' ? 'default' : 'pointer', textTransform: 'uppercase', transition: 'all 0.2s' }}>
-                {saveState === 'saved' ? 'OBSERVATION LOGGED · SPECIMEN DATABASE UPDATED' : saveState === 'saving' ? 'LOGGING...' : existing?.confirmed_tree ? 'UPDATE OBSERVATION' : 'LOG OBSERVATION'}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  )
+  return null
 }
