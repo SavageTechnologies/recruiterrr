@@ -107,6 +107,8 @@ export async function POST(req: NextRequest) {
       predicted_sub_imo_partner_id: body.predicted_sub_imo_partner_id,
       serp_debug: body.serp_debug,
       unresolved_upline: body.unresolved_upline,
+      david_facts: body.david_facts,
+
     })
     return NextResponse.json({ ok: true })
   }
