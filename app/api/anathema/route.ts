@@ -113,11 +113,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  // ─── CHECK EXISTING ───────────────────────────────────────────────────────
-  if (action === 'check_existing') {
-    const specimen = await checkExistingSpecimen(userId, body.agent_name, body.city, body.state)
-    return NextResponse.json({ specimen })
-  }
+    // ─── SAVE DAVID FACTS ─────────────────────────────────────────────────────
+      if (action === 'save_david_facts') {
+        if (body.david_facts) {
+          const { supabase } = await import('@/lib/supabase.server')
+          await supabase
+            .from('anathema_specimens')
+            .update({ david_facts: body.david_facts })
+            .eq('clerk_id', userId)
+            .eq('agent_name', body.agent_name)
+            .eq('city', body.city)
+            .eq('state', body.state)
+        }
+        return NextResponse.json({ ok: true })
+      }
+
+      // ─── CHECK EXISTING ───────────────────────────────────────────────────────
+      if (action === 'check_existing') {
+        const specimen = await checkExistingSpecimen(userId, body.agent_name, body.city, body.state)
+        return NextResponse.json({ specimen })
+      }
 
   // ─── RUN SCAN ─────────────────────────────────────────────────────────────
   const { agent } = body
