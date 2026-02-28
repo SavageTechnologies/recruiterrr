@@ -59,6 +59,11 @@ export async function GET(req: NextRequest) {
       upline:       upline,
       facts:        facts.length,
       highFacts:    facts.filter((f: { usability: string }) => f.usability === 'HIGH').length,
+      factsList:    facts.slice(0, 12).map((f: { fact: string; usability: string; source_type: string }) => ({
+        fact:     f.fact,
+        usability: f.usability,
+        source:   f.source_type,
+      })),
       hasFacebook:  !!s.facebook_profile_url,
       apifyEnriched: (s.david_facts?.scan_sources_used || []).some((src: string) =>
         src.startsWith('APIFY_')

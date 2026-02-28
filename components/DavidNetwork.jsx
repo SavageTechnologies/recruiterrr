@@ -305,38 +305,39 @@ export default function DavidNetwork() {
               </div>
             )}
 
+            {/* Facts list */}
             <div style={{ marginBottom:20 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                 <div style={{ ...mono, fontSize:7, color:"#1a1a1a", letterSpacing:3 }}>DAVID PROFILE</div>
-                <div style={{ ...mono, fontSize:7, color:"#2a2a2a", letterSpacing:2 }}>{selected.facts} FACTS{selected.highFacts > 0 ? ` · ${selected.highFacts} HIGH` : ""}</div>
+                <div style={{ display:"flex", gap:6 }}>
+                  {selected.hasFacebook && <span style={{ ...mono, fontSize:7, color:"#4fc3f7", border:"1px solid #4fc3f718", padding:"1px 6px", letterSpacing:1 }}>FB</span>}
+                  {selected.apifyEnriched && <span style={{ ...mono, fontSize:7, color:"#00e676", border:"1px solid #00e67618", padding:"1px 6px", letterSpacing:1 }}>DEEP</span>}
+                </div>
               </div>
-              {selected.facts === 0
-                ? <div style={{ ...mono, fontSize:8, color:"#1a1a1a", letterSpacing:1 }}>NO FACTS YET — RUN ANATHEMA SCAN</div>
-                : <div style={{ ...mono, fontSize:8, color:"#2a2a2a", letterSpacing:1, lineHeight:2 }}>
-                    Facts collected across {selected.apifyEnriched ? "deep + surface" : "surface"} scan layers.
-                    {selected.highFacts > 0 && <span style={{ color:"rgba(0,230,118,0.4)" }}> {selected.highFacts} recruiter-grade signals.</span>}
+              {!selected.factsList?.length
+                ? <div style={{ ...mono, fontSize:8, color:"#1a1a1a", letterSpacing:1, padding:"12px 0" }}>NO FACTS YET</div>
+                : <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
+                    {selected.factsList.map((f, i) => (
+                      <div key={i} style={{
+                        padding:"8px 10px",
+                        background: f.usability === "HIGH" ? "rgba(0,230,118,0.04)" : "#080808",
+                        borderLeft: `2px solid ${f.usability === "HIGH" ? "rgba(0,230,118,0.4)" : "#111"}`,
+                      }}>
+                        <div style={{ ...mono, fontSize:9, color: f.usability === "HIGH" ? "#ccc" : "#444", lineHeight:1.5 }}>{f.fact}</div>
+                        {f.source && <div style={{ ...mono, fontSize:7, color:"#1a1a1a", letterSpacing:1, marginTop:3 }}>{f.source}</div>}
+                      </div>
+                    ))}
                   </div>
               }
             </div>
 
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:24 }}>
-              {selected.hasFacebook && <span style={{ ...mono, fontSize:7, color:"#4fc3f7", border:"1px solid #4fc3f722", padding:"2px 8px", letterSpacing:1 }}>FACEBOOK</span>}
-              {selected.apifyEnriched && <span style={{ ...mono, fontSize:7, color:"#00e676", border:"1px solid #00e67622", padding:"2px 8px", letterSpacing:1 }}>DEEP SCAN</span>}
-              {selected.confidence > 0 && <span style={{ ...mono, fontSize:7, color:col.primary, border:`1px solid ${col.primary}22`, padding:"2px 8px", letterSpacing:1 }}>ANATHEMA</span>}
-            </div>
-
-            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-              <a href={`/dashboard/anathema?agent=${encodeURIComponent(selected.name)}&city=${encodeURIComponent(selected.city)}&state=${encodeURIComponent(selected.state)}`}
-                style={{ ...mono, fontSize:9, letterSpacing:2, padding:"10px 16px", background:"transparent", border:`1px solid ${col.primary}`, color:col.primary, cursor:"pointer", textDecoration:"none", display:"block" }}>
-                OPEN IN ANATHEMA →
-              </a>
-              <button onClick={() => {
-                const brief = `${selected.name} · ${selected.city}, ${selected.state}\nTree: ${selected.tree}${selected.confidence ? ` (${selected.confidence}%)` : ""}\n${selected.upline ? `Upline: ${selected.upline}\n` : ""}David facts: ${selected.facts}${selected.highFacts > 0 ? ` (${selected.highFacts} high-value)` : ""}`
-                navigator.clipboard?.writeText(brief)
-              }} style={{ ...mono, fontSize:9, letterSpacing:2, padding:"10px 16px", background:"transparent", border:"1px solid #1a1a1a", color:"#2a2a2a", cursor:"pointer", textAlign:"left" }}>
-                COPY OUTREACH BRIEF
-              </button>
-            </div>
+            <button onClick={() => {
+              const factLines = (selected.factsList || []).map(f => `· ${f.fact}`).join("\n")
+              const brief = `${selected.name} · ${selected.city}, ${selected.state}\nTree: ${selected.tree}${selected.confidence ? ` (${selected.confidence}%)` : ""}\n${selected.upline ? `Upline: ${selected.upline}\n` : ""}\n${factLines}`
+              navigator.clipboard?.writeText(brief)
+            }} style={{ ...mono, fontSize:9, letterSpacing:2, padding:"10px 16px", width:"100%", background:"transparent", border:"1px solid #1a1a1a", color:"#2a2a2a", cursor:"pointer", textAlign:"left" }}>
+              COPY OUTREACH BRIEF
+            </button>
           </div>
         )}
       </div>
