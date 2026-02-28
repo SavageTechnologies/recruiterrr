@@ -213,6 +213,7 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
   const [recruiterNotes, setRecruiterNotes] = useState(cachedResult?.recruiterNotes || '')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [checkDone, setCheckDone] = useState(!!cachedResult)
+  const [davidFacts, setDavidFacts] = useState<any>(cachedResult?.davidFacts || null)
 
   useEffect(() => {
     if (!cachedResult) {
@@ -289,6 +290,7 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setResult(data)
+      setDavidFacts(data.david_facts || null)
       setScanState('done')
       const si = data.predicted_sub_imo && !subImo ? data.predicted_sub_imo : subImo
       if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
@@ -327,6 +329,7 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
           confirmed_tree_other: confirmedOther || null,
           confirmed_sub_imo: subImo || null,
           recruiter_notes: recruiterNotes || null,
+          david_facts: davidFacts,
         }),
       })
       setSaveState('saved')
