@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
     const q1 = `"${agent.name}" insurance ${agent.city || ''} ${agent.state || ''}`
     const res1 = await fetch(
       `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q1)}&num=8&api_key=${serpKey}`,
-      { signal: AbortSignal.timeout(6000) }
+      { signal: AbortSignal.timeout(12000) }
     )
     if (res1.ok) {
       const data1 = await res1.json()
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
     const q2 = `"${agent.name}" FMO OR IMO OR "insurance agent" OR "appointed" OR "contracted"`
     const res2 = await fetch(
       `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q2)}&num=8&api_key=${serpKey}`,
-      { signal: AbortSignal.timeout(6000) }
+      { signal: AbortSignal.timeout(12000) }
     )
     if (res2.ok) {
       const data2 = await res2.json()
@@ -239,6 +239,15 @@ export async function POST(req: NextRequest) {
   }
 
   // ── SERP Pass 3: Facebook ───────────────────────────────────────────────
+  // Check agent.social_links first — website crawl already found FB URL for
+  // many agents. Use it as a seed so Apify fires even when SerpAPI FB fails.
+  const socialFbUrl = (agent.social_links || []).find((l: string) =>
+    l.includes('facebook.com') &&
+    !l.includes('facebook.com/sharer') &&
+    !l.includes('facebook.com/share')
+  ) || null
+  if (socialFbUrl) facebookProfileUrl = socialFbUrl
+
   const { result: fbResult, searchResults: fbSearchResults } = await fetchFacebookProfile(agent.name, serpKey!)
 
   serpDebug.push({
@@ -253,7 +262,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (fbResult) {
-    facebookProfileUrl = fbResult.profileUrl
+    facebookProfileUrl = fbResult.profileUrl  // SerpAPI result wins if found
     facebookAbout = fbResult.about || fbResult.postText.slice(0, 500)
     facebookPostText = fbResult.allText
 
