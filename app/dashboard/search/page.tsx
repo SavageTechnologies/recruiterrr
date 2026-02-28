@@ -14,37 +14,52 @@ const SEARCH_TIPS = [
 ]
 
 const MODES = [
-  { value: 'all', label: 'All Lines', desc: 'Widest net — every insurance agent' },
-  { value: 'medicare', label: 'Medicare / Senior', desc: 'Medicare Advantage, Supplement, PDP' },
-  { value: 'life', label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
-  { value: 'aca', label: 'ACA / Health', desc: 'Marketplace, group health, ACA brokers' },
+  { value: 'medicare',   label: 'Medicare / Senior',    desc: 'Medicare Advantage, Supplement, PDP' },
+  { value: 'life',       label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
+  { value: 'aca',        label: 'ACA / Health',         desc: 'Marketplace, group health, ACA brokers' },
+  { value: 'annuities',  label: 'Annuities',            desc: 'Fixed indexed, MYGA, retirement income' },
+  { value: 'financial',  label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
 ]
 
 type CitySuggestion = { city: string; state: string; label: string }
 
-const SEARCH_TERMS = [
-  { term: 'Medicare supplement agent', category: 'Medicare' },
-  { term: 'Medicare advantage broker', category: 'Medicare' },
-  { term: 'Medicare insurance agent', category: 'Medicare' },
-  { term: 'Medigap broker', category: 'Medicare' },
-  { term: 'Senior health insurance agent', category: 'Medicare' },
-  { term: 'Medicare PDP agent', category: 'Medicare' },
-  { term: 'Final expense insurance agent', category: 'Life' },
-  { term: 'Life insurance agent', category: 'Life' },
-  { term: 'Term life insurance broker', category: 'Life' },
-  { term: 'Whole life insurance agent', category: 'Life' },
-  { term: 'Burial insurance agent', category: 'Life' },
-  { term: 'Independent life insurance broker', category: 'Life' },
-  { term: 'ACA marketplace broker', category: 'Health' },
-  { term: 'Health insurance agent', category: 'Health' },
-  { term: 'Marketplace insurance agent', category: 'Health' },
-  { term: 'Group health insurance broker', category: 'Health' },
-  { term: 'Small business health insurance broker', category: 'Health' },
-  { term: 'Independent insurance agent', category: 'Independent' },
-  { term: 'Independent insurance broker', category: 'Independent' },
-  { term: 'Multi-line insurance agent', category: 'Independent' },
-  { term: 'Insurance agency', category: 'Independent' },
-]
+const SEARCH_TERMS: Record<string, { term: string; category: string }[]> = {
+  medicare: [
+    { term: 'Medicare supplement agent', category: 'Medicare' },
+    { term: 'Medicare advantage broker', category: 'Medicare' },
+    { term: 'Medicare insurance agent', category: 'Medicare' },
+    { term: 'Medigap broker', category: 'Medicare' },
+    { term: 'Senior health insurance agent', category: 'Medicare' },
+  ],
+  life: [
+    { term: 'Final expense insurance agent', category: 'Life' },
+    { term: 'Life insurance agent', category: 'Life' },
+    { term: 'Term life insurance broker', category: 'Life' },
+    { term: 'Burial insurance agent', category: 'Life' },
+    { term: 'Independent life insurance broker', category: 'Life' },
+  ],
+  aca: [
+    { term: 'ACA marketplace broker', category: 'Health' },
+    { term: 'Health insurance agent', category: 'Health' },
+    { term: 'Marketplace insurance agent', category: 'Health' },
+    { term: 'Group health insurance broker', category: 'Health' },
+    { term: 'Individual health insurance broker', category: 'Health' },
+  ],
+  annuities: [
+    { term: 'Annuity agent', category: 'Annuities' },
+    { term: 'Fixed indexed annuity broker', category: 'Annuities' },
+    { term: 'Retirement income advisor', category: 'Annuities' },
+    { term: 'MYGA broker', category: 'Annuities' },
+    { term: 'Independent annuity agent', category: 'Annuities' },
+  ],
+  financial: [
+    { term: 'Independent financial advisor', category: 'Financial' },
+    { term: 'Wealth management advisor', category: 'Financial' },
+    { term: 'Retirement planning advisor', category: 'Financial' },
+    { term: 'Financial planner', category: 'Financial' },
+    { term: 'CFP advisor', category: 'Financial' },
+  ],
+}
 
 type Agent = {
   name: string; type: string; phone: string; address: string
@@ -307,7 +322,7 @@ function SearchPageInner() {
   const [city, setCity] = useState('')
   const [state, setState] = useState('KS')
   const [limit, setLimit] = useState(10)
-  const [mode, setMode] = useState('all')
+  const [mode, setMode] = useState('')
   const [loading, setLoading] = useState(false)
   const [currentStep, setCurrentStep] = useState(-1)
   const [agents, setAgents] = useState<Agent[]>([])
@@ -315,7 +330,7 @@ function SearchPageInner() {
   const [searchLabel, setSearchLabel] = useState('')
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
-  const [querySuggestions, setQuerySuggestions] = useState<typeof SEARCH_TERMS>([])
+  const [querySuggestions, setQuerySuggestions] = useState<{ term: string; category: string }[]>([])
   const [showQuerySuggestions, setShowQuerySuggestions] = useState(false)
   const queryRef = useRef<HTMLDivElement>(null)
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([])
@@ -400,12 +415,13 @@ function SearchPageInner() {
   function handleQueryChange(val: string) {
     setQuery(val)
     if (val.length === 0) {
-      setQuerySuggestions(SEARCH_TERMS.slice(0, 8))
+      setQuerySuggestions(mode ? (SEARCH_TERMS[mode] || []).slice(0, 6) : [])
       setShowQuerySuggestions(true)
       return
     }
     const lower = val.toLowerCase()
-    const filtered = SEARCH_TERMS.filter(t => t.term.toLowerCase().includes(lower) || t.category.toLowerCase().includes(lower))
+    const terms = mode ? (SEARCH_TERMS[mode] || []) : Object.values(SEARCH_TERMS).flat()
+    const filtered = terms.filter(t => t.term.toLowerCase().includes(lower) || t.category.toLowerCase().includes(lower))
     setQuerySuggestions(filtered.slice(0, 8))
     setShowQuerySuggestions(filtered.length > 0)
   }
@@ -453,7 +469,7 @@ function SearchPageInner() {
   async function runSearch(overrideCity?: string, overrideState?: string) {
     const searchCity = overrideCity || city
     const searchState = overrideState || state
-    if (!searchCity.trim()) return
+    if (!searchCity.trim() || !mode) return
     setLoading(true)
     setSearched(false)
     setAgents([])
@@ -535,7 +551,7 @@ function SearchPageInner() {
               <input
                 value={query}
                 onChange={e => handleQueryChange(e.target.value)}
-                onFocus={() => { setQuerySuggestions(query.length === 0 ? SEARCH_TERMS.slice(0, 8) : querySuggestions); setShowQuerySuggestions(true) }}
+                onFocus={() => { setQuerySuggestions(query.length === 0 ? (mode ? (SEARCH_TERMS[mode] || []).slice(0, 6) : []) : querySuggestions); setShowQuerySuggestions(true) }}
                 onKeyDown={e => { if (e.key === 'Enter') { setShowQuerySuggestions(false); runSearch() } if (e.key === 'Escape') setShowQuerySuggestions(false) }}
                 placeholder="Search agents, specialties..."
                 disabled={loading}
@@ -558,8 +574,9 @@ function SearchPageInner() {
             </div>
 
             <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
-            <select value={mode} onChange={e => setMode(e.target.value)} disabled={loading}
-              style={{ width: 150, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0 }}>
+            <select value={mode} onChange={e => { setMode(e.target.value); setQuery('') }} disabled={loading}
+              style={{ width: 170, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: mode ? 'var(--orange)' : 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0 }}>
+              <option value="" disabled>SELECT LINE ▾</option>
               {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
 
@@ -607,7 +624,7 @@ function SearchPageInner() {
               <option value={10}>10</option><option value={20}>20</option><option value={30}>30</option><option value={40}>40</option><option value={50}>50</option>
             </select>
 
-            <button onClick={() => runSearch()} disabled={loading || !city.trim()}
+            <button onClick={() => runSearch()} disabled={loading || !city.trim() || !mode}
               style={{ padding: '18px 32px', background: loading ? '#333' : 'var(--orange)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
               {loading ? 'SCANNING...' : 'SEARCH'}
             </button>
@@ -615,7 +632,7 @@ function SearchPageInner() {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 1 }}>
-              RESULTS: {limit} agents · {MODES.find(m => m.value === mode)?.desc} · job posting + youtube enrichment
+              {mode ? `${limit} agents · ${MODES.find(m => m.value === mode)?.desc} · job posting + youtube enrichment` : 'SELECT A LINE TO SEARCH'}
             </div>
           </div>
         </>

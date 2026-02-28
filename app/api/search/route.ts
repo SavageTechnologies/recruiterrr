@@ -41,26 +41,37 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
     base.push(`${prefix} broker ${cityPrefix}`)
     base.push(`${prefix} independent agent ${cityPrefix}`)
   } else {
-    if (mode === 'medicare' || mode === 'all') {
+    if (mode === 'medicare') {
       base.push(`Medicare insurance agent ${cityPrefix}`)
       base.push(`Medicare supplement broker ${cityPrefix}`)
       base.push(`Medicare advantage agent ${cityPrefix}`)
       base.push(`senior health insurance agent ${cityPrefix}`)
-      base.push(`senior insurance broker ${cityPrefix}`)
     }
-    if (mode === 'life' || mode === 'all') {
+    if (mode === 'life') {
       base.push(`life insurance agent ${cityPrefix}`)
       base.push(`final expense insurance agent ${cityPrefix}`)
       base.push(`term life insurance broker ${cityPrefix}`)
+      base.push(`burial insurance agent ${cityPrefix}`)
     }
-    if (mode === 'aca' || mode === 'all') {
+    if (mode === 'aca') {
       base.push(`health insurance agent ${cityPrefix}`)
       base.push(`ACA marketplace broker ${cityPrefix}`)
       base.push(`marketplace insurance agent ${cityPrefix}`)
+      base.push(`individual health insurance broker ${cityPrefix}`)
     }
-    if (mode === 'all') {
-      base.push(`independent insurance agent ${cityPrefix}`)
-      base.push(`insurance broker ${cityPrefix}`)
+    if (mode === 'annuities') {
+      base.push(`annuity agent ${cityPrefix}`)
+      base.push(`annuity advisor ${cityPrefix}`)
+      base.push(`fixed indexed annuity broker ${cityPrefix}`)
+      base.push(`retirement income advisor ${cityPrefix}`)
+      base.push(`independent annuity agent ${cityPrefix}`)
+    }
+    if (mode === 'financial') {
+      base.push(`financial advisor ${cityPrefix}`)
+      base.push(`independent financial advisor ${cityPrefix}`)
+      base.push(`wealth management advisor ${cityPrefix}`)
+      base.push(`financial planner ${cityPrefix}`)
+      base.push(`retirement planning advisor ${cityPrefix}`)
     }
   }
 
@@ -388,7 +399,16 @@ async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: bool
   const rating = raw.rating || 0
   const hasWebsite = !!raw.website
 
-  const prompt = `You are an expert Medicare insurance industry analyst helping FMO recruiters identify recruitable independent agents.
+  const modeContext: Record<string, { analyst: string; keywords: string[]; captive: string[]; signals: string }> = {
+    medicare:   { analyst: 'Medicare/senior insurance', keywords: ['Medicare','Senior','Supplement','Advantage','Medigap','PDP'], captive: ['Bankers Life','State Farm','Farmers','Allstate','GEICO','New York Life','Northwestern'], signals: 'Medicare, Supplement, Advantage, Senior, Medigap = strong positive' },
+    life:       { analyst: 'life and final expense insurance', keywords: ['Life','Final Expense','Burial','Legacy','Family Protection','Term','Whole Life'], captive: ['New York Life','Northwestern','Mass Mutual','Bankers Life','Globe Life'], signals: 'Final Expense, Burial, Life, Legacy, Family = strong positive' },
+    aca:        { analyst: 'ACA and individual health insurance', keywords: ['Health','ACA','Marketplace','Benefits','Group','Individual'], captive: ['Oscar','Molina','Centene'], signals: 'Health, Marketplace, ACA, Benefits = strong positive' },
+    annuities:  { analyst: 'annuity and retirement income', keywords: ['Annuity','Retirement','Fixed Indexed','MYGA','Income','Wealth','Estate'], captive: ['Edward Jones','Ameriprise','Raymond James'], signals: 'Annuity, Retirement Income, Fixed Indexed, Wealth, Estate Planning = strong positive' },
+    financial:  { analyst: 'financial advisory and wealth management', keywords: ['Financial','Wealth','Retirement','Planning','Investment','Advisor','CFP'], captive: ['Edward Jones','Ameriprise','Raymond James','Merrill','Morgan Stanley','Wells Fargo Advisors'], signals: 'Financial Advisor, Wealth Management, CFP, Retirement Planning, Investment = strong positive' },
+  }
+  const ctx = modeContext[mode] || modeContext['medicare']
+
+  const prompt = `You are an expert ${ctx.analyst} industry analyst helping FMO/IMO recruiters identify recruitable independent agents.
 
 GOOGLE LISTING DATA:
 Name: ${name}
@@ -407,35 +427,30 @@ JOB POSTINGS:
 ${jobData.hiring ? `ACTIVELY HIRING — Roles: ${jobData.roles.join(', ')}` : 'No active job postings found'}
 
 YOUTUBE PRESENCE:
-${ytData.channel ? `HAS YOUTUBE CHANNEL — ${ytData.subscribers || 'unknown subscribers'}, ${ytData.videoCount} Medicare-related video(s) found` : 'No YouTube presence found'}
+${ytData.channel ? `HAS YOUTUBE CHANNEL — ${ytData.subscribers || 'unknown subscribers'}, ${ytData.videoCount} video(s) found` : 'No YouTube presence found'}
 
-SEARCH MODE: ${mode.toUpperCase()}
+SEARCH LINE: ${mode.toUpperCase()}
 
 SCORING RULES:
-1. NAME is primary signal — look for focus keywords matching the search mode:
-   - Medicare/Senior mode: "Medicare","Senior","Supplement","Advantage" = strong positive
-   - Life/Final Expense mode: "Life","Final Expense","Burial","Legacy","Family" = strong positive
-   - ACA/Health mode: "Health","Benefits","Marketplace","Group","ACA" = strong positive
-   - All Lines mode: any insurance focus keyword = positive
+1. NAME / DESCRIPTION is primary signal — focus keywords for this line:
+   ${ctx.signals}
 2. Reviews: 50+=established, 100+=well-established, 200+=dominant
 3. High reviews + no website = strong referral-based independent, do NOT penalize
-4. CAPTIVE (score 15-35): "Bankers Life","State Farm","Farmers","Allstate","GEICO","New York Life","Northwestern" in name
+4. CAPTIVE (score 15-35): ${ctx.captive.join(', ')} in name/description
 5. INDEPENDENT (score 65-95): multiple carriers, "independent" in description, broker language
 6. ACTIVELY HIRING for agents = +5 to +10 points
-7. HAS YOUTUBE with relevant insurance content = +5 points
+7. HAS YOUTUBE with relevant content = +5 points
 8. HOT=75+, WARM=50-74, COLD=0-49
-
-Using the ABOUT PAGE and CONTACT PAGE content, extract a concise company description and any contact details.
 
 Return ONLY valid JSON:
 {
-  "carriers": ["array"],
+  "carriers": ["array of carriers/products identified"],
   "captive": boolean,
   "years": number or null,
   "score": 0-100,
   "flag": "hot"|"warm"|"cold",
-  "notes": "2-3 sentences with specific data points including job/youtube signals if present",
-  "about": "1-2 sentence plain-English summary of who this agency is and what they focus on, drawn from their About page. null if no about content found.",
+  "notes": "2-3 sentences with specific data points",
+  "about": "1-2 sentence plain-English summary of who this agency is. null if no about content found.",
   "contact_email": "primary contact email if found on website, else null"
 }`
 
@@ -467,13 +482,29 @@ Return ONLY valid JSON:
     }
   } catch {
     const nl = name.toLowerCase()
-    const isMedicare = nl.includes('medicare') || nl.includes('senior') || nl.includes('health')
-    const isCaptive = ['bankers life', 'state farm', 'farmers', 'allstate'].some(c => nl.includes(c))
+    const modeKeywords: Record<string, string[]> = {
+      medicare:  ['medicare','senior','supplement','advantage','medigap'],
+      life:      ['life','final expense','burial','legacy','term','whole life'],
+      aca:       ['health','aca','marketplace','benefits','group'],
+      annuities: ['annuity','annuities','retirement','indexed','myga','income'],
+      financial: ['financial','wealth','planning','advisor','investment','cfp'],
+    }
+    const modeCapt: Record<string, string[]> = {
+      medicare:  ['bankers life','state farm','farmers','allstate'],
+      life:      ['new york life','northwestern','mass mutual','globe life'],
+      aca:       ['oscar','molina'],
+      annuities: ['edward jones','ameriprise','raymond james'],
+      financial: ['edward jones','ameriprise','raymond james','merrill','morgan stanley'],
+    }
+    const keywords = modeKeywords[mode] || modeKeywords['medicare']
+    const captiveNames = modeCapt[mode] || modeCapt['medicare']
+    const isMatch = keywords.some(k => nl.includes(k))
+    const isCaptive = captiveNames.some(c => nl.includes(c))
     let score = 45
     if (isCaptive) score = 25
-    else if (isMedicare && reviews >= 100) score = 70
-    else if (isMedicare && reviews >= 50) score = 62
-    else if (isMedicare) score = 55
+    else if (isMatch && reviews >= 100) score = 70
+    else if (isMatch && reviews >= 50) score = 62
+    else if (isMatch) score = 55
     else if (reviews >= 100) score = 60
     else if (hasWebsite) score = 52
     if (jobData.hiring) score = Math.min(100, score + 7)

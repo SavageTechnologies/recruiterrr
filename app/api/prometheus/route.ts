@@ -268,10 +268,19 @@ async function crawlFMOSite(baseUrl: string): Promise<{ pages: Record<string, st
   // Merge: sitemap + nav first. Only use fallback if we discovered nothing real.
   const discoveredSlugs = [...new Set([...sitemapSlugs, ...navSlugs])]
   const useFallback = discoveredSlugs.length < 3
+  // Slugs to never crawl — auth pages, CMS internals, CDN, sitemaps, feeds
+  const SKIP_PATTERNS = [
+    /wp-login/, /wp-admin/, /wp-json/, /wp-content/, /wp-includes/,
+    /cdn-cgi/, /email-protection/, /sitemap/, /\.xml$/, /feed\//,
+    /login/, /admin/, /dashboard/, /privacy-policy/, /terms/, /cookie/,
+    /author\//, /tag\//, /category\//, /page\/\d/, /\?/, /#/,
+  ]
+
   const allSlugs = [...new Set([...discoveredSlugs, ...(useFallback ? SLUG_FALLBACK : [])])]
     .filter(s => s !== '/' && !foundPages.includes(s))
+    .filter(s => !SKIP_PATTERNS.some(p => p.test(s)))
     .sort((a, b) => scoreSlug(b) - scoreSlug(a))
-    .slice(0, 30) // Cap candidates to avoid hammering
+    .slice(0, 30)
 
   // Step 3: Crawl candidates in parallel batches of 4
   const BATCH = 4
