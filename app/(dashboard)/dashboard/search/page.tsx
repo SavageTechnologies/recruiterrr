@@ -7,10 +7,10 @@ const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL'
 
 const MODES = [
   { value: 'medicare',  label: 'Medicare / Senior',    desc: 'Medicare Advantage, Supplement, PDP' },
-  // { value: 'life',      label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
-  // { value: 'aca',       label: 'ACA / Health',         desc: 'Marketplace, group health, ACA brokers' },
-  // { value: 'annuities', label: 'Annuities',            desc: 'Fixed indexed, MYGA, retirement income' },
-  // { value: 'financial', label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
+  { value: 'life',      label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
+  { value: 'aca',       label: 'ACA / Health',         desc: 'Marketplace, group health, ACA brokers' },
+  { value: 'annuities', label: 'Annuities',            desc: 'Fixed indexed, MYGA, retirement income' },
+  { value: 'financial', label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
 ]
 
 const SEARCH_TIPS = [
