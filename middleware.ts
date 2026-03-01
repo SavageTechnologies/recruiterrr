@@ -1,18 +1,8 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { hasFullAccess } from '@/lib/auth/access'
 
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)'])
-
-// ─── BYPASS LISTS ─────────────────────────────────────────────────────────────
-// ADMINS — full access, bypasses everything
-const ADMIN_IDS = new Set([
-  'user_3A96smOMHMC9L7fO8cGG6OmpHkV', // Aaron
-])
-
-// COMPED — free dashboard access, no Stripe required
-const COMPED_IDS = new Set([
-  'user_3AAZKXJCBWeaThUCwKpX6MPzz7I', // Drew
-])
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isProtectedRoute(req)) return NextResponse.next()
@@ -21,7 +11,7 @@ export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth.protect()
 
   // Admins and comped users — pass straight through
-  if (ADMIN_IDS.has(userId) || COMPED_IDS.has(userId)) {
+  if (hasFullAccess(userId)) {
     return NextResponse.next()
   }
 

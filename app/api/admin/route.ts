@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase.server'
-
-// ─── ADMIN CLERK IDS ──────────────────────────────────────────────────────────
-// Add your Clerk user ID here to grant admin access.
-// Find it in Clerk dashboard → Users → click your user → copy the ID.
-const ADMIN_IDS = new Set([
-  'user_3A96smOMHMC9L7fO8cGG6OmpHkV', // Aaron
-])
+import { isAdmin } from '@/lib/auth/access'
 
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!ADMIN_IDS.has(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isAdmin(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const now = new Date()
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
