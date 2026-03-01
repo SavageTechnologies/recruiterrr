@@ -19,42 +19,13 @@ export default function DashboardLayout({
         }}>
           RECRUITERRR<span style={{ color: 'var(--orange)' }}>.</span>
         </Link>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <Link href="/dashboard" style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 11,
-            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
-          }}>
-            Dashboard
-          </Link>
           <Link href="/dashboard/search" style={{
             fontFamily: "'DM Mono', monospace", fontSize: 11,
             color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
           }}>
             Search
-          </Link>
-          <Link href="/dashboard/prometheus" style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 11,
-            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
-          }}>
-            Prometheus
-          </Link>
-          <Link href="/dashboard/anathema" style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 11,
-            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
-          }}>
-            Anathema
-          </Link>
-          <Link href="/dashboard/database" style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 11,
-            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
-          }}>
-            Database
-          </Link>
-          <Link href="/dashboard/david" style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 11,
-            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
-          }}>
-            David
           </Link>
           <UserButton
             afterSignOutUrl="/"
