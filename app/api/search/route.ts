@@ -596,9 +596,9 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(15, '1 h'), analytics: true })
-  // const { success, limit, reset } = await ratelimit.limit(userId)
-  // if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
+  const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(15, '1 h'), analytics: true })
+  const { success, limit, reset } = await ratelimit.limit(userId)
+  if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
 
   try {
     const { city, state, limit: resultLimit = 10, mode = 'all', query = '' } = await req.json()
