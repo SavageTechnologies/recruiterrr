@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps'
-import PageNav from '@/components/layout/PageNav'
+
 import PageFooter from '@/components/layout/PageFooter'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
@@ -122,7 +122,6 @@ export default function AnathemaPublicMap() {
 
   return (
     <div style={{ background: C.black, minHeight: '100vh', color: C.white }}>
-      <PageNav />
 
       {/* ── HERO HEADER ── */}
       <section style={{ padding: '64px 40px 40px', borderBottom: `1px solid ${C.border}` }}>
