@@ -53,12 +53,6 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
       base.push(`term life insurance broker ${cityPrefix}`)
       base.push(`burial insurance agent ${cityPrefix}`)
     }
-    if (mode === 'aca') {
-      base.push(`health insurance agent ${cityPrefix}`)
-      base.push(`ACA marketplace broker ${cityPrefix}`)
-      base.push(`marketplace insurance agent ${cityPrefix}`)
-      base.push(`individual health insurance broker ${cityPrefix}`)
-    }
     if (mode === 'annuities') {
       base.push(`annuity agent ${cityPrefix}`)
       base.push(`annuity advisor ${cityPrefix}`)
@@ -291,9 +285,16 @@ async function fetchWebsiteText(rawUrl: string): Promise<WebsiteIntel> {
   } catch { return empty }
 }
 
-async function fetchJobPostings(name: string, city: string, state: string): Promise<{ hiring: boolean; roles: string[] }> {
+async function fetchJobPostings(name: string, city: string, state: string, mode: string = 'medicare'): Promise<{ hiring: boolean; roles: string[] }> {
+  const modeJobTerms: Record<string, string> = {
+    medicare:  'insurance agent',
+    life:      'insurance agent',
+    annuities: 'financial advisor',
+    financial: 'financial advisor',
+  }
+  const jobTerm = modeJobTerms[mode] || 'insurance agent'
   try {
-    const q = `"${name}" insurance agent ${city} ${state}`
+    const q = `"${name}" ${jobTerm} ${city} ${state}`
     const url = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(q)}&location=${encodeURIComponent(`${city}, ${state}`)}&api_key=${process.env.SERPAPI_KEY}`
     const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
     if (!res.ok) return { hiring: false, roles: [] }
@@ -392,7 +393,7 @@ async function fetchYouTube(name: string): Promise<{ channel: string | null; sub
   } catch { return { channel: null, subscribers: null, videoCount: 0 } }
 }
 
-async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: boolean; roles: string[] }, ytData: { channel: string | null; subscribers: string | null; videoCount: number }, mode: string = 'all'): Promise<AgentResult> {
+async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: boolean; roles: string[] }, ytData: { channel: string | null; subscribers: string | null; videoCount: number }, mode: string = 'medicare'): Promise<AgentResult> {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const name = raw.title || 'Unknown'
   const type = raw.type || ''
@@ -400,10 +401,16 @@ async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: bool
   const rating = raw.rating || 0
   const hasWebsite = !!raw.website
 
+  const modeTypeFallback: Record<string, string> = {
+    medicare:  'Insurance Agency',
+    life:      'Insurance Agency',
+    annuities: 'Financial Services',
+    financial: 'Financial Advisory',
+  }
+
   const modeContext: Record<string, { analyst: string; keywords: string[]; captive: string[]; signals: string }> = {
     medicare:   { analyst: 'Medicare/senior insurance', keywords: ['Medicare','Senior','Supplement','Advantage','Medigap','PDP'], captive: ['Bankers Life','State Farm','Farmers','Allstate','GEICO','New York Life','Northwestern'], signals: 'Medicare, Supplement, Advantage, Senior, Medigap = strong positive' },
     life:       { analyst: 'life and final expense insurance', keywords: ['Life','Final Expense','Burial','Legacy','Family Protection','Term','Whole Life'], captive: ['New York Life','Northwestern','Mass Mutual','Bankers Life','Globe Life'], signals: 'Final Expense, Burial, Life, Legacy, Family = strong positive' },
-    aca:        { analyst: 'ACA and individual health insurance', keywords: ['Health','ACA','Marketplace','Benefits','Group','Individual'], captive: ['Oscar','Molina','Centene'], signals: 'Health, Marketplace, ACA, Benefits = strong positive' },
     annuities:  { analyst: 'annuity and retirement income', keywords: ['Annuity','Retirement','Fixed Indexed','MYGA','Income','Wealth','Estate'], captive: ['Edward Jones','Ameriprise','Raymond James'], signals: 'Annuity, Retirement Income, Fixed Indexed, Wealth, Estate Planning = strong positive' },
     financial:  { analyst: 'financial advisory and wealth management', keywords: ['Financial','Wealth','Retirement','Planning','Investment','Advisor','CFP'], captive: ['Edward Jones','Ameriprise','Raymond James','Merrill','Morgan Stanley','Wells Fargo Advisors'], signals: 'Financial Advisor, Wealth Management, CFP, Retirement Planning, Investment = strong positive' },
   }
@@ -466,7 +473,7 @@ Return ONLY valid JSON:
     if (!jsonMatch) throw new Error('No JSON')
     const parsed = JSON.parse(jsonMatch[0])
     return {
-      name, type: type || 'Insurance Agency',
+      name, type: type || modeTypeFallback[mode] || 'Insurance Agency',
       phone: raw.phone || '', address: raw.address || '',
       rating, reviews, website: raw.website || null,
       carriers: parsed.carriers || ['Unknown'],
@@ -486,14 +493,12 @@ Return ONLY valid JSON:
     const modeKeywords: Record<string, string[]> = {
       medicare:  ['medicare','senior','supplement','advantage','medigap'],
       life:      ['life','final expense','burial','legacy','term','whole life'],
-      aca:       ['health','aca','marketplace','benefits','group'],
       annuities: ['annuity','annuities','retirement','indexed','myga','income'],
       financial: ['financial','wealth','planning','advisor','investment','cfp'],
     }
     const modeCapt: Record<string, string[]> = {
       medicare:  ['bankers life','state farm','farmers','allstate'],
       life:      ['new york life','northwestern','mass mutual','globe life'],
-      aca:       ['oscar','molina'],
       annuities: ['edward jones','ameriprise','raymond james'],
       financial: ['edward jones','ameriprise','raymond james','merrill','morgan stanley'],
     }
@@ -511,7 +516,7 @@ Return ONLY valid JSON:
     if (jobData.hiring) score = Math.min(100, score + 7)
     if (ytData.channel) score = Math.min(100, score + 5)
     return {
-      name, type: type || 'Insurance Agency',
+      name, type: type || modeTypeFallback[mode] || 'Insurance Agency',
       phone: raw.phone || '', address: raw.address || '',
       rating, reviews, website: raw.website || null,
       carriers: ['Unknown'], captive: isCaptive, years: null, score,
@@ -596,12 +601,12 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(15, '1 h'), analytics: true })
-  const { success, limit, reset } = await ratelimit.limit(userId)
-  if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
+  // const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(15, '1 h'), analytics: true })
+  // const { success, limit, reset } = await ratelimit.limit(userId)
+  // if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
 
   try {
-    const { city, state, limit: resultLimit = 10, mode = 'all', query = '' } = await req.json()
+    const { city, state, limit: resultLimit = 10, mode = 'medicare', query = '' } = await req.json()
     if (!city || !state) return NextResponse.json({ error: 'City and state required' }, { status: 400 })
 
     const clampedLimit = Math.min(50, Math.max(10, Number(resultLimit)))
@@ -616,7 +621,7 @@ export async function POST(req: NextRequest) {
     const scored = await Promise.all(top.map(async (raw) => {
       const reviews = raw.reviews || 0
       const intel = raw.website ? await fetchWebsiteText(raw.website) : { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], youtubeLink: null, fullText: '' }
-      const jobData = await fetchJobPostings(raw.title, city, state)
+      const jobData = await fetchJobPostings(raw.title, city, state, mode)
       // YouTube priority:
       // YouTube strategy — strictest possible to avoid false attributions:
       // 1. Found a YouTube link on their own website → validate it via SerpAPI to confirm
