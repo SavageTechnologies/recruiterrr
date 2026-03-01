@@ -21,6 +21,12 @@ export default function DashboardLayout({
         </Link>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <Link href="/dashboard" style={{
+            fontFamily: "'DM Mono', monospace", fontSize: 11,
+            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+          }}>
+            Dashboard
+          </Link>
           <Link href="/dashboard/search" style={{
             fontFamily: "'DM Mono', monospace", fontSize: 11,
             color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',

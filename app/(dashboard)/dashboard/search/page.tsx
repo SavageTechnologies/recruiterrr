@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
-
 const MODES = [
   { value: 'medicare',  label: 'Medicare / Senior',    desc: 'Medicare Advantage, Supplement, PDP' },
   { value: 'life',      label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
@@ -37,7 +35,7 @@ type Agent = {
   about: string | null; contact_email: string | null; social_links: string[]
 }
 
-type CitySuggestion = { city: string; state: string; label: string }
+type CitySuggestion = { city: string; state: string; state_name: string; county: string; label: string }
 
 // ── Score circle ──────────────────────────────────────────────────────────────
 function ScoreCircle({ score, size = 52 }: { score: number; size?: number }) {
@@ -507,23 +505,16 @@ function SearchPageInner() {
                       onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2 }}>{s.state}</span>
+                      <div>
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
+                        {s.county && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 1, marginLeft: 8 }}>{s.county} CO.</span>}
+                      </div>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2, flexShrink: 0 }}>{s.state}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-
-            {/* State selector */}
-            <select
-              value={state}
-              onChange={e => setState(e.target.value)}
-              disabled={loading}
-              style={{ width: 72, padding: '18px 8px', background: 'transparent', border: 'none', borderLeft: '1px solid var(--border-light)', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, cursor: 'pointer', appearance: 'none', textAlign: 'center', flexShrink: 0 }}
-            >
-              {STATES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
 
             {/* Search button */}
             <button
