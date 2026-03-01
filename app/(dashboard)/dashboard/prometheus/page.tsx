@@ -152,11 +152,18 @@ function SerpEntry({ entry, fmoName, domain }: { entry: any; fmoName: string; do
   const hasResults = (entry.results || []).length > 0
   const label = QUERY_KEY_LABELS[entry.key] || entry.key.toUpperCase()
 
-  // Build search terms from fmo name and domain — split into tokens for flexible matching
+  // Build search terms from fmo name and domain — strip common industry stopwords so
+  // generic terms like "insurance" / "agency" don't match unrelated results
+  const STOPWORDS = new Set([
+    'insurance', 'agency', 'group', 'financial', 'services', 'associates',
+    'advisors', 'advisor', 'partners', 'health', 'life', 'medicare', 'benefits',
+    'solutions', 'general', 'national', 'american', 'united', 'independent',
+    'brokerage', 'broker', 'planning', 'management', 'consulting', 'and', 'the',
+  ])
   const matchTokens = [
-    ...fmoName.toLowerCase().split(/\s+/).filter(t => t.length > 2),
+    ...fmoName.toLowerCase().split(/\s+/).filter(t => t.length > 2 && !STOPWORDS.has(t)),
     ...(domain ? [domain.toLowerCase().replace(/^www\./, '').split('.')[0]] : []),
-  ]
+  ].filter(t => t.length > 2)
 
   function isRelevant(r: any) {
     const hay = `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`.toLowerCase()
