@@ -72,6 +72,21 @@ function ActivityBadge({ type }: { type: string }) {
   )
 }
 
+function ToolCard({ href, label, sub, color, stats }: { href: string; label: string; sub: string; color: string; stats: string }) {
+  return (
+    <a
+      href={href}
+      style={{ display: 'block', padding: '20px 24px', background: '#0e0e0e', border: `1px solid #222`, borderTop: `2px solid ${color}`, textDecoration: 'none', transition: 'border-color 0.15s' }}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = color)}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = '#222')}
+    >
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color, letterSpacing: 2, marginBottom: 4 }}>{label} →</div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 1, marginBottom: 10 }}>{sub}</div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>{stats}</div>
+    </a>
+  )
+}
+
 export default function AdminPage() {
   const [data, setData] = useState<{ global: GlobalStats; users: UserStat[]; recent_activity: ActivityItem[] } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -122,26 +137,61 @@ export default function AdminPage() {
             SYSTEM INTELLIGENCE · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}
           </div>
         </div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 2 }}>
-          ◈ LIVE
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 2 }}>◈ LIVE</div>
+      </div>
+
+      {/* ── TOOL LAUNCHER ── */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', letterSpacing: 2, marginBottom: 10 }}>
+          OWNER TOOLS — NOT VISIBLE TO USERS
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2 }}>
+          <ToolCard
+            href="/dashboard/search"
+            label="SEARCH"
+            sub="Agent market search"
+            color="#4fc3f7"
+            stats={`${g.total_searches} total · ${g.searches_today} today`}
+          />
+          <ToolCard
+            href="/dashboard/prometheus"
+            label="PROMETHEUS"
+            sub="FMO competitive intel"
+            color="#ff5500"
+            stats={`${g.total_prometheus} total runs`}
+          />
+          <ToolCard
+            href="/dashboard/anathema"
+            label="ANATHEMA"
+            sub="Distribution tree analysis"
+            color="#00e676"
+            stats={`${g.total_anathema} total · ${g.anathema_today} today`}
+          />
+          <ToolCard
+            href="/dashboard/database"
+            label="DATABASE"
+            sub="Agent profiles"
+            color="#a78bfa"
+            stats={`${g.total_profiles} profiles · ${g.profiles_with_anathema} with ANATHEMA`}
+          />
         </div>
       </div>
 
-      {/* Global stats grid */}
+      {/* ── GLOBAL STATS ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, marginBottom: 2 }}>
-        <StatBox label="Total Users" value={g.total_users} color="#f0ede8" />
-        <StatBox label="Total Searches" value={g.total_searches} sub={`${g.searches_today} today · ${g.searches_week} this week`} color="#4fc3f7" />
-        <StatBox label="ANATHEMA Scans" value={g.total_anathema} sub={`${g.anathema_today} today`} color="#00e676" />
-        <StatBox label="Prometheus Runs" value={g.total_prometheus} color="#ff5500" />
+        <StatBox label="Total Users"      value={g.total_users}      color="#f0ede8" />
+        <StatBox label="Total Searches"   value={g.total_searches}   sub={`${g.searches_today} today · ${g.searches_week} this week`} color="#4fc3f7" />
+        <StatBox label="ANATHEMA Scans"   value={g.total_anathema}   sub={`${g.anathema_today} today`} color="#00e676" />
+        <StatBox label="Prometheus Runs"  value={g.total_prometheus} color="#ff5500" />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, marginBottom: 28 }}>
-        <StatBox label="Agent Profiles" value={g.total_profiles} sub={`${g.profiles_with_anathema} with ANATHEMA`} color="#f0ede8" />
-        <StatBox label="Integrity" value={g.integrity_count} color="#00e676" />
-        <StatBox label="AmeriLife" value={g.amerilife_count} color="#4fc3f7" />
-        <StatBox label="SMS" value={g.sms_count} color="#ff5500" />
+        <StatBox label="Agent Profiles"   value={g.total_profiles}   sub={`${g.profiles_with_anathema} with ANATHEMA`} color="#f0ede8" />
+        <StatBox label="Integrity"        value={g.integrity_count}  color="#00e676" />
+        <StatBox label="AmeriLife"        value={g.amerilife_count}  color="#4fc3f7" />
+        <StatBox label="SMS"              value={g.sms_count}        color="#ff5500" />
       </div>
 
-      {/* Tree distribution bar */}
+      {/* ── TREE DISTRIBUTION BAR ── */}
       {totalAnathema > 0 && (
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 8 }}>
@@ -174,13 +224,12 @@ export default function AdminPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
 
-        {/* Users table */}
+        {/* ── USERS TABLE ── */}
         <div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2, marginBottom: 10 }}>
             USERS · {users.length}
           </div>
           <div style={{ border: '1px solid #1a1a1a' }}>
-            {/* Header */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 60px 60px 60px', gap: 12, padding: '8px 16px', borderBottom: '1px solid #1a1a1a' }}>
               {['USER', 'SEARCHES', 'ANATHEMA', 'PROMETHEUS', 'PROFILES'].map(h => (
                 <div key={h} style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 2 }}>{h}</div>
@@ -209,7 +258,9 @@ export default function AdminPage() {
                       </div>
                       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1 }}>
                         {u.name ? u.email : ''}
-                        {lastActive !== null ? ` · ${lastActive < 60 ? `${lastActive}m ago` : lastActive < 1440 ? `${Math.floor(lastActive / 60)}h ago` : `${Math.floor(lastActive / 1440)}d ago`}` : ' · never active'}
+                        {lastActive !== null
+                          ? ` · ${lastActive < 60 ? `${lastActive}m ago` : lastActive < 1440 ? `${Math.floor(lastActive / 60)}h ago` : `${Math.floor(lastActive / 1440)}d ago`}`
+                          : ' · never active'}
                       </div>
                     </div>
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: u.searches_total > 0 ? '#4fc3f7' : '#222' }}>
@@ -258,7 +309,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Activity feed */}
+        {/* ── ACTIVITY FEED ── */}
         <div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2, marginBottom: 10 }}>
             LIVE ACTIVITY
@@ -287,8 +338,8 @@ export default function AdminPage() {
             )}
           </div>
         </div>
-      </div>
 
+      </div>
     </div>
   )
 }
