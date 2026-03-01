@@ -1,4 +1,5 @@
 export const runtime = 'nodejs'
+export const maxDuration = 60  // ANATHEMA scan: SERP + Claude + FB fetch, no Apify
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
@@ -13,7 +14,6 @@ import type { ChainResult } from '@/lib/domain/anathema/chain-resolver'
 import { huntUnresolvedUpline } from '@/lib/domain/anathema/upline-hunter'
 import { fetchFacebookProfile } from '@/lib/domain/anathema/facebook'
 import { extractDavidFacts } from '@/lib/domain/anathema/david-facts'
-import { enrichWithApify, apifyToSerpSnippets } from '@/lib/domain/anathema/apify'
 import type { DavidFactsInput } from '@/lib/domain/anathema/david-facts'
 import { saveObservation, checkExistingSpecimen, getSpecimen, getScan, saveDavidFacts } from '@/lib/db/anathema'
 
@@ -451,41 +451,41 @@ Respond with ONLY valid JSON:
 
   const davidFacts = await extractDavidFacts(davidFactsInput)
 
-  // ── Apify deep enrichment (non-blocking background job) ─────────────────
-  // Fired AFTER the response is sent. Does not affect scan latency at all.
-  // When complete, saves enriched david_facts to DB — visible on next open.
+  // ── Apify deep enrichment — fire and forget to dedicated route ──────────
+  // WHY: Vercel kills the function the moment this response is sent.
+  // A .then() block after NextResponse.json() silently dies mid-execution.
+  // The /api/david/enrich route has its own maxDuration = 300 budget and
+  // stays alive independently. We fire it and don't wait.
   const hasApifyTargets = !!(facebookProfileUrl || agent.youtube_channel)
-  if (hasApifyTargets && process.env.APIFY_API_KEY) {
-    enrichWithApify({
-      facebookProfileUrl: facebookProfileUrl,
+  if (hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET) {
+    const enrichPayload = {
+      userId,
+      agentName: agent.name,
+      agentCity: agent.city,
+      agentState: agent.state,
+      facebookProfileUrl: facebookProfileUrl || null,
       youtubeChannelUrl: agent.youtube_channel || null,
-    }).then(async (apifyEnrichment) => {
-      if (!apifyEnrichment.facebookText.trim() && !apifyEnrichment.youtubeText.trim()) return
-      const apifySnippets = apifyToSerpSnippets(apifyEnrichment)
-      const enrichedInput: DavidFactsInput = {
-        agentName: agent.name,
-        serpSnippets: [
-          ...serpDebug.flatMap(e => e.results.map(r => ({
-            title: r.title,
-            url: r.url,
-            snippet: r.snippet,
-          }))),
-          ...apifySnippets,
-        ],
-        facebookAbout: facebookAbout,
-        facebookPostText: [facebookPostText, apifyEnrichment.facebookText].filter(Boolean).join('\n') || null,
-        facebookProfileUrl: facebookProfileUrl,
-        agentWebsite: agent.website || null,
-        agentNotes: agent.notes || null,
-        agentAbout: agent.about || null,
-        apifyFacebookPostCount: apifyEnrichment.facebookPosts.length,
-        apifyYouTubeVideoCount: apifyEnrichment.youtubVideos.length,
-      }
-      const enrichedFacts = await extractDavidFacts(enrichedInput)
-      if (enrichedFacts) {
-        await saveDavidFacts(userId, agent.name, agent.city, agent.state, enrichedFacts)
-      }
-    }).catch(err => console.warn('[Apify background] enrichment failed:', err))
+      serpSnippets: serpDebug.flatMap(e => e.results.map(r => ({
+        title: r.title,
+        url: r.url,
+        snippet: r.snippet,
+      }))),
+      facebookAbout: facebookAbout || null,
+      facebookPostText: facebookPostText || null,
+      agentWebsite: agent.website || null,
+      agentNotes: agent.notes || null,
+      agentAbout: agent.about || null,
+    }
+
+    // Fire-and-forget: no await, no catch needed — enrich route handles its own errors
+    fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/david/enrich`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-enrichment-secret': process.env.ENRICHMENT_SECRET,
+      },
+      body: JSON.stringify(enrichPayload),
+    }).catch(err => console.warn('[Apify enrich] fire-and-forget failed to dispatch:', err))
   }
 
   // ── Return ──────────────────────────────────────────────────────────────

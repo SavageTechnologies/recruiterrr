@@ -29,11 +29,13 @@ const APIFY_BASE = 'https://api.apify.com/v2'
 export type ApifyFacebookPost = {
   text: string
   url: string
-  time: string        // ISO timestamp
+  time: string        // ISO timestamp — critical for recency judgment
   likes: number
   shares: number
   comments: number
   link: string | null // external URL the post links to (gold for IMO detection)
+  ocrText: string | null  // text extracted from images — awards, events, signage, certificates
+  mediaType: 'photo' | 'video' | 'link' | 'none' // what kind of media is attached
 }
 
 export type ApifyYouTubeVideo = {
@@ -111,16 +113,37 @@ export async function fetchFacebookPostsApify(
   if (!items) return { posts: [], error: 'Actor run failed or API key missing' }
 
   const posts: ApifyFacebookPost[] = items
-    .filter((item: any) => item.text?.trim())
-    .map((item: any) => ({
-      text: (item.text || '').slice(0, 600),
-      url: item.url || item.topLevelUrl || '',
-      time: item.time || '',
-      likes: item.likes || 0,
-      shares: item.shares || 0,
-      comments: item.comments || 0,
-      link: item.link || null,   // external URL — huge for detecting IMO content shares
-    }))
+    .filter((item: any) => item.text?.trim() || item.media?.some((m: any) => m.ocrText))
+    .map((item: any) => {
+      // Collect all OCR text from media attachments — this is where awards,
+      // event signage, certificates, and recognition images live
+      const mediaItems: any[] = item.media || []
+      const ocrParts = mediaItems
+        .map((m: any) => m.ocrText)
+        .filter(Boolean)
+        .join(' | ')
+
+      // Determine media type for context
+      const firstMedia = mediaItems[0]
+      const mediaType: ApifyFacebookPost['mediaType'] =
+        !firstMedia ? 'none'
+        : firstMedia.__typename === 'Video' ? 'video'
+        : firstMedia.__typename === 'Photo' ? 'photo'
+        : item.link ? 'link'
+        : 'none'
+
+      return {
+        text: item.text || '',   // full text — Claude decides what's relevant
+        url: item.url || item.topLevelUrl || '',
+        time: item.time || '',
+        likes: item.likes || 0,
+        shares: item.shares || 0,
+        comments: item.comments || 0,
+        link: item.link || null,
+        ocrText: ocrParts || null,
+        mediaType,
+      }
+    })
 
   return { posts, error: null }
 }
@@ -212,24 +235,31 @@ export function apifyToSerpSnippets(result: ApifyEnrichmentResult): Array<{
   const snippets: Array<{ title: string; url: string; snippet: string }> = []
 
   result.facebookPosts.forEach(p => {
-    if (p.text) snippets.push({
-      title: `Facebook post`,
-      url: p.url,
-      snippet: p.text.slice(0, 300),
-    })
-    // If the post links to an external URL, log that too — IMO sites get linked
-    if (p.link) snippets.push({
-      title: `Facebook post link`,
-      url: p.link,
-      snippet: `Agent shared external link: ${p.link}`,
-    })
+    // Build a rich snippet that includes timestamp and OCR so the extractor
+    // has everything it needs to judge recency and content type
+    const parts: string[] = []
+    if (p.time) parts.push(`[posted: ${p.time}]`)
+    if (p.text) parts.push(p.text)
+    if (p.ocrText) parts.push(`[image text: ${p.ocrText}]`)
+    if (p.link) parts.push(`[shared link: ${p.link}]`)
+
+    if (parts.length > 1) { // at least timestamp + something
+      snippets.push({
+        title: `Facebook ${p.mediaType !== 'none' ? p.mediaType + ' ' : ''}post`,
+        url: p.url,
+        snippet: parts.join(' ').slice(0, 800), // generous — extractor has its own budget
+      })
+    }
   })
 
   result.youtubVideos.forEach(v => {
     snippets.push({
       title: v.title,
       url: v.url,
-      snippet: v.description || `YouTube video: ${v.title}`,
+      snippet: [
+        v.date ? `[published: ${v.date}]` : '',
+        v.description || `YouTube video: ${v.title}`,
+      ].filter(Boolean).join(' '),
     })
   })
 

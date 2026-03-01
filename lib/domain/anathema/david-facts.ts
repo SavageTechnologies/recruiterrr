@@ -1,15 +1,16 @@
 // ─── lib/domain/anathema/david-facts.ts ──────────────────────────────────────
-// Extracts personal facts from the same raw data ANATHEMA already collected.
-// Runs as a parallel Claude call — zero additional SERP queries, zero cost
-// beyond one Haiku call per scan.
+// Extracts actionable personal facts from public business page content.
+// Runs as a parallel Claude call — zero additional SERP queries.
+//
+// PHILOSOPHY: Apify gives you data. DAVID gives you judgment.
+// Anyone can scrape a Facebook page. The value here is knowing which facts
+// would make a recruiter sound like they did their homework — vs. which facts
+// make them sound like a bot that read a Wikipedia page about Medicare.
 //
 // CRITICAL: This function must NEVER influence ANATHEMA's tree prediction,
 // confidence score, or signals. It reads from the same data, writes to a
 // separate field (david_facts on anathema_specimens), and sits dormant until
 // DAVID is ready to query it.
-//
-// When DAVID launches, query david_facts across all specimens to get a dataset
-// that was being built in parallel since day one — no re-scanning required.
 
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -17,34 +18,38 @@ import Anthropic from '@anthropic-ai/sdk'
 
 export type DavidFact = {
   source: 'FACEBOOK' | 'YOUTUBE' | 'GOOGLE_REVIEW' | 'SERP' | 'WEBSITE' | 'LINKEDIN' | 'OTHER'
-  fact: string          // the human-readable personal fact
-  raw_quote: string     // exact text from the source that surfaced this fact
+  fact: string          // plain English — what a recruiter would actually say
+  raw_quote: string     // exact text or OCR from the source (under 200 chars)
   usability: 'HIGH' | 'MED' | 'LOW'
-  // HIGH = would make a recruiter's outreach feel like they did their homework
-  // MED  = interesting context, usable in the right message
-  // LOW  = logged for completeness, probably not worth leading with
+  recency: 'RECENT' | 'DATED' | 'UNKNOWN'
+  // HIGH    = would make a producer stop and wonder how you found it
+  // MED     = good context, usable to support a message but not lead with
+  // LOW     = logged for completeness, not worth using in outreach
+  // RECENT  = happened in last ~90 days, can reference directly
+  // DATED   = 90 days to 12 months, use carefully
+  // UNKNOWN = no timestamp available
 }
 
 export type DavidFactsResult = {
   facts: DavidFact[]
   extracted_at: string
-  scan_sources_used: string[]   // which sources had content to analyze
+  scan_sources_used: string[]
 }
 
 // ─── INPUT ────────────────────────────────────────────────────────────────────
-// Everything ANATHEMA already collected — passed in, not re-fetched.
 
 export type DavidFactsInput = {
   agentName: string
-  serpSnippets: Array<{ title: string; url: string; snippet: string }>   // from SERP passes 1+2
+  serpSnippets: Array<{ title: string; url: string; snippet: string }>
   facebookAbout: string | null
   facebookPostText: string | null
   facebookProfileUrl: string | null
   agentWebsite: string | null
   agentNotes: string | null
   agentAbout: string | null
-  apifyFacebookPostCount?: number   // how many posts Apify pulled (0 = didn't fire)
-  apifyYouTubeVideoCount?: number   // how many videos Apify pulled (0 = didn't fire)
+  apifyFacebookPostCount?: number
+  apifyYouTubeVideoCount?: number
+  scanDate?: string  // ISO date — for relative recency judgment
 }
 
 // ─── EXTRACTOR ────────────────────────────────────────────────────────────────
@@ -52,15 +57,15 @@ export type DavidFactsInput = {
 export async function extractDavidFacts(
   input: DavidFactsInput
 ): Promise<DavidFactsResult | null> {
-  // Assemble all available text — labelled by source so Claude can assign
-  // the right source field to each fact it finds.
   const sourcesUsed: string[] = []
   const sections: string[] = []
+
+  const scanDate = input.scanDate || new Date().toISOString()
 
   if (input.facebookAbout || input.facebookPostText) {
     const fbText = [input.facebookAbout, input.facebookPostText].filter(Boolean).join('\n')
     if (fbText.trim()) {
-      sections.push(`=== FACEBOOK (${input.facebookProfileUrl || 'profile'}) ===\n${fbText.slice(0, 1500)}`)
+      sections.push(`=== FACEBOOK (${input.facebookProfileUrl || 'profile'}) ===\n${fbText}`)
       sourcesUsed.push('FACEBOOK')
     }
   }
@@ -70,19 +75,18 @@ export async function extractDavidFacts(
     .map(r => `[${r.title}] (${r.url})\n${r.snippet}`)
     .join('\n\n')
   if (serpText.trim()) {
-    sections.push(`=== SERP RESULTS ===\n${serpText.slice(0, 2000)}`)
+    sections.push(`=== SERP / APIFY CONTENT ===\n${serpText}`)
     sourcesUsed.push('SERP')
   }
 
   if (input.agentNotes || input.agentAbout) {
     const profileText = [input.agentNotes, input.agentAbout].filter(Boolean).join('\n')
     if (profileText.trim()) {
-      sections.push(`=== AGENT WEBSITE / PROFILE ===\n${profileText.slice(0, 800)}`)
+      sections.push(`=== AGENT WEBSITE / PROFILE ===\n${profileText}`)
       sourcesUsed.push('WEBSITE')
     }
   }
 
-  // Track Apify enrichment in sources so UI can show "FB deep ✓ YT deep ✓"
   if (input.apifyFacebookPostCount && input.apifyFacebookPostCount > 0) {
     sourcesUsed.push(`APIFY_FACEBOOK:${input.apifyFacebookPostCount}`)
   }
@@ -98,49 +102,72 @@ export async function extractDavidFacts(
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const res = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 800,
+      max_tokens: 1200,
       messages: [{
         role: 'user',
-        content: `You are extracting personal facts about an insurance agent named "${input.agentName}" from public web content.
+        content: `You are DAVID — a recruiting intelligence system that extracts personal facts from insurance agents' public business page content.
 
-These facts will be stored for future use in personalized recruiter outreach — not analyzed now.
-Your job is ONLY to find and extract facts. Do not evaluate or score the agent.
+Today's date: ${scanDate}
+Agent name: "${input.agentName}"
+
+YOUR ONLY JOB: Find facts that would make a recruiter sound like they genuinely did their homework on this specific person — not like a bot that scraped their page.
 
 CONTENT TO ANALYZE:
 ${allContent}
 
-Extract personal facts that would make a recruiter's outreach feel like they actually did their homework on this specific agent. Look for:
+━━━ WHAT TO KEEP ━━━
 
-- YouTube video titles they published (exact title if visible)
-- Blog posts or articles they wrote (exact title)
-- Public social media posts or comments that reveal personality, opinions, or affiliations
-- Press mentions, awards, local features, chamber recognitions
-- Specific language from Google reviews that reveals how clients describe them
-- Conference appearances, speaking slots, event attendances
-- Any other public facts specific to this individual (not generic insurance info)
+KEEP facts that are personal, specific, and give a recruiter a real conversation opener:
+- Community events they hosted, attended, or sponsored RECENTLY (last 3 months especially)
+- Awards, recognitions, or local features (Best of [City], chamber recognition, press mention)
+- YouTube videos they published on NICHE topics (veterans benefits, specific compliance issues) — NOT generic Medicare explainers everyone posts
+- Event photos that reveal personality — Christmas party, golf tournament, team lunch, charity work
+- A client review with SPECIFIC memorable language ("walked me through every option" — not just "great service")
+- Something personal from their bio that is unusual — military background, specific community tie, bilingual, unusual career path
+- Recent accomplishments — hired staff, opened second location, earned a new credential
+- Anything that makes them look community-embedded (YMCA partnership, school sponsorship, local nonprofit)
 
-DO NOT extract:
-- Generic insurance industry information
-- Their carrier names or product lines (ANATHEMA handles this)
-- Their predicted tree/upline (ANATHEMA handles this)
-- Anything that requires inference — only extract explicit stated facts
+━━━ WHAT TO THROW AWAY ━━━
 
-For each fact found, respond with ONLY this JSON array (no markdown, no preamble):
+DISCARD anything that is:
+- Generic insurance education content — Medicare Advantage explainers, ACA enrollment reminders, prescription tip posts, "5 reasons you need health insurance." This is their JOB. Everyone posts this. It says nothing personal about them.
+- Regulatory boilerplate — disclaimer language, HIPAA notices, "not affiliated with government agency" footers
+- Seasonal/holiday posts with no personal hook — generic "Happy New Year" with a stock photo
+- Old news — hired someone 2+ years ago, attended a conference 18+ months ago. Stale hooks are WORSE than no hook.
+- Re-shares of someone else's content with no original commentary
+- Generic business claims — "I provide personalized service," "I work with multiple carriers," "call me for a free quote"
+- Anything that could describe ANY insurance agent in ANY market
+
+━━━ RECENCY RULES ━━━
+
+Posts include timestamps like [posted: 2025-12-15] or [published: Jan 2025].
+- RECENT = within last 90 days of today (${scanDate})
+- DATED = 90 days to 12 months old — usable with care
+- UNKNOWN = no timestamp available
+- Anything over 12 months old: discard unless it is a permanent fact (award they still display, bio detail)
+
+━━━ IMAGE/OCR TEXT ━━━
+
+Content marked [image text: ...] is OCR-extracted from photos they posted.
+This is gold — awards plaques, event banners, recognition certificates, conference badges.
+Treat OCR text as high-signal if it reveals an award, event, or recognition.
+Ignore OCR text that is just generic insurance marketing graphics.
+
+━━━ OUTPUT FORMAT ━━━
+
+Return ONLY a JSON array. No markdown, no preamble, no explanation.
+
 [
   {
     "source": "FACEBOOK" | "YOUTUBE" | "GOOGLE_REVIEW" | "SERP" | "WEBSITE" | "LINKEDIN" | "OTHER",
-    "fact": "plain English description of the fact",
-    "raw_quote": "the exact text from the source that reveals this fact (under 150 chars)",
-    "usability": "HIGH" | "MED" | "LOW"
+    "fact": "plain English — what a recruiter would actually say: 'Saw you just got the Best Agency recognition in Moore'",
+    "raw_quote": "exact text or OCR that surfaced this (under 200 chars)",
+    "usability": "HIGH" | "MED" | "LOW",
+    "recency": "RECENT" | "DATED" | "UNKNOWN"
   }
 ]
 
-Usability guide:
-- HIGH: Would make an agent stop and wonder how you found it (specific video title, Facebook comment, press mention, review quote)
-- MED: Useful context, could support a message (general website claim, vague social activity)
-- LOW: Worth logging but probably not worth leading with
-
-If no personal facts found, return: []
+If nothing passes the filter, return: []
 
 Return ONLY the JSON array.`,
       }],
@@ -152,12 +179,12 @@ Return ONLY the JSON array.`,
     if (!Array.isArray(parsed)) return null
     if (parsed.length === 0) return { facts: [], extracted_at: new Date().toISOString(), scan_sources_used: sourcesUsed }
 
-    // Validate shape — don't let malformed Claude output poison the DB
     const valid = parsed.filter(f =>
       typeof f.fact === 'string' &&
       typeof f.raw_quote === 'string' &&
       ['FACEBOOK', 'YOUTUBE', 'GOOGLE_REVIEW', 'SERP', 'WEBSITE', 'LINKEDIN', 'OTHER'].includes(f.source) &&
-      ['HIGH', 'MED', 'LOW'].includes(f.usability)
+      ['HIGH', 'MED', 'LOW'].includes(f.usability) &&
+      ['RECENT', 'DATED', 'UNKNOWN'].includes(f.recency)
     )
 
     return {
