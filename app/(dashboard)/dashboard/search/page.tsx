@@ -1,65 +1,32 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import AnathemaPanel from '@/components/products/anathema/AnathemaPanel'
 
 const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
 
+const MODES = [
+  { value: 'medicare',  label: 'Medicare / Senior',    desc: 'Medicare Advantage, Supplement, PDP' },
+  // { value: 'life',      label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
+  // { value: 'aca',       label: 'ACA / Health',         desc: 'Marketplace, group health, ACA brokers' },
+  // { value: 'annuities', label: 'Annuities',            desc: 'Fixed indexed, MYGA, retirement income' },
+  // { value: 'financial', label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
+]
+
 const SEARCH_TIPS = [
-  { label: 'Major metro', example: 'Kansas City, MO', tip: 'Use the largest city in the metro' },
-  { label: 'Suburb market', example: 'Overland Park, KS', tip: 'Suburban cities often have dense independent agents' },
-  { label: 'Rural market', example: 'Salina, KS', tip: 'Smaller cities = less competition, easier to recruit' },
+  { label: 'Major metro',    example: 'Kansas City, MO', tip: 'Use the largest city in the metro' },
+  { label: 'Suburb market',  example: 'Overland Park, KS', tip: 'Suburban cities often have dense independent agents' },
+  { label: 'Rural market',   example: 'Salina, KS', tip: 'Smaller cities = less competition, easier to recruit' },
   { label: 'Retirement hub', example: 'Sarasota, FL', tip: 'High Medicare-eligible population = more agents' },
 ]
 
-const MODES = [
-  { value: 'medicare',   label: 'Medicare / Senior',    desc: 'Medicare Advantage, Supplement, PDP' },
-  // { value: 'life',       label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
-  // { value: 'aca',        label: 'ACA / Health',         desc: 'Marketplace, group health, ACA brokers' },
-  // { value: 'annuities',  label: 'Annuities',            desc: 'Fixed indexed, MYGA, retirement income' },
-  // { value: 'financial',  label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
+const LOADING_STEPS = [
+  'Querying Google local listings',
+  'Deep crawling agent websites',
+  'Checking job postings',
+  'Scanning YouTube presence',
+  'Scoring recruitability',
 ]
-
-type CitySuggestion = { city: string; state: string; label: string }
-
-const SEARCH_TERMS: Record<string, { term: string; category: string }[]> = {
-  medicare: [
-    { term: 'Medicare supplement agent', category: 'Medicare' },
-    { term: 'Medicare advantage broker', category: 'Medicare' },
-    { term: 'Medicare insurance agent', category: 'Medicare' },
-    { term: 'Medigap broker', category: 'Medicare' },
-    { term: 'Senior health insurance agent', category: 'Medicare' },
-  ],
-  life: [
-    { term: 'Final expense insurance agent', category: 'Life' },
-    { term: 'Life insurance agent', category: 'Life' },
-    { term: 'Term life insurance broker', category: 'Life' },
-    { term: 'Burial insurance agent', category: 'Life' },
-    { term: 'Independent life insurance broker', category: 'Life' },
-  ],
-  aca: [
-    { term: 'ACA marketplace broker', category: 'Health' },
-    { term: 'Health insurance agent', category: 'Health' },
-    { term: 'Marketplace insurance agent', category: 'Health' },
-    { term: 'Group health insurance broker', category: 'Health' },
-    { term: 'Individual health insurance broker', category: 'Health' },
-  ],
-  annuities: [
-    { term: 'Annuity agent', category: 'Annuities' },
-    { term: 'Fixed indexed annuity broker', category: 'Annuities' },
-    { term: 'Retirement income advisor', category: 'Annuities' },
-    { term: 'MYGA broker', category: 'Annuities' },
-    { term: 'Independent annuity agent', category: 'Annuities' },
-  ],
-  financial: [
-    { term: 'Independent financial advisor', category: 'Financial' },
-    { term: 'Wealth management advisor', category: 'Financial' },
-    { term: 'Retirement planning advisor', category: 'Financial' },
-    { term: 'Financial planner', category: 'Financial' },
-    { term: 'CFP advisor', category: 'Financial' },
-  ],
-}
 
 type Agent = {
   name: string; type: string; phone: string; address: string
@@ -71,186 +38,53 @@ type Agent = {
   about: string | null; contact_email: string | null; social_links: string[]
 }
 
-const LOADING_STEPS = [
-  'Querying Google local listings',
-  'Deep crawling agent websites',
-  'Checking job postings',
-  'Scanning YouTube presence',
-  'Scoring recruitability',
-]
+type CitySuggestion = { city: string; state: string; label: string }
 
-// Off-white surface for inner cards
+// ── Score circle ──────────────────────────────────────────────────────────────
 function ScoreCircle({ score, size = 52 }: { score: number; size?: number }) {
-  const color = score >= 75 ? 'var(--green)' : score >= 50 ? 'var(--yellow)' : 'var(--red)'
+  const color = score >= 75 ? 'var(--green)' : score >= 50 ? 'var(--yellow)' : 'var(--muted)'
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${color}`, background: `${color}0d`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', flexShrink: 0 }}>
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      border: `2px solid ${color}`, background: `${color}0d`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexDirection: 'column', flexShrink: 0,
+    }}>
       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: size * 0.38, color, lineHeight: 1 }}>{score}</div>
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color, letterSpacing: 1, textTransform: 'uppercase' }}>SCORE</div>
     </div>
   )
 }
 
+// ── Recruit badge ─────────────────────────────────────────────────────────────
 function RecruitBadge({ flag }: { flag: 'hot' | 'warm' | 'cold' }) {
-  const map = { hot: { color: 'var(--green)', label: '◈ HOT' }, warm: { color: 'var(--yellow)', label: 'WARM' }, cold: { color: '#999', label: 'PASS' } }
+  const map = {
+    hot:  { color: 'var(--green)',  label: '◈ HOT' },
+    warm: { color: 'var(--yellow)', label: 'WARM' },
+    cold: { color: '#555',          label: 'PASS' },
+  }
   const { color, label } = map[flag]
   return (
-    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 6px', border: `1px solid ${color}`, color, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center', whiteSpace: 'nowrap' }}>
+    <div style={{
+      fontFamily: "'DM Mono', monospace", fontSize: 8,
+      padding: '2px 6px', border: `1px solid ${color}`, color,
+      letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center', whiteSpace: 'nowrap',
+    }}>
       {label}
-    </div>
-  )
-}
-
-// ── DAVID Panel ───────────────────────────────────────────────────────────────
-function DavidPanel({ davidFacts, deepScanStatus, agentName }: {
-  davidFacts: any
-  deepScanStatus: 'idle' | 'polling' | 'complete' | 'timeout'
-  agentName: string
-}) {
-  const facts: any[] = davidFacts?.facts || []
-  const sources: string[] = davidFacts?.scan_sources_used || []
-  const isDeep = sources.some((s: string) => s.startsWith('APIFY_'))
-
-  const highFacts = facts.filter(f => f.usability === 'HIGH')
-  const medFacts = facts.filter(f => f.usability === 'MED')
-  const lowFacts = facts.filter(f => f.usability === 'LOW')
-  const orderedFacts = [...highFacts, ...medFacts, ...lowFacts]
-
-  return (
-    <div style={{ background: '#141210', border: '1px solid var(--border)', overflow: 'hidden', animation: 'slideInRight 0.3s ease both' }}>
-      <style>{`@keyframes davidPulse { 0%,100%{opacity:0.3} 50%{opacity:1} }`}</style>
-
-      {/* Header */}
-      <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1a1814' }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 3, textTransform: 'uppercase' }}>
-          ◈ DAVID · DEEP INTEL
-        </div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--muted)', letterSpacing: 1 }}>
-          {agentName.toUpperCase().slice(0, 18)}
-        </div>
-      </div>
-
-      {/* Deep scan status bar */}
-      {deepScanStatus === 'polling' && (
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(255,85,0,0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'davidPulse 1.4s ease infinite', flexShrink: 0 }} />
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 1 }}>
-            DEEP SCAN RUNNING — ENRICHING PROFILE...
-          </div>
-        </div>
-      )}
-      {deepScanStatus === 'complete' && isDeep && (
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(0,230,118,0.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', flexShrink: 0 }} />
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 1 }}>
-            DEEP SCAN COMPLETE
-          </div>
-        </div>
-      )}
-      {deepScanStatus === 'timeout' && (
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(255,152,0,0.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff9800', flexShrink: 0 }} />
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#ff9800', letterSpacing: 1 }}>
-            DEEP SCAN TIMED OUT · SHOWING INITIAL RESULTS
-          </div>
-        </div>
-      )}
-
-      {/* Facts */}
-      <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {orderedFacts.length === 0 && deepScanStatus === 'polling' && (
-          <div style={{ padding: '28px 0', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 2 }}>
-            WAITING ON DEEP SCAN...
-          </div>
-        )}
-        {orderedFacts.length === 0 && deepScanStatus !== 'polling' && facts.length === 0 && (
-          <div style={{ padding: '28px 0', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 2 }}>
-            NO FACTS EXTRACTED
-          </div>
-        )}
-        {orderedFacts.map((fact: any, i: number) => (
-          <FactRow key={i} fact={fact} />
-        ))}
-      </div>
-
-      {/* Sources footer */}
-      {sources.length > 0 && (
-        <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {sources.map((s: string) => {
-            const base = s.split(':')[0] // strip any :count suffix
-            const label = base === 'APIFY_FACEBOOK' ? 'FACEBOOK' : base === 'APIFY_YOUTUBE' ? 'YOUTUBE' : base === 'APIFY_LINKEDIN' ? 'LINKEDIN' : base === 'SERP' ? 'WEB SEARCH' : base === 'WEBSITE' ? 'WEBSITE' : base === 'FACEBOOK' ? 'FACEBOOK' : base
-            const isDeepSource = base.startsWith('APIFY_')
-            return (
-              <span key={s} style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: `1px solid ${isDeepSource ? 'rgba(0,230,118,0.35)' : 'var(--border)'}`, color: isDeepSource ? 'var(--green)' : '#444', letterSpacing: 1 }}>
-                {label}
-              </span>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function FactRow({ fact }: { fact: any }) {
-  const sourceColors: Record<string, string> = {
-    FACEBOOK: '#4267B2',
-    YOUTUBE: '#ff4444',
-    GOOGLE_REVIEW: 'var(--yellow)',
-    WEBSITE: 'var(--orange)',
-    SERP: '#666',
-    LINKEDIN: '#0077b5',
-    OTHER: '#555',
-  }
-  const usabilityColors: Record<string, string> = {
-    HIGH: 'var(--green)',
-    MED: 'var(--yellow)',
-    LOW: '#444',
-  }
-
-  const borderColor = usabilityColors[fact.usability] || '#333'
-  const sourceColor = sourceColors[fact.source] || '#555'
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', background: '#1a1814', borderLeft: `2px solid ${borderColor}`, marginBottom: 2 }}>
-      {/* Meta row */}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '1px 5px', border: `1px solid ${sourceColor}`, color: sourceColor, letterSpacing: 1 }}>
-          {fact.source}
-        </span>
-        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '1px 5px', border: `1px solid ${borderColor}`, color: borderColor, letterSpacing: 1 }}>
-          {fact.usability}
-        </span>
-        {fact.recency === 'RECENT' && (
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--green)', letterSpacing: 1 }}>● RECENT</span>
-        )}
-      </div>
-      {/* The fact itself — this is the money */}
-      <div style={{ fontSize: 12, color: 'var(--white)', lineHeight: 1.5, fontFamily: "'DM Sans', sans-serif" }}>
-        {fact.fact}
-      </div>
-      {/* Raw quote in muted — supporting evidence */}
-      {fact.raw_quote && (
-        <div style={{ fontSize: 10, color: '#555', lineHeight: 1.4, fontFamily: "'DM Mono', monospace", fontStyle: 'italic', borderLeft: '1px solid #2a2a2a', paddingLeft: 6 }}>
-          "{fact.raw_quote.slice(0, 120)}{fact.raw_quote.length > 120 ? '...' : ''}"
-        </div>
-      )}
     </div>
   )
 }
 
 // ── Compact list card ─────────────────────────────────────────────────────────
 function CompactAgentCard({
-  agent, index, isSelected, onSelect, onAnathema, cardRef
+  agent, index, isSelected, onSelect,
 }: {
-  agent: Agent; index: number; isSelected: boolean
-  onSelect: () => void; onAnathema: (e: React.MouseEvent) => void
-  cardRef: (el: HTMLDivElement | null) => void
+  agent: Agent; index: number; isSelected: boolean; onSelect: () => void
 }) {
   const flagColor = agent.flag === 'hot' ? 'var(--green)' : agent.flag === 'warm' ? 'var(--yellow)' : 'var(--border)'
 
   return (
     <div
-      ref={cardRef}
       onClick={onSelect}
       style={{
         background: isSelected ? '#1a1814' : 'var(--card)',
@@ -260,7 +94,6 @@ function CompactAgentCard({
         cursor: 'pointer',
         transition: 'all 0.15s',
         animation: `slideIn 0.3s ease ${index * 0.04}s both`,
-        position: 'relative',
       }}
       onMouseEnter={e => {
         if (!isSelected) {
@@ -277,39 +110,45 @@ function CompactAgentCard({
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'start' }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{agent.name}</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>{agent.type}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {agent.name}
+          </div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
+            {agent.type}
+          </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
             {agent.rating > 0 && (
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>★ {agent.rating} ({agent.reviews})</div>
             )}
             {agent.address && (
-              <div style={{ fontSize: 11, color: '#444', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{agent.address}</div>
+              <div style={{ fontSize: 11, color: '#444', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
+                {agent.address}
+              </div>
             )}
           </div>
 
           {agent.phone && (
-            <div style={{ fontSize: 11, color: '#555', marginBottom: 6, fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}>{agent.phone}</div>
+            <div style={{ fontSize: 11, color: '#666', marginBottom: 6, fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}>
+              {agent.phone}
+            </div>
           )}
 
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button
-              onClick={onAnathema}
-              style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 7px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', letterSpacing: 1, cursor: 'pointer', textTransform: 'uppercase', transition: 'background 0.1s', flexShrink: 0 }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,230,118,0.08)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-            >
-              ◈ ANATHEMA
-            </button>
             {agent.hiring && (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid var(--border)', color: 'var(--muted)', letterSpacing: 1 }}>HIRING</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid var(--border-light)', color: 'var(--green)', letterSpacing: 1 }}>
+                HIRING
+              </div>
             )}
             {agent.youtube_channel && (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1 }}>YT</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1 }}>
+                YT
+              </div>
             )}
             {agent.website && (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid var(--border-light)', color: '#444', letterSpacing: 1 }}>WEB</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid var(--border-light)', color: '#444', letterSpacing: 1 }}>
+                WEB
+              </div>
             )}
           </div>
         </div>
@@ -323,26 +162,24 @@ function CompactAgentCard({
   )
 }
 
-// ── Detail panel (center column) ──────────────────────────────────────────────
-function DetailPanel({
-  agent, city, state, cachedResult, onResult
-}: {
-  agent: Agent | null; city: string; state: string
-  cachedResult?: any; onResult?: (r: any) => void
-}) {
+// ── Detail panel ──────────────────────────────────────────────────────────────
+function DetailPanel({ agent }: { agent: Agent | null }) {
   if (!agent) {
     return (
       <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        background: 'var(--card)', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden', minHeight: 400
+        flex: 1, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        background: 'var(--card)', border: '1px solid var(--border)',
+        minHeight: 400, position: 'relative', overflow: 'hidden',
       }}>
-        <style>{`
-          @keyframes heroScanline { 0% { top: -2px; } 100% { top: 100%; } }
-          .hero-scanline { position: absolute; left: 0; width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,230,118,0.15), transparent); animation: heroScanline 3s linear infinite; pointer-events: none; }
-        `}</style>
+        <style>{`@keyframes heroScanline { 0% { top: -2px; } 100% { top: 100%; } } .hero-scanline { position: absolute; left: 0; width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,85,0,0.12), transparent); animation: heroScanline 3s linear infinite; pointer-events: none; }`}</style>
         <div className="hero-scanline" />
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#1a1a1a', letterSpacing: 4, userSelect: 'none' }}>ANATHEMA</div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#2a2a2a', letterSpacing: 3, marginTop: 8 }}>SELECT AN AGENT TO VIEW INTEL</div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#1e1c18', letterSpacing: 4, userSelect: 'none' }}>
+          RECRUITERRR
+        </div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#2a2a2a', letterSpacing: 3, marginTop: 8 }}>
+          SELECT AN AGENT TO VIEW INTEL
+        </div>
       </div>
     )
   }
@@ -354,7 +191,9 @@ function DetailPanel({
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'start', marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--white)', marginBottom: 4 }}>{agent.name}</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>{agent.type}</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
+              {agent.type}
+            </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
             <ScoreCircle score={agent.score} size={56} />
@@ -362,23 +201,37 @@ function DetailPanel({
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
-          {agent.phone && <div style={{ fontSize: 13, color: 'var(--white)', fontFamily: "'DM Mono', monospace" }}>{agent.phone}</div>}
-          {agent.rating > 0 && <div style={{ fontSize: 13, color: 'var(--white)' }}>★ {agent.rating} <span style={{ color: 'var(--muted)' }}>({agent.reviews} reviews)</span></div>}
-          {agent.address && <div style={{ fontSize: 13, color: 'var(--muted)' }}>◎ {agent.address}</div>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 12 }}>
+          {agent.phone && (
+            <a href={`tel:${agent.phone}`} style={{ fontSize: 14, color: 'var(--white)', fontFamily: "'DM Mono', monospace", textDecoration: 'none' }}>
+              {agent.phone}
+            </a>
+          )}
+          {agent.rating > 0 && (
+            <div style={{ fontSize: 13, color: 'var(--white)' }}>
+              ★ {agent.rating} <span style={{ color: 'var(--muted)' }}>({agent.reviews} reviews)</span>
+            </div>
+          )}
+          {agent.address && (
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>◎ {agent.address}</div>
+          )}
         </div>
 
-        {agent.carriers.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+        {/* Carriers */}
+        {agent.carriers.length > 0 && agent.carriers[0] !== 'Unknown' && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
             {agent.carriers.map(c => (
-              <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '2px 8px', border: '1px solid var(--border-light)', color: c === 'Unknown' ? '#444' : 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>{c}</span>
+              <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '2px 8px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>
+                {c}
+              </span>
             ))}
           </div>
         )}
 
+        {/* Badges */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {agent.hiring && (
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '3px 10px', border: '1px solid var(--border-light)', color: 'var(--white)', letterSpacing: 1 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '3px 10px', border: '1px solid rgba(0,230,118,0.4)', color: 'var(--green)', letterSpacing: 1 }}>
               ▸ HIRING{agent.hiring_roles.length > 0 ? ` — ${agent.hiring_roles[0]}` : ''}
             </div>
           )}
@@ -391,7 +244,7 @@ function DetailPanel({
         </div>
       </div>
 
-      {/* AI Summary */}
+      {/* AI analyst notes */}
       {agent.notes && (
         <div style={{ margin: '16px 24px 0', padding: '14px 16px', background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5, color: 'var(--white)', lineHeight: 1.7 }}>
           {agent.notes}
@@ -402,7 +255,9 @@ function DetailPanel({
       {agent.hiring && agent.hiring_roles.length > 0 && (
         <div style={{ margin: '12px 24px 0', padding: '10px 14px', background: 'rgba(0,230,118,0.05)', border: '1px solid rgba(0,230,118,0.2)' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 2, marginBottom: 6 }}>ACTIVE JOB POSTINGS</div>
-          {agent.hiring_roles.map(r => <div key={r} style={{ fontSize: 13, color: 'var(--white)' }}>• {r}</div>)}
+          {agent.hiring_roles.map(r => (
+            <div key={r} style={{ fontSize: 13, color: 'var(--white)' }}>• {r}</div>
+          ))}
         </div>
       )}
 
@@ -415,7 +270,7 @@ function DetailPanel({
       )}
 
       {/* Links */}
-      <div style={{ margin: '12px 24px 0', display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 4 }}>
+      <div style={{ margin: '12px 24px 16px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {agent.contact_email && (
           <a href={`mailto:${agent.contact_email}`}
             style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--white)', letterSpacing: 1, textDecoration: 'none' }}>
@@ -423,7 +278,7 @@ function DetailPanel({
           </a>
         )}
         {(agent.social_links || []).map((link, i) => {
-          const label = link.includes('facebook') ? 'FB' : link.includes('linkedin') ? 'LI' : link.includes('instagram') ? 'IG' : link.includes('twitter') || link.includes('x.com') ? 'TW' : '↗ SOCIAL'
+          const label = link.includes('facebook') ? 'FB' : link.includes('linkedin') ? 'LI' : link.includes('instagram') ? 'IG' : link.includes('twitter') || link.includes('x.com') ? 'TW' : '↗'
           return (
             <a key={i} href={link} target="_blank" rel="noopener noreferrer"
               style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--white)', letterSpacing: 1, textDecoration: 'none' }}>
@@ -438,11 +293,6 @@ function DetailPanel({
           </a>
         )}
       </div>
-
-      <div style={{ margin: '16px 0', borderTop: '1px solid var(--border)' }} />
-
-      {/* ANATHEMA Panel */}
-      <AnathemaPanel key={agent.name} agent={agent} city={city} state={state} cachedResult={cachedResult} onResult={onResult} />
     </div>
   )
 }
@@ -450,101 +300,41 @@ function DetailPanel({
 // ── Main page ─────────────────────────────────────────────────────────────────
 function SearchPageInner() {
   const searchParams = useSearchParams()
-  const [city, setCity] = useState('')
-  const [state, setState] = useState('KS')
-  const [limit, setLimit] = useState(10)
-  const [mode, setMode] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [currentStep, setCurrentStep] = useState(-1)
-  const [agents, setAgents] = useState<Agent[]>([])
-  const [searched, setSearched] = useState(false)
-  const [searchLabel, setSearchLabel] = useState('')
-  const [error, setError] = useState('')
-  const [query, setQuery] = useState('')
-  const [querySuggestions, setQuerySuggestions] = useState<{ term: string; category: string }[]>([])
-  const [showQuerySuggestions, setShowQuerySuggestions] = useState(false)
-  const queryRef = useRef<HTMLDivElement>(null)
-  const [suggestions, setSuggestions] = useState<CitySuggestion[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [acLoading, setAcLoading] = useState(false)
-  const acRef = useRef<HTMLDivElement>(null)
-  const acTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const [city, setCity]                   = useState('')
+  const [state, setState]                 = useState('KS')
+  const [mode, setMode]                   = useState('medicare')
+  const [loading, setLoading]             = useState(false)
+  const [currentStep, setCurrentStep]     = useState(-1)
+  const [agents, setAgents]               = useState<Agent[]>([])
+  const [searched, setSearched]           = useState(false)
+  const [searchLabel, setSearchLabel]     = useState('')
+  const [error, setError]                 = useState('')
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-  const [anathemaCache, setAnathemaCache] = useState<Record<number, any>>({})
+  const [showAll, setShowAll]             = useState(false)
   const [searchCollapsed, setSearchCollapsed] = useState(false)
 
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
-  const panelRef = useRef<HTMLDivElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [linePath, setLinePath] = useState('')
-  const [lineColor, setLineColor] = useState('rgba(0,230,118,0.5)')
+  // City autocomplete
+  const [suggestions, setSuggestions]     = useState<CitySuggestion[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [acLoading, setAcLoading]         = useState(false)
+  const acRef   = useRef<HTMLDivElement>(null)
+  const acTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Load saved search from URL param
   useEffect(() => {
     const id = searchParams.get('id')
     if (id) loadSavedSearch(id)
   }, [])
 
+  // Close autocomplete on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (acRef.current && !acRef.current.contains(e.target as Node)) setShowSuggestions(false)
-      if (queryRef.current && !queryRef.current.contains(e.target as Node)) setShowQuerySuggestions(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
-
-  const updateLine = useCallback(() => {
-    if (selectedIndex === null || !cardRefs.current[selectedIndex] || !panelRef.current || !containerRef.current) {
-      setLinePath('')
-      return
-    }
-    const card = cardRefs.current[selectedIndex]!
-    const panel = panelRef.current
-    const container = containerRef.current
-    const containerRect = container.getBoundingClientRect()
-    const cardRect = card.getBoundingClientRect()
-    const panelRect = panel.getBoundingClientRect()
-    const x1 = cardRect.right - containerRect.left
-    const y1 = cardRect.top - containerRect.top + cardRect.height / 2
-    const x2 = panelRect.left - containerRect.left
-    const y2 = panelRect.top - containerRect.top + 60
-    const cx1 = x1 + (x2 - x1) * 0.4
-    const cx2 = x2 - (x2 - x1) * 0.4
-    setLinePath(`M ${x1},${y1} C ${cx1},${y1} ${cx2},${y2} ${x2},${y2}`)
-  }, [selectedIndex])
-
-  useEffect(() => { updateLine() }, [selectedIndex, agents, updateLine])
-
-  useEffect(() => {
-    if (selectedIndex === null) return
-    const agent = agents[selectedIndex]
-    if (!agent) return
-    const color = agent.flag === 'hot' ? 'rgba(0,230,118,0.5)' : agent.flag === 'warm' ? 'rgba(255,193,7,0.5)' : 'rgba(80,80,80,0.4)'
-    setLineColor(color)
-  }, [selectedIndex, agents])
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const onScroll = () => updateLine()
-    window.addEventListener('scroll', onScroll, true)
-    return () => window.removeEventListener('scroll', onScroll, true)
-  }, [updateLine])
-
-  function handleQueryChange(val: string) {
-    setQuery(val)
-    if (val.length === 0) {
-      setQuerySuggestions(mode ? (SEARCH_TERMS[mode] || []).slice(0, 6) : [])
-      setShowQuerySuggestions(true)
-      return
-    }
-    const lower = val.toLowerCase()
-    const terms = mode ? (SEARCH_TERMS[mode] || []) : Object.values(SEARCH_TERMS).flat()
-    const filtered = terms.filter(t => t.term.toLowerCase().includes(lower) || t.category.toLowerCase().includes(lower))
-    setQuerySuggestions(filtered.slice(0, 8))
-    setShowQuerySuggestions(filtered.length > 0)
-  }
 
   function handleCityChange(val: string) {
     setCity(val)
@@ -587,27 +377,27 @@ function SearchPageInner() {
   }
 
   async function runSearch(overrideCity?: string, overrideState?: string) {
-    const searchCity = overrideCity || city
+    const searchCity  = overrideCity  || city
     const searchState = overrideState || state
-    if (!searchCity.trim() || !mode) return
+    if (!searchCity.trim()) return
+
     setLoading(true)
     setSearched(false)
     setAgents([])
     setError('')
     setCurrentStep(0)
     setSelectedIndex(null)
-    setAnathemaCache({})
-    cardRefs.current = []
+    setShowAll(false)
 
     const stepInterval = setInterval(() => {
       setCurrentStep(prev => prev < LOADING_STEPS.length - 1 ? prev + 1 : prev)
-    }, Math.max(1000, (limit * 200)))
+    }, 1800)
 
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city: searchCity.trim(), state: searchState, limit, mode, query: query.trim() }),
+        body: JSON.stringify({ city: searchCity.trim(), state: searchState, limit: 20, mode }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
@@ -627,83 +417,72 @@ function SearchPageInner() {
   }
 
   const selectedAgent = selectedIndex !== null ? agents[selectedIndex] : null
-  const selectedCache = selectedIndex !== null ? anathemaCache[selectedIndex] : undefined
 
-  // Show DAVID panel when there's a scan result with david facts or polling
-  const showDavid = selectedCache?.davidFacts != null || selectedCache?.deepScanStatus === 'polling'
+  // Only show HOT and WARM by default; reveal COLD on toggle
+  const visibleAgents = showAll ? agents : agents.filter(a => a.flag !== 'cold')
+  const coldCount     = agents.filter(a => a.flag === 'cold').length
+  const hotCount      = agents.filter(a => a.flag === 'hot').length
+  const warmCount     = agents.filter(a => a.flag === 'warm').length
 
   return (
-    <div style={{ padding: '40px 40px 40px', maxWidth: showDavid ? 1600 : 1400, minHeight: '100vh', transition: 'max-width 0.3s ease' }}>
+    <div style={{ padding: '40px', maxWidth: 1400, minHeight: '100vh' }}>
       <style>{`
         @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideInRight { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes loadSlide { 0% { left: -40%; } 100% { left: 100%; } }
         @keyframes spin { to { transform: rotate(360deg); } }
         select option { background: #1a1814; }
       `}</style>
 
+      {/* ── Page header (hidden once searched) ── */}
       {!searchCollapsed && (
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>Market Search</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>
+            Market Search
+          </div>
           <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>
             FIND AGENTS<span style={{ color: 'var(--orange)' }}>.</span>
           </h1>
         </div>
       )}
 
+      {/* ── Collapsed search bar (post-search) ── */}
       {searchCollapsed ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: 'var(--card)', border: '1px solid var(--border-light)', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
             <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)', letterSpacing: 1 }}>
-              {query ? `${query} · ` : ''}{searchLabel} · {agents.length} results
+              {searchLabel} · {agents.length} results
             </span>
           </div>
           <button
-            onClick={() => setSearchCollapsed(false)}
+            onClick={() => { setSearchCollapsed(false); setSearched(false); setAgents([]) }}
             style={{ background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '5px 12px', cursor: 'pointer' }}
           >
-            MODIFY SEARCH ↓
+            NEW SEARCH ↓
           </button>
         </div>
       ) : (
+        /* ── Search form ── */
         <>
-          <div style={{ position: 'relative', marginBottom: 12, display: 'flex', gap: 0, border: `1px solid ${loading ? 'var(--orange)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none' }}>
-            <div ref={queryRef} style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-              <input
-                value={query}
-                onChange={e => handleQueryChange(e.target.value)}
-                onFocus={() => { setQuerySuggestions(query.length === 0 ? (mode ? (SEARCH_TERMS[mode] || []).slice(0, 6) : []) : querySuggestions); setShowQuerySuggestions(true) }}
-                onKeyDown={e => { if (e.key === 'Enter') { setShowQuerySuggestions(false); runSearch() } if (e.key === 'Escape') setShowQuerySuggestions(false) }}
-                placeholder="Search agents, specialties..."
-                disabled={loading}
-                autoComplete="off"
-                style={{ width: '100%', padding: '18px 24px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
-              />
-              {showQuerySuggestions && querySuggestions.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: -1, right: -1, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 300 }}>
-                  {querySuggestions.map((s, i) => (
-                    <div key={i} onMouseDown={() => { setQuery(s.term); setShowQuerySuggestions(false) }}
-                      style={{ padding: '11px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < querySuggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.term}</span>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>{s.category}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
-            <select value={mode} onChange={e => { setMode(e.target.value); setQuery('') }} disabled={loading}
-              style={{ width: 170, padding: '18px 12px', background: 'transparent', border: 'none', outline: 'none', color: mode ? 'var(--orange)' : 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0 }}>
-              <option value="" disabled>SELECT LINE ▾</option>
+          <div style={{
+            display: 'flex', gap: 0,
+            border: `1px solid ${loading ? 'var(--orange)' : 'var(--border-light)'}`,
+            background: 'var(--card)', marginBottom: 12,
+            boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
+          }}>
+            {/* Mode selector */}
+            <select
+              value={mode}
+              onChange={e => setMode(e.target.value)}
+              disabled={loading}
+              style={{ width: 180, padding: '18px 12px', background: 'transparent', border: 'none', borderRight: '1px solid var(--border-light)', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0 }}
+            >
               {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
 
-            <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
-            <div ref={acRef} style={{ position: 'relative', flexShrink: 0 }}>
+            {/* City autocomplete */}
+            <div ref={acRef} style={{ position: 'relative', flex: 1 }}>
               <input
                 value={city}
                 onChange={e => handleCityChange(e.target.value)}
@@ -712,20 +491,23 @@ function SearchPageInner() {
                 placeholder="City"
                 disabled={loading}
                 autoComplete="off"
-                style={{ width: 130, padding: '18px 14px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, letterSpacing: 1 }}
+                style={{ width: '100%', padding: '18px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
               />
               {acLoading && (
-                <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}>
+                <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
                   <div style={{ width: 10, height: 10, border: '1px solid var(--border-light)', borderTopColor: 'var(--orange)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                 </div>
               )}
               {showSuggestions && suggestions.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: -1, width: 220, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 300 }}>
+                <div style={{ position: 'absolute', top: '100%', left: -1, right: -1, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 300 }}>
                   {suggestions.map((s, i) => (
-                    <div key={i} onMouseDown={() => selectSuggestion(s)}
-                      style={{ padding: '11px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
+                    <div
+                      key={i}
+                      onMouseDown={() => selectSuggestion(s)}
+                      style={{ padding: '11px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
                       <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
                       <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2 }}>{s.state}</span>
                     </div>
@@ -734,56 +516,58 @@ function SearchPageInner() {
               )}
             </div>
 
-            <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
-            <select value={state} onChange={e => setState(e.target.value)} disabled={loading}
-              style={{ width: 72, padding: '18px 8px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, cursor: 'pointer', appearance: 'none', textAlign: 'center', flexShrink: 0 }}>
+            {/* State selector */}
+            <select
+              value={state}
+              onChange={e => setState(e.target.value)}
+              disabled={loading}
+              style={{ width: 72, padding: '18px 8px', background: 'transparent', border: 'none', borderLeft: '1px solid var(--border-light)', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, cursor: 'pointer', appearance: 'none', textAlign: 'center', flexShrink: 0 }}
+            >
               {STATES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
 
-            <div style={{ width: 1, background: 'var(--border-light)', flexShrink: 0 }} />
-            <select value={limit} onChange={e => setLimit(Number(e.target.value))} disabled={loading}
-              style={{ width: 64, padding: '18px 8px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, cursor: 'pointer', appearance: 'none', textAlign: 'center', flexShrink: 0 }}>
-              <option value={10}>10</option><option value={20}>20</option><option value={30}>30</option><option value={40}>40</option><option value={50}>50</option>
-            </select>
-
-            <button onClick={() => runSearch()} disabled={loading || !city.trim() || !mode}
-              style={{ padding: '18px 32px', background: loading ? '#333' : 'var(--orange)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {/* Search button */}
+            <button
+              onClick={() => runSearch()}
+              disabled={loading || !city.trim()}
+              style={{ padding: '18px 36px', background: loading ? '#333' : 'var(--orange)', border: 'none', borderLeft: '1px solid var(--border-light)', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
               {loading ? 'SCANNING...' : 'SEARCH'}
             </button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 1 }}>
-              {mode ? `${limit} agents · ${MODES.find(m => m.value === mode)?.desc} · job posting + youtube enrichment` : 'SELECT A LINE TO SEARCH'}
+          {/* Search tips (shown before first search only) */}
+          {!searched && !loading && (
+            <div style={{ marginTop: 32, marginBottom: 40 }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>
+                Search Tips
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                {SEARCH_TIPS.map(tip => (
+                  <div
+                    key={tip.label}
+                    onClick={() => {
+                      const [c, s] = tip.example.split(', ')
+                      setCity(c)
+                      if (s) setState(s)
+                      runSearch(c, s || state)
+                    }}
+                    style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-light)')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                  >
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>{tip.label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--orange)', marginBottom: 4 }}>{tip.example}</div>
+                    <div style={{ fontSize: 11, color: '#444' }}>{tip.tip}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
 
-      {!searched && !loading && (
-        <div style={{ marginBottom: 40 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>Search Tips</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
-            {SEARCH_TIPS.map(tip => (
-              <div key={tip.label}
-                onClick={() => {
-                  const [c, s] = tip.example.split(', ')
-                  setCity(c)
-                  if (s) setState(s)
-                  runSearch(c, s || state)
-                }}
-                style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-light)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>{tip.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--orange)', marginBottom: 4 }}>{tip.example}</div>
-                <div style={{ fontSize: 11, color: '#444' }}>{tip.tip}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {/* ── Loading state ── */}
       {loading && currentStep >= 0 && (
         <div style={{ marginBottom: 40 }}>
           <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 20 }}>
@@ -793,37 +577,36 @@ function SearchPageInner() {
             {LOADING_STEPS.map((step, i) => (
               <div key={step} style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 10, color: i < currentStep ? 'var(--green)' : i === currentStep ? 'var(--orange)' : '#333', transition: 'color 0.3s' }}>
                 <span style={{ fontSize: 8 }}>{i < currentStep ? '●' : i === currentStep ? '◐' : '○'}</span>
-                {step}{i === 2 || i === 3 ? <span style={{ color: '#2a2a2a', fontSize: 9 }}> — enriching {limit} agents</span> : ''}
+                {step}
               </div>
             ))}
           </div>
-          {limit >= 30 && (
-            <div style={{ marginTop: 20, fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#2a2a2a', letterSpacing: 1 }}>
-              ⚠ LARGER SEARCHES TAKE 60-90 SECONDS — HANG TIGHT
-            </div>
-          )}
         </div>
       )}
 
+      {/* ── Error ── */}
       {error && (
         <div style={{ padding: '16px 20px', border: '1px solid var(--red)', background: 'rgba(255,23,68,0.05)', color: 'var(--red)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 1, marginBottom: 32 }}>
           {error}
         </div>
       )}
 
+      {/* ── Results ── */}
       {searched && !loading && (
         <>
+          {/* Results header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
               {searchLabel} — {MODES.find(m => m.value === mode)?.label} Agents
             </div>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)' }}>◈ {agents.filter(a => a.flag === 'hot').length} HOT</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--yellow)' }}>{agents.filter(a => a.flag === 'warm').length} WARM</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)' }}>◈ {hotCount} HOT</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--yellow)' }}>{warmCount} WARM</div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--orange)' }}>{agents.length} TOTAL</div>
             </div>
           </div>
 
+          {/* Signal badges */}
           {agents.length > 0 && (
             <div style={{ display: 'flex', gap: 2, marginBottom: 16 }}>
               <div style={{ flex: 1, padding: '8px 14px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)' }}>
@@ -844,65 +627,36 @@ function SearchPageInner() {
               <div style={{ fontSize: 14, color: 'var(--muted)' }}>Try a larger city or different search terms.</div>
             </div>
           ) : (
-            /* THREE COLUMN LAYOUT — DAVID slides in as third column */
-            <div
-              ref={containerRef}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: showDavid ? '380px 1fr 360px' : '380px 1fr',
-                gap: 0,
-                alignItems: 'start',
-                position: 'relative',
-                transition: 'grid-template-columns 0.3s ease',
-              }}
-            >
-              {/* SVG connecting line */}
-              {linePath && (
-                <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10, overflow: 'visible' }} aria-hidden="true">
-                  <path d={linePath} fill="none" stroke={lineColor} strokeWidth={1.5} strokeDasharray="none" opacity={0.55} />
-                </svg>
-              )}
+            /* ── TWO COLUMN: list + detail ── */
+            <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 0, alignItems: 'start' }}>
 
               {/* LEFT: Agent list */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2, borderRight: '1px solid var(--border)' }}>
-                {agents.map((agent, i) => (
+                {visibleAgents.map((agent, i) => (
                   <CompactAgentCard
                     key={i}
                     agent={agent}
                     index={i}
                     isSelected={selectedIndex === i}
-                    onSelect={() => { setSelectedIndex(i); setTimeout(updateLine, 50) }}
-                    onAnathema={(e) => { e.stopPropagation(); setSelectedIndex(i); setTimeout(updateLine, 50) }}
-                    cardRef={el => { cardRefs.current[i] = el }}
+                    onSelect={() => setSelectedIndex(i)}
                   />
                 ))}
+
+                {/* Show COLD toggle */}
+                {coldCount > 0 && (
+                  <button
+                    onClick={() => setShowAll(v => !v)}
+                    style={{ margin: '4px 0', padding: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, cursor: 'pointer', textAlign: 'center' }}
+                  >
+                    {showAll ? `▲ HIDE ${coldCount} PASS` : `▼ SHOW ${coldCount} PASS`}
+                  </button>
+                )}
               </div>
 
-              {/* CENTER: Detail / ANATHEMA panel */}
-              {(capturedIdx => (
-                <div ref={panelRef} style={{ position: 'sticky', top: 16 }}>
-                  <DetailPanel
-                    key={capturedIdx ?? 'empty'}
-                    agent={selectedAgent}
-                    city={city}
-                    state={state}
-                    cachedResult={capturedIdx !== null ? anathemaCache[capturedIdx] : undefined}
-                    onResult={capturedIdx !== null ? (r) => setAnathemaCache(prev => ({ ...prev, [capturedIdx]: r })) : undefined}
-                  />
-                </div>
-              ))(selectedIndex)}
-
-              {/* RIGHT: DAVID deep intel panel — slides in when available */}
-              {showDavid && selectedCache && (
-                <div style={{ position: 'sticky', top: 16, borderLeft: '1px solid var(--border)' }}>
-                  <DavidPanel
-                    key={selectedIndex ?? 'david'}
-                    davidFacts={selectedCache.davidFacts}
-                    deepScanStatus={selectedCache.deepScanStatus || 'idle'}
-                    agentName={selectedAgent?.name || ''}
-                  />
-                </div>
-              )}
+              {/* RIGHT: Detail panel */}
+              <div style={{ position: 'sticky', top: 16 }}>
+                <DetailPanel agent={selectedAgent} />
+              </div>
             </div>
           )}
         </>
