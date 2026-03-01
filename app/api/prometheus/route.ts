@@ -301,18 +301,47 @@ async function crawlFMOSite(baseUrl: string): Promise<{ pages: Record<string, st
 }
 
 // ─── SERP INTEL ───────────────────────────────────────────────────────────────
-// FIX: Unquoted fallback queries for typo resilience.
-// FIX: Added Reddit/forum queries to surface real agent complaints.
-// FIX: Returns serp_debug alongside results.
 
-async function fetchSerpIntel(fmoName: string): Promise<{ intel: Record<string, string>; serpDebug: SerpDebugEntry[] }> {
+// Stopwords to strip when building unique match tokens — generic industry words
+// that appear in almost every insurance SERP result and cause false positives
+const SERP_STOPWORDS = new Set([
+  'insurance', 'agency', 'group', 'financial', 'services', 'associates',
+  'advisors', 'advisor', 'partners', 'health', 'life', 'medicare', 'benefits',
+  'solutions', 'general', 'national', 'american', 'united', 'independent',
+  'brokerage', 'broker', 'planning', 'management', 'consulting', 'and', 'the',
+])
+
+function buildMatchTokens(fmoName: string, domain: string | null): string[] {
+  const nameTokens = fmoName.toLowerCase()
+    .split(/\s+/)
+    .filter(t => t.length > 2 && !SERP_STOPWORDS.has(t))
+  const domainToken = domain
+    ? [domain.toLowerCase().replace(/^www\./, '').split('.')[0]]
+    : []
+  return [...new Set([...nameTokens, ...domainToken])].filter(t => t.length > 2)
+}
+
+function isResultRelevant(
+  r: { title: string; snippet: string; link: string },
+  tokens: string[]
+): boolean {
+  if (tokens.length === 0) return true // no unique tokens = keep everything
+  const hay = `${r.title} ${r.snippet} ${r.link}`.toLowerCase()
+  return tokens.some(t => hay.includes(t))
+}
+
+async function fetchSerpIntel(fmoName: string, domain?: string | null): Promise<{ intel: Record<string, string>; serpDebug: SerpDebugEntry[] }> {
+  // Quote the FMO name so Google treats it as a phrase — dramatically tighter results
+  const q = `"${fmoName}"`
+  const matchTokens = buildMatchTokens(fmoName, domain || null)
+
   const queries = [
-    { key: 'trips',     q: `${fmoName} incentive trip 2025 2026 destination` },
-    { key: 'carriers',  q: `${fmoName} carrier contracts agents appointed` },
-    { key: 'reviews',   q: `${fmoName} agent review site:reddit.com OR site:insuranceforums.net OR site:glassdoor.com` },
-    { key: 'complaints',q: `${fmoName} agent complaint problem experience` },
-    { key: 'recruiting', q: `${fmoName} join commission override release policy` },
-    { key: 'news',      q: `${fmoName} insurance acquisition partnership 2024 2025` },
+    { key: 'carriers',   q: `${q} carrier contracts agents appointed` },
+    { key: 'complaints', q: `${q} agent complaint problem experience` },
+    { key: 'trips',      q: `${q} incentive trip 2025 2026 destination` },
+    { key: 'news',       q: `${q} insurance acquisition partnership 2024 2025` },
+    { key: 'reviews',    q: `${q} agent review site:reddit.com OR site:insuranceforums.net OR site:glassdoor.com` },
+    { key: 'recruiting', q: `${q} join commission override release policy` },
   ]
 
   const intel: Record<string, string> = {}
@@ -321,7 +350,8 @@ async function fetchSerpIntel(fmoName: string): Promise<{ intel: Record<string, 
   await Promise.all(queries.map(async ({ key, q }) => {
     const debugEntry: SerpDebugEntry = { query: q, key, results: [], signals_fired: [] }
     try {
-      const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&num=5&api_key=${process.env.SERPAPI_KEY}`
+      // Fetch 8 results — more headroom after filtering
+      const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&num=8&api_key=${process.env.SERPAPI_KEY}`
       const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
       if (!res.ok) {
         debugEntry.signals_fired.push(`SERP failed: HTTP ${res.status}`)
@@ -329,23 +359,35 @@ async function fetchSerpIntel(fmoName: string): Promise<{ intel: Record<string, 
         return
       }
       const data = await res.json()
-      const results = (data.organic_results || []).slice(0, 5)
+      const allResults = (data.organic_results || []).slice(0, 8)
 
-      debugEntry.results = results.map((r: any) => ({
+      // Filter irrelevant results at the source — nothing noise gets stored or sent to Claude
+      const relevantResults = allResults.filter((r: any) => isResultRelevant(
+        { title: r.title || '', snippet: r.snippet || '', link: r.link || '' },
+        matchTokens
+      ))
+      const noiseCount = allResults.length - relevantResults.length
+
+      debugEntry.results = relevantResults.map((r: any) => ({
         title: r.title || '',
         snippet: r.snippet || '',
         link: r.link || '',
       }))
 
-      const snippets = results
+      if (noiseCount > 0) {
+        debugEntry.signals_fired.push(`Filtered ${noiseCount} irrelevant results`)
+      }
+
+      // Only pass relevant snippets to Claude — cleaner input = better analysis
+      const snippets = relevantResults
         .map((r: any) => `${r.title}: ${r.snippet}`)
         .join('\n')
 
       if (snippets) {
         intel[key] = snippets
-        debugEntry.signals_fired.push(`${results.length} results found`)
+        debugEntry.signals_fired.push(`${relevantResults.length} relevant results passed to analysis`)
       } else {
-        debugEntry.signals_fired.push('No results')
+        debugEntry.signals_fired.push('No relevant results found')
       }
     } catch (e: any) {
       debugEntry.signals_fired.push(`Error: ${e.message}`)
@@ -547,7 +589,7 @@ export async function POST(req: NextRequest) {
       website
         ? Promise.resolve({ url: normalizeUrl(website), debug: { query: 'user-provided', key: 'website_discovery', results: [], signals_fired: ['User provided URL directly'] } as SerpDebugEntry })
         : discoverWebsite(fmo_name),
-      fetchSerpIntel(fmo_name),
+      fetchSerpIntel(fmo_name, website || null),
     ])
 
     const baseUrl = discoveryResult.url
