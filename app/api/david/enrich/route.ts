@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
 
     const hasContent =
       apifyEnrichment.facebookPosts.length > 0 ||
-      apifyEnrichment.youtubVideos.length > 0
+      apifyEnrichment.youtubeVideos.length > 0
 
     if (!hasContent) {
       return NextResponse.json({ ok: true, skipped: 'apify returned no content' })
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
       agentNotes,
       agentAbout,
       apifyFacebookPostCount: apifyEnrichment.facebookPosts.length,
-      apifyYouTubeVideoCount: apifyEnrichment.youtubVideos.length,
+      apifyYouTubeVideoCount: apifyEnrichment.youtubeVideos.length,
       scanDate: new Date().toISOString(),
     }
 
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       factsCount: enrichedFacts.facts.length,
       fbPosts: apifyEnrichment.facebookPosts.length,
-      ytVideos: apifyEnrichment.youtubVideos.length,
+      ytVideos: apifyEnrichment.youtubeVideos.length,
     })
 
   } catch (err) {
