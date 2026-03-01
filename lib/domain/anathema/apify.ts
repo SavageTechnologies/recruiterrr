@@ -49,7 +49,7 @@ export type ApifyYouTubeVideo = {
 
 export type ApifyEnrichmentResult = {
   facebookPosts: ApifyFacebookPost[]
-  youtubVideos: ApifyYouTubeVideo[]
+  youtubeVideos: ApifyYouTubeVideo[]
   facebookError: string | null
   youtubeError: string | null
   // Pre-assembled text blobs for direct injection into existing scanners
@@ -215,7 +215,7 @@ export async function enrichWithApify(params: {
 
   return {
     facebookPosts: fbResult.posts,
-    youtubVideos: ytResult.videos,
+    youtubeVideos: ytResult.videos,
     facebookError: fbResult.error,
     youtubeError: ytResult.error,
     facebookText,
@@ -252,7 +252,7 @@ export function apifyToSerpSnippets(result: ApifyEnrichmentResult): Array<{
     }
   })
 
-  result.youtubVideos.forEach(v => {
+  result.youtubeVideos.forEach(v => {
     snippets.push({
       title: v.title,
       url: v.url,
