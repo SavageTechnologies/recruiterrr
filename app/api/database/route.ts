@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
   // ── Stats (always unfiltered) ──────────────────────────────────────────────
   const { data: allProfiles } = await supabase
     .from('agent_profiles')
-    .select('prometheus_flag, anathema_run, state, hiring')
+    .select('prometheus_flag, anathema_run, state, hiring, phone')
     .eq('clerk_id', userId)
 
   const stats = {
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
     anathema_run: allProfiles?.filter(a => a.anathema_run).length ?? 0,
     states:       new Set(allProfiles?.map(a => a.state)).size ?? 0,
     hiring:       allProfiles?.filter(a => a.hiring).length ?? 0,
+    with_phone:   allProfiles?.filter(a => a.phone).length ?? 0,
   }
 
   return NextResponse.json({

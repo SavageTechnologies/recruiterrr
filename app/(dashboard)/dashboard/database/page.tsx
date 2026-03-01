@@ -19,16 +19,10 @@ type AgentProfile = {
   prometheus_score: number | null
   prometheus_flag: 'hot' | 'warm' | 'cold' | null
   prometheus_notes: string | null
-  prometheus_about: string | null
   hiring: boolean
+  hiring_roles: string[] | null
   youtube_channel: string | null
-  anathema_run: boolean
-  predicted_tree: string | null
-  predicted_confidence: number | null
-  predicted_sub_imo: string | null
-  unresolved_upline: string | null
-  anathema_signals: string[] | null
-  anathema_scanned_at: string | null
+  youtube_subscribers: string | null
   first_seen: string
   last_seen: string
   search_count: number
@@ -37,97 +31,74 @@ type AgentProfile = {
 type Stats = {
   total: number
   hot: number
-  anathema_run: number
   states: number
   hiring: number
-}
-
-const TREE_COLORS: Record<string, string> = {
-  integrity: 'var(--green)',
-  amerilife: '#4fc3f7',
-  sms: 'var(--orange)',
-  unknown: '#444',
+  with_phone: number
 }
 
 const FLAG_COLORS: Record<string, string> = {
-  hot: 'var(--green)',
+  hot:  'var(--green)',
   warm: 'var(--yellow)',
   cold: '#333',
 }
 
-function ScoreDot({ score, flag }: { score: number | null; flag: string | null }) {
-  const color = flag ? FLAG_COLORS[flag] || '#333' : '#333'
+function ScoreCircle({ score, flag }: { score: number | null; flag: string | null }) {
+  const color = flag === 'hot' ? 'var(--green)' : flag === 'warm' ? 'var(--yellow)' : '#333'
   return (
     <div style={{
-      width: 36, height: 36,
-      border: `2px solid ${color}`,
+      width: 40, height: 40, borderRadius: '50%',
+      border: `2px solid ${color}`, background: `${color}0d`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexShrink: 0,
     }}>
-      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, color, letterSpacing: 1 }}>
+      <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, color, letterSpacing: 0.5 }}>
         {score ?? '—'}
       </span>
     </div>
   )
 }
 
-function TreeBadge({ tree }: { tree: string | null }) {
-  if (!tree || tree === 'unknown') return null
+function FlagBadge({ flag }: { flag: string | null }) {
+  if (!flag) return null
+  const map = { hot: { color: 'var(--green)', label: '◈ HOT' }, warm: { color: 'var(--yellow)', label: 'WARM' }, cold: { color: '#444', label: 'PASS' } }
+  const { color, label } = map[flag as keyof typeof map] || { color: '#444', label: flag.toUpperCase() }
   return (
-    <span style={{
-      fontFamily: "'DM Mono', monospace",
-      fontSize: 8, letterSpacing: 2,
-      padding: '2px 6px',
-      border: `1px solid ${TREE_COLORS[tree] || '#444'}`,
-      color: TREE_COLORS[tree] || '#444',
-      textTransform: 'uppercase',
-    }}>
-      {tree}
+    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 2, padding: '2px 6px', border: `1px solid ${color}`, color }}>
+      {label}
     </span>
   )
 }
 
 function ProfileRow({ agent, onClick }: { agent: AgentProfile; onClick: () => void }) {
-  const flagColor = agent.prometheus_flag ? FLAG_COLORS[agent.prometheus_flag] : '#333'
   const daysSince = Math.floor((Date.now() - new Date(agent.last_seen).getTime()) / 86400000)
-
   return (
     <div
       onClick={onClick}
       style={{
-        display: 'grid',
-        gridTemplateColumns: '44px 1fr auto',
-        gap: 16,
-        padding: '14px 20px',
+        display: 'grid', gridTemplateColumns: '48px 1fr auto',
+        gap: 16, padding: '14px 20px',
         borderBottom: '1px solid var(--border)',
-        cursor: 'pointer',
-        transition: 'background 0.1s',
-        alignItems: 'center',
+        cursor: 'pointer', transition: 'background 0.1s', alignItems: 'center',
       }}
       onMouseEnter={e => (e.currentTarget.style.background = '#111')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
-      <ScoreDot score={agent.prometheus_score} flag={agent.prometheus_flag} />
+      <ScoreCircle score={agent.prometheus_score} flag={agent.prometheus_flag} />
 
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--white)' }}>{agent.name}</span>
-          {agent.prometheus_flag === 'hot' && (
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--green)', letterSpacing: 2 }}>◈ HOT</span>
-          )}
-          {agent.anathema_run && <TreeBadge tree={agent.predicted_tree} />}
+          <FlagBadge flag={agent.prometheus_flag} />
           {agent.hiring && (
             <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--green)', letterSpacing: 1 }}>▸ HIRING</span>
           )}
           {agent.youtube_channel && (
             <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#ff4444', letterSpacing: 1 }}>▸ YT</span>
           )}
-          {agent.unresolved_upline && (
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#ff9800', letterSpacing: 1 }}>◎ UNRESOLVED</span>
-          )}
         </div>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>
           {agent.city}, {agent.state}
+          {agent.phone ? ` · ${agent.phone}` : ''}
           {agent.rating ? ` · ★ ${agent.rating} (${agent.reviews})` : ''}
         </div>
         {agent.prometheus_notes && (
@@ -139,67 +110,30 @@ function ProfileRow({ agent, onClick }: { agent: AgentProfile; onClick: () => vo
 
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1, marginBottom: 4 }}>
-          {daysSince === 0 ? 'TODAY' : daysSince === 1 ? '1 DAY AGO' : `${daysSince}d AGO`}
+          {daysSince === 0 ? 'TODAY' : daysSince === 1 ? '1D AGO' : `${daysSince}D AGO`}
         </div>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
           ×{agent.search_count}
         </div>
-        {!agent.anathema_run && (
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', letterSpacing: 1, marginTop: 4, textTransform: 'uppercase' }}>
-            no scan
-          </div>
-        )}
       </div>
     </div>
   )
 }
 
 function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => void }) {
-  const [specimen, setSpecimen] = useState<any>(null)
-  const [specimenLoading, setSpecimenLoading] = useState(true)
-
-  useEffect(() => {
-    async function fetchSpecimen() {
-      setSpecimenLoading(true)
-      try {
-        const res = await fetch('/api/anathema', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'check_existing', agent_name: agent.name, city: agent.city, state: agent.state }),
-        })
-        const data = await res.json()
-        if (data.specimen) setSpecimen(data.specimen)
-      } catch {}
-      setSpecimenLoading(false)
-    }
-    fetchSpecimen()
-  }, [agent.name, agent.city, agent.state])
-
-  // Prefer live specimen data over agent_profiles back-fill
-  const anathemaRun = !!specimen || agent.anathema_run
-  const predictedTree = specimen?.predicted_tree || agent.predicted_tree
-  const predictedConfidence = specimen?.predicted_confidence ?? agent.predicted_confidence
-  const predictedSubImo = specimen?.confirmed_sub_imo || specimen?.predicted_sub_imo || agent.predicted_sub_imo
-  const unresolvedUpline = specimen?.unresolved_upline || agent.unresolved_upline
-  const anathemaSignals = specimen?.prediction_signals || agent.anathema_signals
-  const anathemaScannedAt = specimen?.created_at || agent.anathema_scanned_at
-  const confirmedTree = specimen?.confirmed_tree || null
+  const flagColor = agent.prometheus_flag ? FLAG_COLORS[agent.prometheus_flag] : '#333'
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 200,
-      background: 'rgba(0,0,0,0.7)',
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
-    }} onClick={onClose}>
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end' }}
+      onClick={onClose}
+    >
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          width: '100%', maxWidth: 520,
-          height: '100vh', overflowY: 'auto',
-          background: '#0a0a0a',
-          borderLeft: '1px solid var(--border)',
-          padding: '32px 28px',
-          animation: 'slideInRight 0.2s ease',
+          width: '100%', maxWidth: 480, height: '100vh', overflowY: 'auto',
+          background: '#0a0a0a', borderLeft: '1px solid var(--border)',
+          padding: '32px 28px', animation: 'slideInRight 0.2s ease',
         }}
       >
         {/* Header */}
@@ -215,66 +149,65 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
         </div>
 
-        {/* Score row */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
+        {/* Score + flag */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
           <div style={{
-            width: 56, height: 56,
-            border: `2px solid ${agent.prometheus_flag ? FLAG_COLORS[agent.prometheus_flag] : '#333'}`,
+            width: 56, height: 56, borderRadius: '50%',
+            border: `2px solid ${flagColor}`, background: `${flagColor}0d`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: agent.prometheus_flag ? FLAG_COLORS[agent.prometheus_flag] : '#555' }}>
+            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: flagColor }}>
               {agent.prometheus_score ?? '—'}
             </span>
           </div>
           <div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 2, marginBottom: 2 }}>PROMETHEUS SCORE</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: agent.prometheus_flag ? FLAG_COLORS[agent.prometheus_flag] : '#555', letterSpacing: 2, textTransform: 'uppercase' }}>
-              {agent.prometheus_flag || 'unscored'}
-            </div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 2, marginBottom: 2 }}>RECRUIT SCORE</div>
+            <FlagBadge flag={agent.prometheus_flag} />
           </div>
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 1 }}>
-              SEEN {agent.search_count}× · FIRST {new Date(agent.first_seen).toLocaleDateString()}
+              SEEN ×{agent.search_count}
+            </div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1, marginTop: 2 }}>
+              FIRST {new Date(agent.first_seen).toLocaleDateString()}
             </div>
           </div>
         </div>
 
+        {/* Analyst notes */}
+        {agent.prometheus_notes && (
+          <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)', lineHeight: 1.7, letterSpacing: 0.5 }}>
+            {agent.prometheus_notes}
+          </div>
+        )}
+
         {/* Contact */}
-        <div style={{ marginBottom: 20, padding: '14px 16px', background: 'var(--card)', border: '1px solid var(--border)' }}>
+        <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--card)', border: '1px solid var(--border)' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 2, marginBottom: 10 }}>CONTACT</div>
-          {agent.phone && <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>· {agent.phone}</div>}
-          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>◎ {agent.city}, {agent.state}{agent.address ? ` — ${agent.address}` : ''}</div>
-          {agent.rating && <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>★ {agent.rating} ({agent.reviews} reviews)</div>}
+          {agent.phone && (
+            <a href={`tel:${agent.phone}`} style={{ display: 'block', fontSize: 14, color: 'var(--white)', fontFamily: "'DM Mono', monospace", textDecoration: 'none', marginBottom: 6 }}>
+              {agent.phone}
+            </a>
+          )}
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: agent.address ? 6 : 0 }}>
+            ◎ {agent.city}, {agent.state}{agent.address ? ` — ${agent.address}` : ''}
+          </div>
+          {agent.rating && (
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 6 }}>★ {agent.rating} ({agent.reviews} reviews)</div>
+          )}
           {agent.contact_email && (
-            <a href={`mailto:${agent.contact_email}`} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, textDecoration: 'none' }}>
+            <a href={`mailto:${agent.contact_email}`}
+              style={{ display: 'block', marginTop: 8, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, textDecoration: 'none' }}>
               @ {agent.contact_email}
             </a>
           )}
           {agent.website && (
-            <div style={{ marginTop: 8 }}>
-              <a href={agent.website} target="_blank" rel="noopener noreferrer"
-                style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1, textDecoration: 'none' }}>
-                ↗ {agent.website}
-              </a>
-            </div>
+            <a href={agent.website} target="_blank" rel="noopener noreferrer"
+              style={{ display: 'block', marginTop: 8, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1, textDecoration: 'none' }}>
+              ↗ {agent.website}
+            </a>
           )}
         </div>
-
-        {/* Intel */}
-        {agent.prometheus_about && (
-          <div style={{ marginBottom: 16, padding: '14px 16px', background: '#0f0f0d', border: '1px solid var(--border)', borderLeft: '2px solid var(--orange)' }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 2, marginBottom: 8 }}>INTEL</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7 }}>{agent.prometheus_about}</div>
-          </div>
-        )}
-
-        {agent.prometheus_notes && (
-          <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)' }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', lineHeight: 1.6 }}>
-              {agent.prometheus_notes}
-            </div>
-          </div>
-        )}
 
         {/* Carriers */}
         {agent.carriers && agent.carriers.length > 0 && agent.carriers[0] !== 'Unknown' && (
@@ -282,149 +215,73 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 2, marginBottom: 8 }}>CARRIERS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {agent.carriers.map(c => (
-                <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>{c}</span>
+                <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>
+                  {c}
+                </span>
               ))}
             </div>
           </div>
         )}
 
-        {/* Enrichment badges */}
-        {(agent.hiring || agent.youtube_channel) && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            {agent.hiring && (
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', background: 'rgba(0,200,100,0.06)', border: '1px solid var(--green)', color: 'var(--green)', letterSpacing: 1 }}>▸ ACTIVELY HIRING</span>
-            )}
-            {agent.youtube_channel && (
-              <a href={agent.youtube_channel} target="_blank" rel="noopener noreferrer"
-                style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', background: 'rgba(255,68,68,0.06)', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1, textDecoration: 'none' }}>
-                ▸ YOUTUBE
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* ANATHEMA section */}
-        <div style={{ padding: '16px', background: 'var(--card)', border: '1px solid var(--border)', borderLeft: anathemaRun ? '2px solid var(--green)' : '2px solid #222', marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: anathemaRun ? 'var(--green)' : '#555', letterSpacing: 2 }}>
-              ANATHEMA ANALYSIS
-              {confirmedTree && <span style={{ color: 'var(--green)', marginLeft: 8 }}>[OBSERVATION ON FILE]</span>}
-            </div>
-            {anathemaScannedAt && (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 1 }}>
-                {new Date(anathemaScannedAt).toLocaleDateString()}
-              </div>
-            )}
-          </div>
-
-          {specimenLoading ? (
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 2 }}>CHECKING SPECIMEN DATABASE...</div>
-          ) : anathemaRun ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: TREE_COLORS[predictedTree || 'unknown'] }}>
-                  {predictedTree?.toUpperCase() || 'UNKNOWN'}
-                </span>
-                {predictedConfidence != null && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1 }}>CONFIDENCE</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: predictedConfidence >= 70 ? 'var(--green)' : predictedConfidence >= 40 ? 'var(--orange)' : '#ff4444', letterSpacing: 1 }}>
-                      {predictedConfidence}%
-                    </div>
-                  </div>
-                )}
-                {confirmedTree && (
-                  <div style={{ marginLeft: 'auto', fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '3px 8px', border: '1px solid var(--green)', color: 'var(--green)', letterSpacing: 1 }}>
-                    ✓ CONFIRMED
-                  </div>
-                )}
-              </div>
-
-              {predictedSubImo && (
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1, marginBottom: 4 }}>
-                    {specimen?.confirmed_sub_imo ? 'CONFIRMED UPLINE' : 'PREDICTED UPLINE'}
-                  </div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 1 }}>{predictedSubImo}</div>
-                </div>
-              )}
-
-              {unresolvedUpline && (
-                <div style={{ marginBottom: 10, padding: '8px 10px', background: 'rgba(255,152,0,0.06)', border: '1px solid rgba(255,152,0,0.2)' }}>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#ff9800', letterSpacing: 1, marginBottom: 3 }}>◎ UNRESOLVED UPLINE</div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#ff9800', letterSpacing: 1 }}>{unresolvedUpline}</div>
-                </div>
-              )}
-
-              {specimen?.recruiter_notes && (
-                <div style={{ marginBottom: 10, padding: '8px 10px', background: '#0f0f0d', border: '1px solid var(--border)' }}>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1, marginBottom: 3 }}>FIELD NOTES</div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#888', letterSpacing: 0.5, lineHeight: 1.5 }}>{specimen.recruiter_notes}</div>
-                </div>
-              )}
-
-              {anathemaSignals && anathemaSignals.length > 0 && (
-                <div style={{ marginTop: 10 }}>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1, marginBottom: 6 }}>DETECTION SIGNALS</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {anathemaSignals.slice(0, 6).map((sig: string, i: number) => (
-                      <span key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 7px', border: '1px solid #2a2a2a', color: '#555', letterSpacing: 1 }}>
-                        {sig.length > 40 ? sig.slice(0, 40) + '…' : sig}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 1 }}>
-              NOT SCANNED · Run ANATHEMA from the search page to classify this agent.
-            </div>
+        {/* Signals */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+          {agent.hiring && (
+            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', background: 'rgba(0,230,118,0.06)', border: '1px solid var(--green)', color: 'var(--green)', letterSpacing: 1 }}>
+              ▸ ACTIVELY HIRING{agent.hiring_roles?.length ? ` — ${agent.hiring_roles[0]}` : ''}
+            </span>
+          )}
+          {agent.youtube_channel && (
+            <a href={agent.youtube_channel} target="_blank" rel="noopener noreferrer"
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', background: 'rgba(255,68,68,0.06)', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1, textDecoration: 'none' }}>
+              ▸ YOUTUBE{agent.youtube_subscribers ? ` — ${agent.youtube_subscribers}` : ''}
+            </a>
           )}
         </div>
 
-        <style>{`
-          @keyframes slideInRight {
-            from { transform: translateX(40px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-          }
-        `}</style>
+        <style>{`@keyframes slideInRight { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
       </div>
     </div>
   )
 }
 
+// ── CSV export ────────────────────────────────────────────────────────────────
+async function exportCSV() {
+  const res = await fetch('/api/database/export')
+  if (!res.ok) return
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `recruiterrr-agents-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function DatabasePage() {
-  const [agents, setAgents] = useState<AgentProfile[]>([])
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<AgentProfile | null>(null)
+  const [agents, setAgents]       = useState<AgentProfile[]>([])
+  const [stats, setStats]         = useState<Stats | null>(null)
+  const [loading, setLoading]     = useState(true)
+  const [selected, setSelected]   = useState<AgentProfile | null>(null)
+  const [exporting, setExporting] = useState(false)
 
-  // Filters
-  const [filterFlag, setFilterFlag] = useState<string>('all')
-  const [filterTree, setFilterTree] = useState<string>('all')
-  const [filterAnathema, setFilterAnathema] = useState<string>('all')
-  const [filterState, setFilterState] = useState<string>('all')
-  const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState<'score' | 'last_seen' | 'search_count'>('last_seen')
+  const [filterFlag,  setFilterFlag]  = useState('all')
+  const [filterState, setFilterState] = useState('all')
+  const [search,      setSearch]      = useState('')
+  const [sortBy,      setSortBy]      = useState<'score' | 'last_seen' | 'search_count'>('last_seen')
+  const [page,        setPage]        = useState(1)
+  const [perPage,     setPerPage]     = useState(50)
+  const [pagination,  setPagination]  = useState<{ total: number; total_pages: number } | null>(null)
 
-  // Pagination
-  const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(10)
-  const [pagination, setPagination] = useState<{ total: number; total_pages: number } | null>(null)
+  const allStates = [...new Set(agents.map(a => a.state))].sort()
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
-        flag: filterFlag,
-        tree: filterTree,
-        anathema: filterAnathema,
-        state: filterState,
-        search,
-        sort: sortBy,
-        page: String(page),
-        per_page: String(perPage),
+        flag: filterFlag, state: filterState, search,
+        sort: sortBy, page: String(page), per_page: String(perPage),
+        anathema: 'all', tree: 'all',
       })
       const res = await fetch(`/api/database?${params}`)
       if (!res.ok) throw new Error('Failed')
@@ -437,40 +294,60 @@ export default function DatabasePage() {
     } finally {
       setLoading(false)
     }
-  }, [filterFlag, filterTree, filterAnathema, filterState, search, sortBy, page, perPage])
+  }, [filterFlag, filterState, search, sortBy, page, perPage])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => { setPage(1) }, [filterFlag, filterState, search, sortBy, perPage])
 
-  // Reset to page 1 when filters change
-  useEffect(() => { setPage(1) }, [filterFlag, filterTree, filterAnathema, filterState, search, sortBy, perPage])
-
-  const states = [...new Set(agents.map(a => a.state))].sort()
+  async function handleExport() {
+    setExporting(true)
+    await exportCSV()
+    setExporting(false)
+  }
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 4, color: 'var(--white)', marginBottom: 6 }}>
-          AGENT DATABASE
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 4, color: 'var(--white)', marginBottom: 6 }}>
+            AGENT DATABASE
+          </div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2 }}>
+            Every agent surfaced by your searches — scored and stored.
+          </div>
         </div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2 }}>
-          Every agent surfaced by your searches — enriched, scored, and stored.
-        </div>
+        <button
+          onClick={handleExport}
+          disabled={exporting || !stats?.total}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '12px 20px', background: exporting ? '#333' : 'transparent',
+            border: '1px solid var(--border-light)',
+            color: exporting ? '#555' : 'var(--white)',
+            fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2,
+            cursor: exporting ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { if (!exporting) (e.currentTarget.style.borderColor = 'var(--orange)'); (e.currentTarget.style.color = 'var(--orange)') }}
+          onMouseLeave={e => { (e.currentTarget.style.borderColor = 'var(--border-light)'); (e.currentTarget.style.color = 'var(--white)') }}
+        >
+          {exporting ? '↓ EXPORTING...' : '↓ EXPORT CSV'}
+        </button>
       </div>
 
-      {/* Stats bar */}
+      {/* Stats */}
       {stats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 2, marginBottom: 28 }}>
           {[
-            { label: 'TOTAL PROFILES', value: stats.total, color: 'var(--white)' },
-            { label: '◈ HOT', value: stats.hot, color: 'var(--green)' },
-            { label: 'ANATHEMA SCANNED', value: stats.anathema_run, color: 'var(--green)' },
-            { label: 'STATES', value: stats.states, color: 'var(--orange)' },
-            { label: '▸ HIRING', value: stats.hiring, color: 'var(--yellow)' },
+            { label: 'TOTAL AGENTS',  value: stats.total,      color: 'var(--white)' },
+            { label: '◈ HOT LEADS',   value: stats.hot,        color: 'var(--green)' },
+            { label: 'HAVE PHONE',    value: stats.with_phone,  color: 'var(--orange)' },
+            { label: '▸ HIRING',      value: stats.hiring,     color: 'var(--yellow)' },
+            { label: 'STATES',        value: stats.states,     color: 'var(--muted)' },
           ].map(s => (
             <div key={s.label} style={{ padding: '14px 16px', background: 'var(--card)', border: '1px solid var(--border)' }}>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: s.color, lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: s.color, lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 2 }}>{s.label}</div>
             </div>
           ))}
@@ -478,8 +355,7 @@ export default function DatabasePage() {
       )}
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        {/* Search */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -491,96 +367,67 @@ export default function DatabasePage() {
           }}
         />
 
-        {/* Flag filter */}
         {(['all', 'hot', 'warm', 'cold'] as const).map(f => (
           <button key={f} onClick={() => setFilterFlag(f)} style={{
             fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px',
-            background: filterFlag === f ? (f === 'all' ? 'var(--border)' : FLAG_COLORS[f]) : 'transparent',
-            border: `1px solid ${filterFlag === f ? (f === 'all' ? 'var(--border)' : FLAG_COLORS[f]) : 'var(--border)'}`,
-            color: filterFlag === f ? (f === 'cold' ? 'var(--white)' : 'var(--black)') : 'var(--muted)',
+            background: filterFlag === f
+              ? f === 'all' ? 'var(--border)' : FLAG_COLORS[f]
+              : 'transparent',
+            border: `1px solid ${filterFlag === f
+              ? f === 'all' ? 'var(--border)' : FLAG_COLORS[f]
+              : 'var(--border)'}`,
+            color: filterFlag === f
+              ? f === 'cold' || f === 'all' ? 'var(--white)' : 'var(--black)'
+              : 'var(--muted)',
             cursor: 'pointer', textTransform: 'uppercase',
           }}>
-            {f === 'all' ? 'ALL FLAGS' : f.toUpperCase()}
+            {f === 'all' ? 'ALL' : f.toUpperCase()}
           </button>
         ))}
 
-        <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
-
-        {/* Anathema filter */}
-        {([
-          { val: 'all', label: 'ALL' },
-          { val: 'scanned', label: 'SCANNED' },
-          { val: 'unscanned', label: 'NOT SCANNED' },
-        ] as const).map(o => (
-          <button key={o.val} onClick={() => setFilterAnathema(o.val)} style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px',
-            background: filterAnathema === o.val ? 'var(--border)' : 'transparent',
-            border: `1px solid ${filterAnathema === o.val ? 'var(--border-light)' : 'var(--border)'}`,
-            color: filterAnathema === o.val ? 'var(--white)' : 'var(--muted)',
-            cursor: 'pointer',
-          }}>
-            {o.label}
-          </button>
-        ))}
-
-        {/* State filter */}
         <select
           value={filterState}
           onChange={e => setFilterState(e.target.value)}
-          style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '7px 12px',
-            background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer',
-          }}
+          style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '7px 12px', background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', outline: 'none' }}
         >
           <option value="all">ALL STATES</option>
-          {states.map(s => <option key={s} value={s}>{s}</option>)}
+          {allStates.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
-        {/* Sort */}
         <select
           value={sortBy}
           onChange={e => setSortBy(e.target.value as any)}
-          style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '7px 12px',
-            background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer',
-            marginLeft: 'auto',
-          }}
+          style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '7px 12px', background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', outline: 'none', marginLeft: 'auto' }}
         >
           <option value="last_seen">RECENT FIRST</option>
           <option value="score">HIGHEST SCORE</option>
-          <option value="search_count">MOST SEARCHED</option>
+          <option value="search_count">MOST SEEN</option>
         </select>
 
-        {/* Per page */}
         <select
           value={perPage}
           onChange={e => setPerPage(Number(e.target.value))}
-          style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '7px 12px',
-            background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer',
-          }}
+          style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '7px 12px', background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', outline: 'none' }}
         >
-          <option value={10}>10 / PAGE</option>
+          <option value={25}>25 / PAGE</option>
           <option value={50}>50 / PAGE</option>
           <option value={100}>100 / PAGE</option>
         </select>
       </div>
 
-      {/* Results count */}
+      {/* Count */}
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 2, marginBottom: 8 }}>
-        {loading ? 'LOADING...' : `${agents.length} PROFILES`}
-        {filterFlag !== 'all' || filterTree !== 'all' || filterAnathema !== 'all' || filterState !== 'all' || search
-          ? ' (FILTERED)' : ''}
+        {loading ? 'LOADING...' : `${pagination?.total ?? agents.length} PROFILES${filterFlag !== 'all' || filterState !== 'all' || search ? ' (FILTERED)' : ''}`}
       </div>
 
       {/* Table header */}
-      <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: 16, padding: '8px 20px', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '48px 1fr auto', gap: 16, padding: '8px 20px', borderBottom: '1px solid var(--border)' }}>
         <div />
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2 }}>AGENT</div>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, textAlign: 'right' }}>LAST SEEN</div>
       </div>
 
-      {/* Agent list */}
+      {/* Rows */}
       <div style={{ border: '1px solid var(--border)', borderTop: 'none' }}>
         {loading ? (
           <div style={{ padding: '60px 0', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#333', letterSpacing: 3 }}>
@@ -595,11 +442,9 @@ export default function DatabasePage() {
               Run searches to start building your database.
             </div>
           </div>
-        ) : (
-          agents.map(agent => (
-            <ProfileRow key={agent.id} agent={agent} onClick={() => setSelected(agent)} />
-          ))
-        )}
+        ) : agents.map(agent => (
+          <ProfileRow key={agent.id} agent={agent} onClick={() => setSelected(agent)} />
+        ))}
       </div>
 
       {/* Pagination */}
@@ -609,85 +454,25 @@ export default function DatabasePage() {
             PAGE {page} OF {pagination.total_pages} · {pagination.total} TOTAL
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
-            <button
-              onClick={() => setPage(1)}
-              disabled={page === 1}
-              style={{
-                fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 12px',
-                background: 'transparent', border: '1px solid var(--border)',
-                color: page === 1 ? '#333' : 'var(--muted)', cursor: page === 1 ? 'default' : 'crosshair',
-              }}
-            >«</button>
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              style={{
+            {[
+              { label: '«', action: () => setPage(1), disabled: page === 1 },
+              { label: 'PREV', action: () => setPage(p => Math.max(1, p - 1)), disabled: page === 1 },
+              { label: 'NEXT', action: () => setPage(p => Math.min(pagination.total_pages, p + 1)), disabled: page === pagination.total_pages },
+              { label: '»', action: () => setPage(pagination.total_pages), disabled: page === pagination.total_pages },
+            ].map(b => (
+              <button key={b.label} onClick={b.action} disabled={b.disabled} style={{
                 fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 14px',
                 background: 'transparent', border: '1px solid var(--border)',
-                color: page === 1 ? '#333' : 'var(--muted)', cursor: page === 1 ? 'default' : 'crosshair',
-              }}
-            >PREV</button>
-
-            {/* Page number pills */}
-            {Array.from({ length: Math.min(7, pagination.total_pages) }, (_, i) => {
-              const totalPages = pagination.total_pages
-              let pageNum: number
-              if (totalPages <= 7) {
-                pageNum = i + 1
-              } else if (page <= 4) {
-                pageNum = i + 1
-              } else if (page >= totalPages - 3) {
-                pageNum = totalPages - 6 + i
-              } else {
-                pageNum = page - 3 + i
-              }
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setPage(pageNum)}
-                  style={{
-                    fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 12px',
-                    background: pageNum === page ? 'var(--border-light)' : 'transparent',
-                    border: `1px solid ${pageNum === page ? 'var(--border-light)' : 'var(--border)'}`,
-                    color: pageNum === page ? 'var(--white)' : 'var(--muted)', cursor: 'crosshair',
-                    minWidth: 32,
-                  }}
-                >{pageNum}</button>
-              )
-            })}
-
-            <button
-              onClick={() => setPage(p => Math.min(pagination.total_pages, p + 1))}
-              disabled={page === pagination.total_pages}
-              style={{
-                fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 14px',
-                background: 'transparent', border: '1px solid var(--border)',
-                color: page === pagination.total_pages ? '#333' : 'var(--muted)',
-                cursor: page === pagination.total_pages ? 'default' : 'crosshair',
-              }}
-            >NEXT</button>
-            <button
-              onClick={() => setPage(pagination.total_pages)}
-              disabled={page === pagination.total_pages}
-              style={{
-                fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 12px',
-                background: 'transparent', border: '1px solid var(--border)',
-                color: page === pagination.total_pages ? '#333' : 'var(--muted)',
-                cursor: page === pagination.total_pages ? 'default' : 'crosshair',
-              }}
-            >»</button>
+                color: b.disabled ? '#333' : 'var(--muted)', cursor: b.disabled ? 'default' : 'pointer',
+              }}>{b.label}</button>
+            ))}
           </div>
         </div>
       )}
+
       {selected && <DetailPanel agent={selected} onClose={() => setSelected(null)} />}
 
-      <style>{`
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        select option { background: #111; }
-      `}</style>
+      <style>{`select option { background: #111; }`}</style>
     </div>
   )
 }

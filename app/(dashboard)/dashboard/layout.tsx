@@ -27,6 +27,12 @@ export default function DashboardLayout({
           }}>
             Search
           </Link>
+          <Link href="/dashboard/database" style={{
+            fontFamily: "'DM Mono', monospace", fontSize: 11,
+            color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+          }}>
+            Database
+          </Link>
           <UserButton
             afterSignOutUrl="/"
             appearance={{
@@ -101,3 +107,4 @@ export default function DashboardLayout({
     </div>
   )
 }
+
