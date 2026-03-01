@@ -134,7 +134,7 @@ function DavidPanel({ davidFacts, deepScanStatus, agentName }: {
         <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(255,85,0,0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'davidPulse 1.4s ease infinite', flexShrink: 0 }} />
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 1 }}>
-            APIFY DEEP SCAN RUNNING — ENRICHING PROFILE...
+            DEEP SCAN RUNNING — ENRICHING PROFILE...
           </div>
         </div>
       )}
@@ -175,11 +175,15 @@ function DavidPanel({ davidFacts, deepScanStatus, agentName }: {
       {/* Sources footer */}
       {sources.length > 0 && (
         <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {sources.map((s: string) => (
-            <span key={s} style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: `1px solid ${s.startsWith('APIFY') ? 'rgba(0,230,118,0.35)' : 'var(--border)'}`, color: s.startsWith('APIFY') ? 'var(--green)' : '#444', letterSpacing: 1 }}>
-              {s}
-            </span>
-          ))}
+          {sources.map((s: string) => {
+            const label = s === 'APIFY_FACEBOOK' ? 'FACEBOOK' : s === 'APIFY_YOUTUBE' ? 'YOUTUBE' : s === 'SERP' ? 'WEB SEARCH' : s === 'WEBSITE' ? 'WEBSITE' : s
+            const isDeepSource = s.startsWith('APIFY_')
+            return (
+              <span key={s} style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: `1px solid ${isDeepSource ? 'rgba(0,230,118,0.35)' : 'var(--border)'}`, color: isDeepSource ? 'var(--green)' : '#444', letterSpacing: 1 }}>
+                {label}
+              </span>
+            )
+          })}
         </div>
       )}
     </div>
