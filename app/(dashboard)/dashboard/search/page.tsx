@@ -15,10 +15,10 @@ const SEARCH_TIPS = [
 
 const MODES = [
   { value: 'medicare',   label: 'Medicare / Senior',    desc: 'Medicare Advantage, Supplement, PDP' },
-  { value: 'life',       label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
-  { value: 'aca',        label: 'ACA / Health',         desc: 'Marketplace, group health, ACA brokers' },
-  { value: 'annuities',  label: 'Annuities',            desc: 'Fixed indexed, MYGA, retirement income' },
-  { value: 'financial',  label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
+  // { value: 'life',       label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
+  // { value: 'aca',        label: 'ACA / Health',         desc: 'Marketplace, group health, ACA brokers' },
+  // { value: 'annuities',  label: 'Annuities',            desc: 'Fixed indexed, MYGA, retirement income' },
+  // { value: 'financial',  label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
 ]
 
 type CitySuggestion = { city: string; state: string; label: string }
@@ -80,11 +80,6 @@ const LOADING_STEPS = [
 ]
 
 // Off-white surface for inner cards
-const CARD_BG = '#f0ece6'
-const CARD_TEXT = '#1a1814'
-const CARD_MUTED = '#6b6560'
-const CARD_BORDER = '#ddd8d0'
-
 function ScoreCircle({ score, size = 52 }: { score: number; size?: number }) {
   const color = score >= 75 ? 'var(--green)' : score >= 50 ? 'var(--yellow)' : 'var(--red)'
   return (
@@ -115,38 +110,44 @@ function DavidPanel({ davidFacts, deepScanStatus, agentName }: {
   const sources: string[] = davidFacts?.scan_sources_used || []
   const isDeep = sources.some((s: string) => s.startsWith('APIFY_'))
 
+  const highFacts = facts.filter(f => f.usability === 'HIGH')
+  const medFacts = facts.filter(f => f.usability === 'MED')
+  const lowFacts = facts.filter(f => f.usability === 'LOW')
+  const orderedFacts = [...highFacts, ...medFacts, ...lowFacts]
+
   return (
-    <div style={{ background: CARD_BG, border: '1px solid var(--border)', overflow: 'hidden', animation: 'slideInRight 0.3s ease both' }}>
+    <div style={{ background: '#141210', border: '1px solid var(--border)', overflow: 'hidden', animation: 'slideInRight 0.3s ease both' }}>
+      <style>{`@keyframes davidPulse { 0%,100%{opacity:0.3} 50%{opacity:1} }`}</style>
+
       {/* Header */}
-      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${CARD_BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#e8e3dc' }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CARD_MUTED, letterSpacing: 3, textTransform: 'uppercase' }}>
+      <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1a1814' }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 3, textTransform: 'uppercase' }}>
           ◈ DAVID · DEEP INTEL
         </div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: CARD_MUTED, letterSpacing: 1 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--muted)', letterSpacing: 1 }}>
           {agentName.toUpperCase().slice(0, 18)}
         </div>
       </div>
 
       {/* Deep scan status bar */}
       {deepScanStatus === 'polling' && (
-        <div style={{ padding: '8px 16px', borderBottom: `1px solid ${CARD_BORDER}`, background: '#ede8e0', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <style>{`@keyframes davidPulse { 0%,100%{opacity:0.4} 50%{opacity:1} }`}</style>
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(255,85,0,0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'davidPulse 1.4s ease infinite', flexShrink: 0 }} />
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#8a7a60', letterSpacing: 1 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 1 }}>
             APIFY DEEP SCAN RUNNING — ENRICHING PROFILE...
           </div>
         </div>
       )}
       {deepScanStatus === 'complete' && isDeep && (
-        <div style={{ padding: '8px 16px', borderBottom: `1px solid ${CARD_BORDER}`, background: 'rgba(0,230,118,0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(0,230,118,0.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', flexShrink: 0 }} />
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 1 }}>
-            DEEP SCAN COMPLETE · {sources.join(' · ')}
+            DEEP SCAN COMPLETE
           </div>
         </div>
       )}
       {deepScanStatus === 'timeout' && (
-        <div style={{ padding: '8px 16px', borderBottom: `1px solid ${CARD_BORDER}`, background: 'rgba(255,152,0,0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(255,152,0,0.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff9800', flexShrink: 0 }} />
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#ff9800', letterSpacing: 1 }}>
             DEEP SCAN TIMED OUT · SHOWING INITIAL RESULTS
@@ -155,22 +156,27 @@ function DavidPanel({ davidFacts, deepScanStatus, agentName }: {
       )}
 
       {/* Facts */}
-      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {facts.length === 0 && deepScanStatus === 'polling' && (
-          <div style={{ padding: '24px 0', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: CARD_MUTED, letterSpacing: 2 }}>
-            INITIAL RESULTS PENDING...
+      <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {orderedFacts.length === 0 && deepScanStatus === 'polling' && (
+          <div style={{ padding: '28px 0', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 2 }}>
+            WAITING ON DEEP SCAN...
           </div>
         )}
-        {facts.map((fact: any, i: number) => (
+        {orderedFacts.length === 0 && deepScanStatus !== 'polling' && facts.length === 0 && (
+          <div style={{ padding: '28px 0', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 2 }}>
+            NO FACTS EXTRACTED
+          </div>
+        )}
+        {orderedFacts.map((fact: any, i: number) => (
           <FactRow key={i} fact={fact} />
         ))}
       </div>
 
       {/* Sources footer */}
       {sources.length > 0 && (
-        <div style={{ padding: '8px 16px', borderTop: `1px solid ${CARD_BORDER}`, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {sources.map((s: string) => (
-            <span key={s} style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: `1px solid ${s.startsWith('APIFY') ? 'rgba(0,230,118,0.4)' : CARD_BORDER}`, color: s.startsWith('APIFY') ? 'var(--green)' : CARD_MUTED, letterSpacing: 1 }}>
+            <span key={s} style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: `1px solid ${s.startsWith('APIFY') ? 'rgba(0,230,118,0.35)' : 'var(--border)'}`, color: s.startsWith('APIFY') ? 'var(--green)' : '#444', letterSpacing: 1 }}>
               {s}
             </span>
           ))}
@@ -181,33 +187,48 @@ function DavidPanel({ davidFacts, deepScanStatus, agentName }: {
 }
 
 function FactRow({ fact }: { fact: any }) {
-  const iconMap: Record<string, string> = {
-    hiring: '▸',
-    youtube: '▶',
-    facebook: 'f',
-    award: '★',
-    website: '◎',
-    default: '·',
+  const sourceColors: Record<string, string> = {
+    FACEBOOK: '#4267B2',
+    YOUTUBE: '#ff4444',
+    GOOGLE_REVIEW: 'var(--yellow)',
+    WEBSITE: 'var(--orange)',
+    SERP: '#666',
+    LINKEDIN: '#0077b5',
+    OTHER: '#555',
   }
-  const typeKey = fact.type?.toLowerCase() || 'default'
-  const icon = iconMap[typeKey] || iconMap.default
-  const iconColor = typeKey === 'hiring' ? 'var(--green)' : typeKey === 'youtube' ? '#ff4444' : typeKey === 'award' ? 'var(--yellow)' : CARD_MUTED
+  const usabilityColors: Record<string, string> = {
+    HIGH: 'var(--green)',
+    MED: 'var(--yellow)',
+    LOW: '#444',
+  }
+
+  const borderColor = usabilityColors[fact.usability] || '#333'
+  const sourceColor = sourceColors[fact.source] || '#555'
 
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '7px 10px', background: '#ede8e0', borderLeft: `2px solid ${iconColor}`, marginBottom: 2 }}>
-      <span style={{ color: iconColor, fontSize: 10, flexShrink: 0, marginTop: 1, fontFamily: "'DM Mono', monospace" }}>{icon}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {fact.label && (
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: CARD_MUTED, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 }}>{fact.label}</div>
-        )}
-        <div style={{ fontSize: 11, color: CARD_TEXT, lineHeight: 1.5, fontFamily: "'DM Sans', sans-serif" }}>{fact.value || fact.text || fact.summary}</div>
-        {fact.url && (
-          <a href={fact.url} target="_blank" rel="noopener noreferrer"
-            style={{ fontSize: 9, color: 'var(--orange)', textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5, display: 'inline-block', marginTop: 3 }}>
-            ↗ {fact.url.slice(0, 40)}
-          </a>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', background: '#1a1814', borderLeft: `2px solid ${borderColor}`, marginBottom: 2 }}>
+      {/* Meta row */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '1px 5px', border: `1px solid ${sourceColor}`, color: sourceColor, letterSpacing: 1 }}>
+          {fact.source}
+        </span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '1px 5px', border: `1px solid ${borderColor}`, color: borderColor, letterSpacing: 1 }}>
+          {fact.usability}
+        </span>
+        {fact.recency === 'RECENT' && (
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--green)', letterSpacing: 1 }}>● RECENT</span>
         )}
       </div>
+      {/* The fact itself — this is the money */}
+      <div style={{ fontSize: 12, color: 'var(--white)', lineHeight: 1.5, fontFamily: "'DM Sans', sans-serif" }}>
+        {fact.fact}
+      </div>
+      {/* Raw quote in muted — supporting evidence */}
+      {fact.raw_quote && (
+        <div style={{ fontSize: 10, color: '#555', lineHeight: 1.4, fontFamily: "'DM Mono', monospace", fontStyle: 'italic', borderLeft: '1px solid #2a2a2a', paddingLeft: 6 }}>
+          "{fact.raw_quote.slice(0, 120)}{fact.raw_quote.length > 120 ? '...' : ''}"
+        </div>
+      )}
     </div>
   )
 }
@@ -227,7 +248,7 @@ function CompactAgentCard({
       ref={cardRef}
       onClick={onSelect}
       style={{
-        background: isSelected ? CARD_BG : 'var(--card)',
+        background: isSelected ? '#1a1814' : 'var(--card)',
         border: '1px solid var(--border)',
         borderLeft: isSelected ? `3px solid ${flagColor}` : '3px solid transparent',
         padding: '12px 14px',
@@ -251,39 +272,39 @@ function CompactAgentCard({
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'start' }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? CARD_TEXT : 'var(--white)', marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{agent.name}</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: isSelected ? CARD_MUTED : 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>{agent.type}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{agent.name}</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>{agent.type}</div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
             {agent.rating > 0 && (
-              <div style={{ fontSize: 11, color: isSelected ? CARD_MUTED : 'var(--muted)' }}>★ {agent.rating} ({agent.reviews})</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>★ {agent.rating} ({agent.reviews})</div>
             )}
             {agent.address && (
-              <div style={{ fontSize: 11, color: isSelected ? '#8a8480' : '#444', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{agent.address}</div>
+              <div style={{ fontSize: 11, color: '#444', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{agent.address}</div>
             )}
           </div>
 
           {agent.phone && (
-            <div style={{ fontSize: 11, color: isSelected ? CARD_MUTED : '#555', marginBottom: 6, fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}>{agent.phone}</div>
+            <div style={{ fontSize: 11, color: '#555', marginBottom: 6, fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}>{agent.phone}</div>
           )}
 
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={onAnathema}
-              style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 7px', background: 'transparent', border: `1px solid ${isSelected ? CARD_BORDER : 'var(--border)'}`, color: isSelected ? CARD_MUTED : 'var(--muted)', letterSpacing: 1, cursor: 'pointer', textTransform: 'uppercase', transition: 'background 0.1s', flexShrink: 0 }}
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 7px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', letterSpacing: 1, cursor: 'pointer', textTransform: 'uppercase', transition: 'background 0.1s', flexShrink: 0 }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,230,118,0.08)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
             >
               ◈ ANATHEMA
             </button>
             {agent.hiring && (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: `1px solid ${isSelected ? CARD_BORDER : 'var(--border)'}`, color: isSelected ? CARD_MUTED : 'var(--muted)', letterSpacing: 1 }}>HIRING</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid var(--border)', color: 'var(--muted)', letterSpacing: 1 }}>HIRING</div>
             )}
             {agent.youtube_channel && (
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1 }}>YT</div>
             )}
             {agent.website && (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: `1px solid ${isSelected ? CARD_BORDER : 'var(--border-light)'}`, color: isSelected ? '#8a8480' : '#444', letterSpacing: 1 }}>WEB</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid var(--border-light)', color: '#444', letterSpacing: 1 }}>WEB</div>
             )}
           </div>
         </div>
@@ -322,13 +343,13 @@ function DetailPanel({
   }
 
   return (
-    <div style={{ flex: 1, background: CARD_BG, border: '1px solid var(--border)', overflow: 'auto' }}>
+    <div style={{ flex: 1, background: 'var(--card)', border: '1px solid var(--border)', overflow: 'auto' }}>
       {/* Agent header */}
-      <div style={{ padding: '20px 24px', borderBottom: `1px solid ${CARD_BORDER}`, background: '#e8e3dc' }}>
+      <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'start', marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: CARD_TEXT, marginBottom: 3 }}>{agent.name}</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CARD_MUTED, letterSpacing: 2, textTransform: 'uppercase' }}>{agent.type}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--white)', marginBottom: 4 }}>{agent.name}</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>{agent.type}</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
             <ScoreCircle score={agent.score} size={56} />
@@ -337,28 +358,28 @@ function DetailPanel({
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
-          {agent.phone && <div style={{ fontSize: 12, color: CARD_MUTED, fontFamily: "'DM Mono', monospace" }}>{agent.phone}</div>}
-          {agent.rating > 0 && <div style={{ fontSize: 13, color: CARD_MUTED }}>★ {agent.rating} ({agent.reviews} reviews)</div>}
-          {agent.address && <div style={{ fontSize: 13, color: CARD_MUTED }}>◎ {agent.address}</div>}
+          {agent.phone && <div style={{ fontSize: 13, color: 'var(--white)', fontFamily: "'DM Mono', monospace" }}>{agent.phone}</div>}
+          {agent.rating > 0 && <div style={{ fontSize: 13, color: 'var(--white)' }}>★ {agent.rating} <span style={{ color: 'var(--muted)' }}>({agent.reviews} reviews)</span></div>}
+          {agent.address && <div style={{ fontSize: 13, color: 'var(--muted)' }}>◎ {agent.address}</div>}
         </div>
 
         {agent.carriers.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
             {agent.carriers.map(c => (
-              <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '2px 7px', border: `1px solid ${CARD_BORDER}`, color: c === 'Unknown' ? '#aaa' : CARD_MUTED, letterSpacing: 1, textTransform: 'uppercase' }}>{c}</span>
+              <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '2px 8px', border: '1px solid var(--border-light)', color: c === 'Unknown' ? '#444' : 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>{c}</span>
             ))}
           </div>
         )}
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {agent.hiring && (
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', background: 'transparent', border: `1px solid ${CARD_BORDER}`, color: CARD_MUTED, letterSpacing: 1 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '3px 10px', border: '1px solid var(--border-light)', color: 'var(--white)', letterSpacing: 1 }}>
               ▸ HIRING{agent.hiring_roles.length > 0 ? ` — ${agent.hiring_roles[0]}` : ''}
             </div>
           )}
           {agent.youtube_channel && (
             <a href={agent.youtube_channel} target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', background: 'rgba(255,0,0,0.06)', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1, textDecoration: 'none' }}>
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '3px 10px', background: 'rgba(255,0,0,0.08)', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1, textDecoration: 'none' }}>
               ▸ YOUTUBE{agent.youtube_subscribers ? ` — ${agent.youtube_subscribers}` : ''}
             </a>
           )}
@@ -367,32 +388,32 @@ function DetailPanel({
 
       {/* AI Summary */}
       {agent.notes && (
-        <div style={{ margin: '16px 24px 0', padding: '12px 16px', background: 'rgba(255,152,0,0.07)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, color: '#7a6040', lineHeight: 1.6 }}>
+        <div style={{ margin: '16px 24px 0', padding: '14px 16px', background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5, color: 'var(--white)', lineHeight: 1.7 }}>
           {agent.notes}
         </div>
       )}
 
       {/* Hiring roles */}
       {agent.hiring && agent.hiring_roles.length > 0 && (
-        <div style={{ margin: '12px 24px 0', padding: '10px 14px', background: 'rgba(0,200,100,0.05)', border: '1px solid rgba(0,200,100,0.2)' }}>
+        <div style={{ margin: '12px 24px 0', padding: '10px 14px', background: 'rgba(0,230,118,0.05)', border: '1px solid rgba(0,230,118,0.2)' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 2, marginBottom: 6 }}>ACTIVE JOB POSTINGS</div>
-          {agent.hiring_roles.map(r => <div key={r} style={{ fontSize: 12, color: CARD_MUTED }}>• {r}</div>)}
+          {agent.hiring_roles.map(r => <div key={r} style={{ fontSize: 13, color: 'var(--white)' }}>• {r}</div>)}
         </div>
       )}
 
       {/* About */}
       {agent.about && (
-        <div style={{ margin: '12px 24px 0', padding: '12px 16px', background: '#ede8e0', border: `1px solid ${CARD_BORDER}`, fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: CARD_MUTED, lineHeight: 1.7 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CARD_MUTED, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>ABOUT</div>
+        <div style={{ margin: '12px 24px 0', padding: '12px 16px', background: '#1e1c18', border: '1px solid var(--border)', fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--white)', lineHeight: 1.7 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>ABOUT</div>
           {agent.about}
         </div>
       )}
 
       {/* Links */}
-      <div style={{ margin: '10px 24px 0', display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 4 }}>
+      <div style={{ margin: '12px 24px 0', display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 4 }}>
         {agent.contact_email && (
           <a href={`mailto:${agent.contact_email}`}
-            style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: `1px solid ${CARD_BORDER}`, color: CARD_MUTED, letterSpacing: 1, textDecoration: 'none' }}>
+            style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--white)', letterSpacing: 1, textDecoration: 'none' }}>
             @ {agent.contact_email}
           </a>
         )}
@@ -400,20 +421,20 @@ function DetailPanel({
           const label = link.includes('facebook') ? 'FB' : link.includes('linkedin') ? 'LI' : link.includes('instagram') ? 'IG' : link.includes('twitter') || link.includes('x.com') ? 'TW' : '↗ SOCIAL'
           return (
             <a key={i} href={link} target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: `1px solid ${CARD_BORDER}`, color: CARD_MUTED, letterSpacing: 1, textDecoration: 'none' }}>
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--white)', letterSpacing: 1, textDecoration: 'none' }}>
               {label}
             </a>
           )
         })}
         {agent.website && (
           <a href={agent.website} target="_blank" rel="noopener noreferrer"
-            style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1, textDecoration: 'none', padding: '4px 0' }}>
+            style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--orange)', letterSpacing: 1, textDecoration: 'none', padding: '4px 0' }}>
             {agent.website} ↗
           </a>
         )}
       </div>
 
-      <div style={{ margin: '16px 0', borderTop: `1px solid ${CARD_BORDER}` }} />
+      <div style={{ margin: '16px 0', borderTop: '1px solid var(--border)' }} />
 
       {/* ANATHEMA Panel */}
       <AnathemaPanel key={agent.name} agent={agent} city={city} state={state} cachedResult={cachedResult} onResult={onResult} />

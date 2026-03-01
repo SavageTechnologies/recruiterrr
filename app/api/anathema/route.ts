@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
-  const specimen = await getSpecimen(userId, id)
+const specimen = await getSpecimen(userId, id)
   if (specimen) {
     return NextResponse.json({
       scan: {
@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
           prediction_source: specimen.prediction_source || null,
           serp_debug: specimen.serp_debug || null,
         },
+        david_facts: specimen.david_facts || null,
       }
     })
   }
