@@ -479,8 +479,12 @@ Respond with ONLY valid JSON:
       agentAbout: agent.about || null,
     }
 
+    // Derive base URL from the incoming request — works on prod, preview, and local
+    // without relying on NEXT_PUBLIC_BASE_URL being set in the environment.
+    const baseUrl = `${req.nextUrl.protocol}//${req.nextUrl.host}`
+
     // Fire-and-forget: no await, no catch needed — enrich route handles its own errors
-    fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/david/enrich`, {
+    fetch(`${baseUrl}/api/david/enrich`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
