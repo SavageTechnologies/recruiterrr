@@ -146,33 +146,82 @@ const QUERY_KEY_LABELS: Record<string, string> = {
   glassdoor: 'GLASSDOOR',
 }
 
-function SerpEntry({ entry }: { entry: any }) {
+function SerpEntry({ entry, fmoName, domain }: { entry: any; fmoName: string; domain: string | null }) {
   const [open, setOpen] = useState(false)
+  const [showAll, setShowAll] = useState(false)
   const hasResults = (entry.results || []).length > 0
   const label = QUERY_KEY_LABELS[entry.key] || entry.key.toUpperCase()
+
+  // Build search terms from fmo name and domain — split into tokens for flexible matching
+  const matchTokens = [
+    ...fmoName.toLowerCase().split(/\s+/).filter(t => t.length > 2),
+    ...(domain ? [domain.toLowerCase().replace(/^www\./, '').split('.')[0]] : []),
+  ]
+
+  function isRelevant(r: any) {
+    const hay = `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`.toLowerCase()
+    return matchTokens.some(token => hay.includes(token))
+  }
+
+  const results = entry.results || []
+  const relevantResults = results.filter(isRelevant)
+  const noiseResults = results.filter((r: any) => !isRelevant(r))
+  const displayResults = showAll ? results : relevantResults
+  const noiseCount = noiseResults.length
+
   return (
     <div style={{ border: '1px solid var(--border)', background: 'var(--dark)' }}>
       <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer' }}>
         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: hasResults ? 'var(--green)' : '#444', minWidth: 16 }}>{hasResults ? '●' : '○'}</span>
         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 2, minWidth: 180 }}>{label}</span>
         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.query}</span>
-        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', minWidth: 60, textAlign: 'right' }}>{hasResults ? `${entry.results.length} results` : 'no results'}</span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: relevantResults.length > 0 ? 'var(--green)' : '#444', minWidth: 80, textAlign: 'right' }}>
+          {relevantResults.length} relevant
+        </span>
+        {noiseCount > 0 && (
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', minWidth: 60, textAlign: 'right' }}>
+            +{noiseCount} noise
+          </span>
+        )}
         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', marginLeft: 8 }}>{open ? '▲' : '▼'}</span>
       </div>
+
       {open && (
         <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {hasResults ? entry.results.map((r: any, i: number) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '16px 1fr', gap: 10 }}>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', paddingTop: 2 }}>{i + 1}</span>
-              <div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 3, alignItems: 'baseline' }}>
-                  <span style={{ fontSize: 12, color: 'var(--white)', fontWeight: 500 }}>{r.title}</span>
-                  {r.link && <a href={r.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', textDecoration: 'none' }}>↗</a>}
+          {hasResults ? (
+            <>
+              {displayResults.length === 0 && (
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', padding: '8px 0' }}>
+                  NO RELEVANT RESULTS — all {results.length} results were industry noise
                 </div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#555', lineHeight: 1.6 }}>{r.snippet}</div>
-              </div>
-            </div>
-          )) : (
+              )}
+              {displayResults.map((r: any, i: number) => {
+                const relevant = isRelevant(r)
+                return (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '16px 1fr', gap: 10, opacity: relevant ? 1 : 0.3 }}>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: relevant ? 'var(--green)' : '#333', paddingTop: 2 }}>{relevant ? '◈' : '·'}</span>
+                    <div>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 3, alignItems: 'baseline' }}>
+                        <span style={{ fontSize: 12, color: relevant ? 'var(--white)' : '#444', fontWeight: 500 }}>{r.title}</span>
+                        {r.link && <a href={r.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', textDecoration: 'none' }}>↗</a>}
+                      </div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: relevant ? '#555' : '#333', lineHeight: 1.6 }}>{r.snippet}</div>
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* Toggle noise */}
+              {noiseCount > 0 && (
+                <button
+                  onClick={e => { e.stopPropagation(); setShowAll(v => !v) }}
+                  style={{ alignSelf: 'flex-start', marginTop: 4, background: 'transparent', border: '1px solid #2a2a2a', color: '#444', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '4px 10px', cursor: 'pointer' }}
+                >
+                  {showAll ? `HIDE ${noiseCount} NOISE RESULTS ▲` : `SHOW ${noiseCount} INDUSTRY NOISE ▼`}
+                </button>
+              )}
+            </>
+          ) : (
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333' }}>{(entry.signals_fired || []).join(' · ') || 'No results'}</div>
           )}
         </div>
@@ -545,7 +594,7 @@ function PrometheusPageInner() {
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, marginBottom: 12 }}>SERP QUERIES</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {(result.serp_debug || []).filter((e: any) => e.key !== 'website_discovery').map((entry: any, ei: number) => (
-                  <SerpEntry key={ei} entry={entry} />
+                  <SerpEntry key={ei} entry={entry} fmoName={result.fmo_name} domain={result.domain} />
                 ))}
               </div>
             </div>
