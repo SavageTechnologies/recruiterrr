@@ -40,7 +40,7 @@ export type SaveObservationInput = {
 // ─── SAVE OBSERVATION ─────────────────────────────────────────────────────────
 // Upserts specimen + writes observation history + back-fills agent_profiles.
 
-export async function saveObservation(input: SaveObservationInput): Promise<{ ok: boolean }> {
+export async function saveObservation(input: SaveObservationInput): Promise<{ ok: boolean; id: string | null }> {
   const {
     userId,
     agent_name, city, state, agent_website, agent_address,
@@ -83,7 +83,6 @@ export async function saveObservation(input: SaveObservationInput): Promise<{ ok
         ...(predicted_sub_imo_signals !== undefined && { predicted_sub_imo_signals }),
         ...(predicted_sub_imo_partner_id !== undefined && { predicted_sub_imo_partner_id }),
         ...(serp_debug !== undefined && { serp_debug }),
-        // DAVID facts — stored on update too so re-scans refresh the payload
         ...(david_facts !== undefined && { david_facts }),
       })
       .eq('id', existing.id)
@@ -102,7 +101,6 @@ export async function saveObservation(input: SaveObservationInput): Promise<{ ok
         predicted_sub_imo_signals: predicted_sub_imo_signals || null,
         predicted_sub_imo_partner_id: predicted_sub_imo_partner_id || null,
         serp_debug: serp_debug || null,
-        // DAVID facts — stored on insert, sits dormant until DAVID is ready
         david_facts: david_facts || null,
       })
       .select('id')
@@ -135,9 +133,8 @@ export async function saveObservation(input: SaveObservationInput): Promise<{ ok
     .ilike('city', `%${city}%`)
     .ilike('state', `%${state}%`)
 
-  return { ok: true }
+  return { ok: true, id: specimenId || null }
 }
-
 // ─── CHECK EXISTING ───────────────────────────────────────────────────────────
 
 export async function checkExistingSpecimen(

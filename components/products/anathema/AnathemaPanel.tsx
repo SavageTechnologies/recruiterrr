@@ -214,6 +214,9 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [checkDone, setCheckDone] = useState(!!cachedResult)
   const [davidFacts, setDavidFacts] = useState<any>(cachedResult?.davidFacts || null)
+  const [deepScanStatus, setDeepScanStatus] = useState<'idle' | 'polling' | 'complete' | 'timeout'>(
+    cachedResult?.deepScanStatus || 'idle'
+  )
 
   useEffect(() => {
     if (!cachedResult) {
@@ -222,7 +225,7 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
   }, [agent.name])
 
   function bubble(update: object) {
-    if (onResult) onResult({ result, existing, confirmedTrees, confirmedOther, subImo, recruiterNotes, scanState, ...update })
+    if (onResult) onResult({ result, existing, confirmedTrees, confirmedOther, subImo, recruiterNotes, scanState, deepScanStatus, ...update })
   }
 
   async function checkExisting() {
@@ -257,6 +260,12 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
           ? data.specimen.confirmed_tree
           : data.specimen.confirmed_tree ? [data.specimen.confirmed_tree] : []
         const si = data.specimen.confirmed_sub_imo || data.specimen.predicted_sub_imo || ''
+        const df = data.specimen.david_facts || null
+
+        // If specimen exists and has deep facts already, mark complete
+        const sources: string[] = df?.scan_sources_used || []
+        const isDeep = sources.some((s: string) => s.startsWith('APIFY_'))
+
         setResult(r)
         setExisting(data.specimen)
         setConfirmedTrees(trees)
@@ -264,11 +273,22 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
         setSubImo(si)
         setRecruiterNotes(data.specimen.recruiter_notes || '')
         setScanState('done')
-        const df = data.specimen.david_facts || null
         setDavidFacts(df)
-        bubble({ result: r, existing: data.specimen, confirmedTrees: trees, confirmedOther: data.specimen.confirmed_tree_other || '', subImo: si, recruiterNotes: data.specimen.recruiter_notes || '', scanState: 'done', davidFacts: df })      }
-            } catch {}
-            setCheckDone(true)
+        setDeepScanStatus(isDeep ? 'complete' : 'idle')
+        bubble({
+          result: r,
+          existing: data.specimen,
+          confirmedTrees: trees,
+          confirmedOther: data.specimen.confirmed_tree_other || '',
+          subImo: si,
+          recruiterNotes: data.specimen.recruiter_notes || '',
+          scanState: 'done',
+          davidFacts: df,
+          deepScanStatus: isDeep ? 'complete' : 'idle',
+        })
+      }
+    } catch {}
+    setCheckDone(true)
   }
 
   async function runScan() {
@@ -276,7 +296,8 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
     setScanState('scanning')
     setResult(null)
     setErrorMsg('')
-    bubble({ scanState: 'scanning', result: null })
+    setDeepScanStatus('idle')
+    bubble({ scanState: 'scanning', result: null, deepScanStatus: 'idle' })
     try {
       const res = await fetch('/api/anathema', {
         method: 'POST',
@@ -289,37 +310,39 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
         return
       }
       const data = await res.json()
-            if (data.error) throw new Error(data.error)
-            setResult(data)
-            setDavidFacts(data.david_facts || null)
-            setScanState('done')
-            const si = data.predicted_sub_imo && !subImo ? data.predicted_sub_imo : subImo
-            if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
-            bubble({ result: data, scanState: 'done', subImo: si, davidFacts: data.david_facts || null })
-            if (data.david_facts) {
-              void fetch('/api/anathema', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  action: 'save_david_facts',
-                  agent_name: agent.name,
-                  city,
-                  state,
-                  david_facts: data.david_facts,
-                }),
-              })
-            }
-          } catch (err: any) {
-            setScanState('error')
-            setErrorMsg(err.message || 'Scan failed')
-          }
-        }
+      if (data.error) throw new Error(data.error)
+      setResult(data)
+      setDavidFacts(data.david_facts || null)
+      setScanState('done')
+      const si = data.predicted_sub_imo && !subImo ? data.predicted_sub_imo : subImo
+      if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
+      bubble({ result: data, scanState: 'done', subImo: si, davidFacts: data.david_facts || null })
+
+      // Save fast facts immediately
+      if (data.david_facts) {
+        void fetch('/api/anathema', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'save_david_facts',
+            agent_name: agent.name,
+            city,
+            state,
+            david_facts: data.david_facts,
+          }),
+        })
+      }
+    } catch (err: any) {
+      setScanState('error')
+      setErrorMsg(err.message || 'Scan failed')
+    }
+  }
 
   async function logObservation() {
     if (!result || saveState === 'saving') return
     setSaveState('saving')
     try {
-      await fetch('/api/anathema', {
+      const res = await fetch('/api/anathema', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -346,8 +369,48 @@ export default function AnathemaPanel({ agent, city, state, cachedResult, onResu
           david_facts: davidFacts,
         }),
       })
+      const saved = await res.json()
       setSaveState('saved')
+
+      // Start polling for deep Apify facts if we got the specimen ID back
+      if (saved.id) {
+        startDeepFactsPolling(saved.id)
+      }
     } catch { setSaveState('idle') }
+  }
+
+  async function startDeepFactsPolling(specimenId: string) {
+    const INTERVAL = 5000
+    const TIMEOUT  = 3 * 60 * 1000
+    const started  = Date.now()
+
+    setDeepScanStatus('polling')
+    bubble({ deepScanStatus: 'polling' })
+
+    const poll = setInterval(async () => {
+      if (Date.now() - started > TIMEOUT) {
+        clearInterval(poll)
+        setDeepScanStatus('timeout')
+        bubble({ deepScanStatus: 'timeout' })
+        return
+      }
+
+      try {
+        const res  = await fetch(`/api/anathema?id=${specimenId}`)
+        const data = await res.json()
+        const facts = data.scan?.analysis_json?.david_facts ?? data.scan?.david_facts ?? null
+
+        const sources: string[] = facts?.scan_sources_used || []
+        const isDeep = sources.some((s: string) => s.startsWith('APIFY_'))
+
+        if (isDeep) {
+          clearInterval(poll)
+          setDeepScanStatus('complete')
+          setDavidFacts(facts)
+          bubble({ davidFacts: facts, deepScanStatus: 'complete' })
+        }
+      } catch {}
+    }, INTERVAL)
   }
 
   const stage = result ? getStage(result.confidence, result.predicted_tree) : null

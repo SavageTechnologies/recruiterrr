@@ -79,6 +79,12 @@ const LOADING_STEPS = [
   'Scoring recruitability',
 ]
 
+// Off-white surface for inner cards
+const CARD_BG = '#f0ece6'
+const CARD_TEXT = '#1a1814'
+const CARD_MUTED = '#6b6560'
+const CARD_BORDER = '#ddd8d0'
+
 function ScoreCircle({ score, size = 52 }: { score: number; size?: number }) {
   const color = score >= 75 ? 'var(--green)' : score >= 50 ? 'var(--yellow)' : 'var(--red)'
   return (
@@ -90,7 +96,7 @@ function ScoreCircle({ score, size = 52 }: { score: number; size?: number }) {
 }
 
 function RecruitBadge({ flag }: { flag: 'hot' | 'warm' | 'cold' }) {
-  const map = { hot: { color: 'var(--green)', label: '◈ HOT' }, warm: { color: 'var(--yellow)', label: 'WARM' }, cold: { color: '#333', label: 'PASS' } }
+  const map = { hot: { color: 'var(--green)', label: '◈ HOT' }, warm: { color: 'var(--yellow)', label: 'WARM' }, cold: { color: '#999', label: 'PASS' } }
   const { color, label } = map[flag]
   return (
     <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 6px', border: `1px solid ${color}`, color, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -99,7 +105,114 @@ function RecruitBadge({ flag }: { flag: 'hot' | 'warm' | 'cold' }) {
   )
 }
 
-// Compact card — never expands, click selects into right panel
+// ── DAVID Panel ───────────────────────────────────────────────────────────────
+function DavidPanel({ davidFacts, deepScanStatus, agentName }: {
+  davidFacts: any
+  deepScanStatus: 'idle' | 'polling' | 'complete' | 'timeout'
+  agentName: string
+}) {
+  const facts: any[] = davidFacts?.facts || []
+  const sources: string[] = davidFacts?.scan_sources_used || []
+  const isDeep = sources.some((s: string) => s.startsWith('APIFY_'))
+
+  return (
+    <div style={{ background: CARD_BG, border: '1px solid var(--border)', overflow: 'hidden', animation: 'slideInRight 0.3s ease both' }}>
+      {/* Header */}
+      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${CARD_BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#e8e3dc' }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CARD_MUTED, letterSpacing: 3, textTransform: 'uppercase' }}>
+          ◈ DAVID · DEEP INTEL
+        </div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: CARD_MUTED, letterSpacing: 1 }}>
+          {agentName.toUpperCase().slice(0, 18)}
+        </div>
+      </div>
+
+      {/* Deep scan status bar */}
+      {deepScanStatus === 'polling' && (
+        <div style={{ padding: '8px 16px', borderBottom: `1px solid ${CARD_BORDER}`, background: '#ede8e0', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <style>{`@keyframes davidPulse { 0%,100%{opacity:0.4} 50%{opacity:1} }`}</style>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'davidPulse 1.4s ease infinite', flexShrink: 0 }} />
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#8a7a60', letterSpacing: 1 }}>
+            APIFY DEEP SCAN RUNNING — ENRICHING PROFILE...
+          </div>
+        </div>
+      )}
+      {deepScanStatus === 'complete' && isDeep && (
+        <div style={{ padding: '8px 16px', borderBottom: `1px solid ${CARD_BORDER}`, background: 'rgba(0,230,118,0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', flexShrink: 0 }} />
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 1 }}>
+            DEEP SCAN COMPLETE · {sources.join(' · ')}
+          </div>
+        </div>
+      )}
+      {deepScanStatus === 'timeout' && (
+        <div style={{ padding: '8px 16px', borderBottom: `1px solid ${CARD_BORDER}`, background: 'rgba(255,152,0,0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff9800', flexShrink: 0 }} />
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#ff9800', letterSpacing: 1 }}>
+            DEEP SCAN TIMED OUT · SHOWING INITIAL RESULTS
+          </div>
+        </div>
+      )}
+
+      {/* Facts */}
+      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {facts.length === 0 && deepScanStatus === 'polling' && (
+          <div style={{ padding: '24px 0', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: CARD_MUTED, letterSpacing: 2 }}>
+            INITIAL RESULTS PENDING...
+          </div>
+        )}
+        {facts.map((fact: any, i: number) => (
+          <FactRow key={i} fact={fact} />
+        ))}
+      </div>
+
+      {/* Sources footer */}
+      {sources.length > 0 && (
+        <div style={{ padding: '8px 16px', borderTop: `1px solid ${CARD_BORDER}`, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {sources.map((s: string) => (
+            <span key={s} style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: `1px solid ${s.startsWith('APIFY') ? 'rgba(0,230,118,0.4)' : CARD_BORDER}`, color: s.startsWith('APIFY') ? 'var(--green)' : CARD_MUTED, letterSpacing: 1 }}>
+              {s}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FactRow({ fact }: { fact: any }) {
+  const iconMap: Record<string, string> = {
+    hiring: '▸',
+    youtube: '▶',
+    facebook: 'f',
+    award: '★',
+    website: '◎',
+    default: '·',
+  }
+  const typeKey = fact.type?.toLowerCase() || 'default'
+  const icon = iconMap[typeKey] || iconMap.default
+  const iconColor = typeKey === 'hiring' ? 'var(--green)' : typeKey === 'youtube' ? '#ff4444' : typeKey === 'award' ? 'var(--yellow)' : CARD_MUTED
+
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '7px 10px', background: '#ede8e0', borderLeft: `2px solid ${iconColor}`, marginBottom: 2 }}>
+      <span style={{ color: iconColor, fontSize: 10, flexShrink: 0, marginTop: 1, fontFamily: "'DM Mono', monospace" }}>{icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {fact.label && (
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: CARD_MUTED, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 }}>{fact.label}</div>
+        )}
+        <div style={{ fontSize: 11, color: CARD_TEXT, lineHeight: 1.5, fontFamily: "'DM Sans', sans-serif" }}>{fact.value || fact.text || fact.summary}</div>
+        {fact.url && (
+          <a href={fact.url} target="_blank" rel="noopener noreferrer"
+            style={{ fontSize: 9, color: 'var(--orange)', textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5, display: 'inline-block', marginTop: 3 }}>
+            ↗ {fact.url.slice(0, 40)}
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Compact list card ─────────────────────────────────────────────────────────
 function CompactAgentCard({
   agent, index, isSelected, onSelect, onAnathema, cardRef
 }: {
@@ -114,7 +227,7 @@ function CompactAgentCard({
       ref={cardRef}
       onClick={onSelect}
       style={{
-        background: isSelected ? '#1a1814' : 'var(--card)',
+        background: isSelected ? CARD_BG : 'var(--card)',
         border: '1px solid var(--border)',
         borderLeft: isSelected ? `3px solid ${flagColor}` : '3px solid transparent',
         padding: '12px 14px',
@@ -137,49 +250,44 @@ function CompactAgentCard({
       }}
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'start' }}>
-        {/* Left content */}
         <div style={{ minWidth: 0 }}>
-          {/* Name + type */}
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{agent.name}</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>{agent.type}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? CARD_TEXT : 'var(--white)', marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{agent.name}</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: isSelected ? CARD_MUTED : 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>{agent.type}</div>
 
-          {/* Rating + location */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
             {agent.rating > 0 && (
-              <div style={{ fontSize: 11, color: 'var(--muted)' }}>★ {agent.rating} ({agent.reviews})</div>
+              <div style={{ fontSize: 11, color: isSelected ? CARD_MUTED : 'var(--muted)' }}>★ {agent.rating} ({agent.reviews})</div>
             )}
             {agent.address && (
-              <div style={{ fontSize: 11, color: '#444', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{agent.address}</div>
+              <div style={{ fontSize: 11, color: isSelected ? '#8a8480' : '#444', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{agent.address}</div>
             )}
           </div>
 
           {agent.phone && (
-            <div style={{ fontSize: 11, color: '#555', marginBottom: 6, fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}>{agent.phone}</div>
+            <div style={{ fontSize: 11, color: isSelected ? CARD_MUTED : '#555', marginBottom: 6, fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}>{agent.phone}</div>
           )}
 
-          {/* Tags row */}
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={onAnathema}
-              style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 7px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', letterSpacing: 1, cursor: 'pointer', textTransform: 'uppercase', transition: 'background 0.1s', flexShrink: 0 }}
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 7px', background: 'transparent', border: `1px solid ${isSelected ? CARD_BORDER : 'var(--border)'}`, color: isSelected ? CARD_MUTED : 'var(--muted)', letterSpacing: 1, cursor: 'pointer', textTransform: 'uppercase', transition: 'background 0.1s', flexShrink: 0 }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,230,118,0.08)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
             >
               ◈ ANATHEMA
             </button>
             {agent.hiring && (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid var(--border)', color: 'var(--muted)', letterSpacing: 1 }}>HIRING</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: `1px solid ${isSelected ? CARD_BORDER : 'var(--border)'}`, color: isSelected ? CARD_MUTED : 'var(--muted)', letterSpacing: 1 }}>HIRING</div>
             )}
             {agent.youtube_channel && (
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1 }}>YT</div>
             )}
             {agent.website && (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: '1px solid var(--border-light)', color: '#444', letterSpacing: 1 }}>WEB</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '2px 6px', border: `1px solid ${isSelected ? CARD_BORDER : 'var(--border-light)'}`, color: isSelected ? '#8a8480' : '#444', letterSpacing: 1 }}>WEB</div>
             )}
           </div>
         </div>
 
-        {/* Right: score + badge */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
           <ScoreCircle score={agent.score} size={44} />
           <RecruitBadge flag={agent.flag} />
@@ -189,7 +297,7 @@ function CompactAgentCard({
   )
 }
 
-// Detail panel — agent info + ANATHEMA
+// ── Detail panel (center column) ──────────────────────────────────────────────
 function DetailPanel({
   agent, city, state, cachedResult, onResult
 }: {
@@ -214,13 +322,13 @@ function DetailPanel({
   }
 
   return (
-    <div style={{ flex: 1, background: 'var(--card)', border: '1px solid var(--border)', overflow: 'auto' }}>
+    <div style={{ flex: 1, background: CARD_BG, border: '1px solid var(--border)', overflow: 'auto' }}>
       {/* Agent header */}
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ padding: '20px 24px', borderBottom: `1px solid ${CARD_BORDER}`, background: '#e8e3dc' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'start', marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--white)', marginBottom: 3 }}>{agent.name}</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>{agent.type}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: CARD_TEXT, marginBottom: 3 }}>{agent.name}</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CARD_MUTED, letterSpacing: 2, textTransform: 'uppercase' }}>{agent.type}</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
             <ScoreCircle score={agent.score} size={56} />
@@ -228,32 +336,29 @@ function DetailPanel({
           </div>
         </div>
 
-        {/* Meta info */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
-          {agent.phone && <div style={{ fontSize: 12, color: 'var(--muted)', fontFamily: "'DM Mono', monospace" }}>{agent.phone}</div>}
-          {agent.rating > 0 && <div style={{ fontSize: 13, color: 'var(--muted)' }}>★ {agent.rating} ({agent.reviews} reviews)</div>}
-          {agent.address && <div style={{ fontSize: 13, color: 'var(--muted)' }}>◎ {agent.address}</div>}
+          {agent.phone && <div style={{ fontSize: 12, color: CARD_MUTED, fontFamily: "'DM Mono', monospace" }}>{agent.phone}</div>}
+          {agent.rating > 0 && <div style={{ fontSize: 13, color: CARD_MUTED }}>★ {agent.rating} ({agent.reviews} reviews)</div>}
+          {agent.address && <div style={{ fontSize: 13, color: CARD_MUTED }}>◎ {agent.address}</div>}
         </div>
 
-        {/* Carriers */}
         {agent.carriers.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
             {agent.carriers.map(c => (
-              <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '2px 7px', border: '1px solid var(--border-light)', color: c === 'Unknown' ? '#333' : 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>{c}</span>
+              <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '2px 7px', border: `1px solid ${CARD_BORDER}`, color: c === 'Unknown' ? '#aaa' : CARD_MUTED, letterSpacing: 1, textTransform: 'uppercase' }}>{c}</span>
             ))}
           </div>
         )}
 
-        {/* Badges */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {agent.hiring && (
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', letterSpacing: 1 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', background: 'transparent', border: `1px solid ${CARD_BORDER}`, color: CARD_MUTED, letterSpacing: 1 }}>
               ▸ HIRING{agent.hiring_roles.length > 0 ? ` — ${agent.hiring_roles[0]}` : ''}
             </div>
           )}
           {agent.youtube_channel && (
             <a href={agent.youtube_channel} target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', background: 'rgba(255,0,0,0.08)', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1, textDecoration: 'none' }}>
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', background: 'rgba(255,0,0,0.06)', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1, textDecoration: 'none' }}>
               ▸ YOUTUBE{agent.youtube_subscribers ? ` — ${agent.youtube_subscribers}` : ''}
             </a>
           )}
@@ -262,7 +367,7 @@ function DetailPanel({
 
       {/* AI Summary */}
       {agent.notes && (
-        <div style={{ margin: '16px 24px 0', padding: '12px 16px', background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, color: 'var(--muted)', lineHeight: 1.6 }}>
+        <div style={{ margin: '16px 24px 0', padding: '12px 16px', background: 'rgba(255,152,0,0.07)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, color: '#7a6040', lineHeight: 1.6 }}>
           {agent.notes}
         </div>
       )}
@@ -271,14 +376,14 @@ function DetailPanel({
       {agent.hiring && agent.hiring_roles.length > 0 && (
         <div style={{ margin: '12px 24px 0', padding: '10px 14px', background: 'rgba(0,200,100,0.05)', border: '1px solid rgba(0,200,100,0.2)' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 2, marginBottom: 6 }}>ACTIVE JOB POSTINGS</div>
-          {agent.hiring_roles.map(r => <div key={r} style={{ fontSize: 12, color: 'var(--muted)' }}>• {r}</div>)}
+          {agent.hiring_roles.map(r => <div key={r} style={{ fontSize: 12, color: CARD_MUTED }}>• {r}</div>)}
         </div>
       )}
 
       {/* About */}
       {agent.about && (
-        <div style={{ margin: '12px 24px 0', padding: '12px 16px', background: '#1a1814', border: '1px solid var(--border)', fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>ABOUT</div>
+        <div style={{ margin: '12px 24px 0', padding: '12px 16px', background: '#ede8e0', border: `1px solid ${CARD_BORDER}`, fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: CARD_MUTED, lineHeight: 1.7 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CARD_MUTED, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>ABOUT</div>
           {agent.about}
         </div>
       )}
@@ -287,7 +392,7 @@ function DetailPanel({
       <div style={{ margin: '10px 24px 0', display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 4 }}>
         {agent.contact_email && (
           <a href={`mailto:${agent.contact_email}`}
-            style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 1, textDecoration: 'none' }}>
+            style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: `1px solid ${CARD_BORDER}`, color: CARD_MUTED, letterSpacing: 1, textDecoration: 'none' }}>
             @ {agent.contact_email}
           </a>
         )}
@@ -295,7 +400,7 @@ function DetailPanel({
           const label = link.includes('facebook') ? 'FB' : link.includes('linkedin') ? 'LI' : link.includes('instagram') ? 'IG' : link.includes('twitter') || link.includes('x.com') ? 'TW' : '↗ SOCIAL'
           return (
             <a key={i} href={link} target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 1, textDecoration: 'none' }}>
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: `1px solid ${CARD_BORDER}`, color: CARD_MUTED, letterSpacing: 1, textDecoration: 'none' }}>
               {label}
             </a>
           )
@@ -308,15 +413,15 @@ function DetailPanel({
         )}
       </div>
 
-      {/* Divider */}
-      <div style={{ margin: '16px 0', borderTop: '1px solid var(--border)' }} />
+      <div style={{ margin: '16px 0', borderTop: `1px solid ${CARD_BORDER}` }} />
 
-      {/* ANATHEMA Panel — keyed on agent name forces full remount on switch */}
+      {/* ANATHEMA Panel */}
       <AnathemaPanel key={agent.name} agent={agent} city={city} state={state} cachedResult={cachedResult} onResult={onResult} />
     </div>
   )
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 function SearchPageInner() {
   const searchParams = useSearchParams()
   const [city, setCity] = useState('')
@@ -339,12 +444,10 @@ function SearchPageInner() {
   const acRef = useRef<HTMLDivElement>(null)
   const acTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Two-column state
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [anathemaCache, setAnathemaCache] = useState<Record<number, any>>({})
   const [searchCollapsed, setSearchCollapsed] = useState(false)
 
-  // Refs for connecting line
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
   const panelRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -365,7 +468,6 @@ function SearchPageInner() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Update connecting line when selected card changes or on scroll
   const updateLine = useCallback(() => {
     if (selectedIndex === null || !cardRefs.current[selectedIndex] || !panelRef.current || !containerRef.current) {
       setLinePath('')
@@ -374,26 +476,19 @@ function SearchPageInner() {
     const card = cardRefs.current[selectedIndex]!
     const panel = panelRef.current
     const container = containerRef.current
-
     const containerRect = container.getBoundingClientRect()
     const cardRect = card.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
-
-    // Relative to container
     const x1 = cardRect.right - containerRect.left
     const y1 = cardRect.top - containerRect.top + cardRect.height / 2
     const x2 = panelRect.left - containerRect.left
-    const y2 = panelRect.top - containerRect.top + 60 // aim at top portion of panel
-
+    const y2 = panelRect.top - containerRect.top + 60
     const cx1 = x1 + (x2 - x1) * 0.4
     const cx2 = x2 - (x2 - x1) * 0.4
-
     setLinePath(`M ${x1},${y1} C ${cx1},${y1} ${cx2},${y2} ${x2},${y2}`)
   }, [selectedIndex])
 
-  useEffect(() => {
-    updateLine()
-  }, [selectedIndex, agents, updateLine])
+  useEffect(() => { updateLine() }, [selectedIndex, agents, updateLine])
 
   useEffect(() => {
     if (selectedIndex === null) return
@@ -403,7 +498,6 @@ function SearchPageInner() {
     setLineColor(color)
   }, [selectedIndex, agents])
 
-  // Scroll listener for line update
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -507,17 +601,21 @@ function SearchPageInner() {
   }
 
   const selectedAgent = selectedIndex !== null ? agents[selectedIndex] : null
+  const selectedCache = selectedIndex !== null ? anathemaCache[selectedIndex] : undefined
+
+  // Show DAVID panel when there's a scan result with david facts or polling
+  const showDavid = selectedCache?.davidFacts != null || selectedCache?.deepScanStatus === 'polling'
 
   return (
-    <div style={{ padding: '40px 40px 40px', maxWidth: 1400, minHeight: '100vh' }}>
+    <div style={{ padding: '40px 40px 40px', maxWidth: showDavid ? 1600 : 1400, minHeight: '100vh', transition: 'max-width 0.3s ease' }}>
       <style>{`
         @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes loadSlide { 0% { left: -40%; } 100% { left: 100%; } }
         @keyframes spin { to { transform: rotate(360deg); } }
         select option { background: #1a1814; }
       `}</style>
 
-      {/* Header — only shown when not collapsed */}
       {!searchCollapsed && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>Market Search</div>
@@ -527,7 +625,6 @@ function SearchPageInner() {
         </div>
       )}
 
-      {/* SEARCH FORM — expanded or collapsed */}
       {searchCollapsed ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: 'var(--card)', border: '1px solid var(--border-light)', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -546,7 +643,6 @@ function SearchPageInner() {
       ) : (
         <>
           <div style={{ position: 'relative', marginBottom: 12, display: 'flex', gap: 0, border: `1px solid ${loading ? 'var(--orange)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none' }}>
-            {/* Query */}
             <div ref={queryRef} style={{ flex: 1, minWidth: 0, position: 'relative' }}>
               <input
                 value={query}
@@ -638,7 +734,6 @@ function SearchPageInner() {
         </>
       )}
 
-      {/* Search tips — only pre-search */}
       {!searched && !loading && (
         <div style={{ marginBottom: 40 }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>Search Tips</div>
@@ -663,7 +758,6 @@ function SearchPageInner() {
         </div>
       )}
 
-      {/* Loading */}
       {loading && currentStep >= 0 && (
         <div style={{ marginBottom: 40 }}>
           <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 20 }}>
@@ -693,7 +787,6 @@ function SearchPageInner() {
 
       {searched && !loading && (
         <>
-          {/* Stats bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
               {searchLabel} — {MODES.find(m => m.value === mode)?.label} Agents
@@ -705,7 +798,6 @@ function SearchPageInner() {
             </div>
           </div>
 
-          {/* Filter chips */}
           {agents.length > 0 && (
             <div style={{ display: 'flex', gap: 2, marginBottom: 16 }}>
               <div style={{ flex: 1, padding: '8px 14px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)' }}>
@@ -726,22 +818,22 @@ function SearchPageInner() {
               <div style={{ fontSize: 14, color: 'var(--muted)' }}>Try a larger city or different search terms.</div>
             </div>
           ) : (
-            /* TWO COLUMN LAYOUT */
-            <div ref={containerRef} style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: 0, alignItems: 'start', position: 'relative' }}>
-              {/* SVG connecting line overlay */}
+            /* THREE COLUMN LAYOUT — DAVID slides in as third column */
+            <div
+              ref={containerRef}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: showDavid ? '380px 1fr 360px' : '380px 1fr',
+                gap: 0,
+                alignItems: 'start',
+                position: 'relative',
+                transition: 'grid-template-columns 0.3s ease',
+              }}
+            >
+              {/* SVG connecting line */}
               {linePath && (
-                <svg
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10, overflow: 'visible' }}
-                  aria-hidden="true"
-                >
-                  <path
-                    d={linePath}
-                    fill="none"
-                    stroke={lineColor}
-                    strokeWidth={1.5}
-                    strokeDasharray="none"
-                    opacity={0.55}
-                  />
+                <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10, overflow: 'visible' }} aria-hidden="true">
+                  <path d={linePath} fill="none" stroke={lineColor} strokeWidth={1.5} strokeDasharray="none" opacity={0.55} />
                 </svg>
               )}
 
@@ -753,21 +845,14 @@ function SearchPageInner() {
                     agent={agent}
                     index={i}
                     isSelected={selectedIndex === i}
-                    onSelect={() => {
-                      setSelectedIndex(i)
-                      setTimeout(updateLine, 50)
-                    }}
-                    onAnathema={(e) => {
-                      e.stopPropagation()
-                      setSelectedIndex(i)
-                      setTimeout(updateLine, 50)
-                    }}
+                    onSelect={() => { setSelectedIndex(i); setTimeout(updateLine, 50) }}
+                    onAnathema={(e) => { e.stopPropagation(); setSelectedIndex(i); setTimeout(updateLine, 50) }}
                     cardRef={el => { cardRefs.current[i] = el }}
                   />
                 ))}
               </div>
 
-              {/* RIGHT: Detail / Scan Panel */}
+              {/* CENTER: Detail / ANATHEMA panel */}
               {(capturedIdx => (
                 <div ref={panelRef} style={{ position: 'sticky', top: 16 }}>
                   <DetailPanel
@@ -780,6 +865,18 @@ function SearchPageInner() {
                   />
                 </div>
               ))(selectedIndex)}
+
+              {/* RIGHT: DAVID deep intel panel — slides in when available */}
+              {showDavid && selectedCache && (
+                <div style={{ position: 'sticky', top: 16, borderLeft: '1px solid var(--border)' }}>
+                  <DavidPanel
+                    key={selectedIndex ?? 'david'}
+                    davidFacts={selectedCache.davidFacts}
+                    deepScanStatus={selectedCache.deepScanStatus || 'idle'}
+                    agentName={selectedAgent?.name || ''}
+                  />
+                </div>
+              )}
             </div>
           )}
         </>

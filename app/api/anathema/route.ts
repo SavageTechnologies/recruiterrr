@@ -83,9 +83,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { action } = body
 
-  // ─── SAVE OBSERVATION ─────────────────────────────────────────────────────
+ // ─── SAVE OBSERVATION ─────────────────────────────────────────────────────
   if (action === 'log_observation') {
-    await saveObservation({
+    const saved = await saveObservation({
       userId,
       agent_name: body.agent_name,
       city: body.city,
@@ -110,9 +110,8 @@ export async function POST(req: NextRequest) {
       serp_debug: body.serp_debug,
       unresolved_upline: body.unresolved_upline,
       david_facts: body.david_facts,
-
     })
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, id: saved.id })
   }
 
     // ─── SAVE DAVID FACTS ─────────────────────────────────────────────────────
@@ -513,7 +512,6 @@ Respond with ONLY valid JSON:
     unresolved_upline_source_url: unresolvedUpline?.sourceUrl ?? null,
     unresolved_upline_confidence: unresolvedUpline?.confidence ?? null,
     serp_debug: serpDebug,
-    // DAVID — returned so the client can pass it back in log_observation
     david_facts: davidFacts,
   })
 }
