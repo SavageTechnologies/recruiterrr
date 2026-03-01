@@ -262,7 +262,9 @@ export async function POST(req: NextRequest) {
   })
 
   if (fbResult) {
-    facebookProfileUrl = fbResult.profileUrl  // SerpAPI result wins if found
+    // Only use the SERP-found URL if we didn't already find one directly on their site.
+    // The website-extracted URL is higher confidence than a SERP name-match guess.
+    if (!facebookProfileUrl) facebookProfileUrl = fbResult.profileUrl
     facebookAbout = fbResult.about || fbResult.postText.slice(0, 500)
     facebookPostText = fbResult.allText
 

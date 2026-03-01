@@ -339,18 +339,19 @@ async function validateYouTubeLink(link: string, businessName: string): Promise<
     if (!res.ok) return { channel: null, subscribers: null, videoCount: 0 }
     const data = await res.json()
 
-    // Accept if the channel link contains the handle OR the channel name matches the business
-    const matched = (data.channel_results || []).find((c: any) => {
-      const linkMatch = (c.link || '').toLowerCase().includes(handle.replace('@', '').toLowerCase())
-      const nameMatch = nameMatchesChannel(businessName, c.title || '')
-      return linkMatch || nameMatch
-    })
+    // The site-extracted link IS the ground truth — it's on their own page.
+    // SERP is used only to enrich with subscriber/video metadata, not to gatekeep.
+    // If SERP finds a name-matching channel, use its canonical link + metadata.
+    // Otherwise, still trust the site link — just without subscriber metadata.
+    const matched = (data.channel_results || []).find((c: any) =>
+      nameMatchesChannel(businessName, c.title || '')
+    )
     if (matched) {
       return { channel: matched.link || link, subscribers: matched.subscribers || null, videoCount: 1 }
     }
 
-    // Can't confirm it's theirs — don't show the badge
-    return { channel: null, subscribers: null, videoCount: 0 }
+    // SERP couldn't confirm name match — trust the site link anyway, no metadata
+    return { channel: link, subscribers: null, videoCount: 0 }
   } catch { return { channel: null, subscribers: null, videoCount: 0 } }
 }
 
