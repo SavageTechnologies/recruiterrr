@@ -223,7 +223,7 @@ Return ONLY valid JSON array — one object per ad in the same order:
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin')
   const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
-  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -293,9 +293,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  // GET requests from same-origin navigation don't always send Origin header,
+  // so we skip the origin check here — admin auth below is the real gate.
   const origin = req.headers.get('origin')
   const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
-  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
