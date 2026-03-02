@@ -513,7 +513,7 @@ Return ONLY valid JSON, no markdown, no backticks:
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
+    max_tokens: 5000,
     messages: [{ role: 'user', content: prompt }],
   })
 
@@ -523,23 +523,7 @@ Return ONLY valid JSON, no markdown, no backticks:
   return JSON.parse(jsonMatch[0])
 }
 
-// ─── CACHE CHECK ──────────────────────────────────────────────────────────────
-// FIX: Check for a recent scan of the same FMO before running the full pipeline.
-// "Recent" = within 7 days. Recruiters can force a fresh scan by appending " refresh".
-
-async function checkRecentScan(userId: string, fmoName: string): Promise<any | null> {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  const { data } = await supabase
-    .from('prometheus_scans')
-    .select('*')
-    .eq('clerk_id', userId)
-    .ilike('domain', fmoName.trim())
-    .gte('created_at', sevenDaysAgo)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  return data || null
-}
+// Cache check removed — scans always run fresh. History is preserved in DB.
 
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
@@ -562,10 +546,10 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('prometheus_scans')
-    .select('id, domain, score, verdict, vendor_tier, is_shared_lead, pages_scanned, created_at')
+    .select('id, domain, score, verdict, fmo_size, vendor_tier, actively_recruiting, has_contacts, contacts, is_shared_lead, pages_scanned, created_at')
     .eq('clerk_id', userId)
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(50)
 
   if (error) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json({ scans: data || [] })
@@ -589,26 +573,9 @@ export async function POST(req: NextRequest) {
   if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
 
   try {
-    const { fmo_name, website, force_refresh } = await req.json()
+    const { fmo_name, website } = await req.json()
     if (!fmo_name || typeof fmo_name !== 'string') {
       return NextResponse.json({ error: 'FMO name required' }, { status: 400 })
-    }
-
-    // ── Cache check ──────────────────────────────────────────────────────────
-    if (!force_refresh) {
-      const cached = await checkRecentScan(userId, fmo_name)
-      if (cached) {
-        console.log(`[/api/prometheus] cache hit for "${fmo_name}"`)
-        return NextResponse.json({
-          id: cached.id,
-          fmo_name,
-          domain: cached.analysis_json?.website || null,
-          pages: cached.pages_scanned || [],
-          analysis: cached.analysis_json,
-          cached: true,
-          cached_at: cached.created_at,
-        })
-      }
     }
 
     // ── Discovery + crawl + SERP run in parallel ──────────────────────────────
@@ -636,6 +603,11 @@ export async function POST(req: NextRequest) {
     const pagesCount = crawlResult.foundPages.length
     const groundTruthScore = pagesCount >= 5 ? 90 : pagesCount >= 3 ? 65 : pagesCount >= 1 ? 40 : 15
 
+    // ── Extract top-level fields for dedicated columns ────────────────────────
+    const contacts = Array.isArray(analysis.contacts) ? analysis.contacts : []
+    const activelyRecruiting = analysis.recruiting_activity?.actively_recruiting === true
+    const fmoSize = analysis.size_signal || 'UNKNOWN'
+
     // ── Save ──────────────────────────────────────────────────────────────────
     const { data: saved, error: saveError } = await supabase
       .from('prometheus_scans')
@@ -643,8 +615,12 @@ export async function POST(req: NextRequest) {
         clerk_id: userId,
         domain: fmo_name,
         score: groundTruthScore,
-        verdict: analysis.size_signal || 'UNKNOWN',
+        verdict: fmoSize,            // kept for backwards compat
         vendor_tier: analysis.tree_affiliation || 'UNKNOWN',
+        fmo_size: fmoSize,
+        contacts: contacts,
+        actively_recruiting: activelyRecruiting,
+        has_contacts: contacts.length > 0,
         is_shared_lead: false,
         pages_scanned: crawlResult.foundPages,
         analysis_json: analysis,

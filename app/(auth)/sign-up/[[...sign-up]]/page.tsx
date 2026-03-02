@@ -6,7 +6,7 @@ import { SignUp } from '@clerk/nextjs'
 import PageNav from '@/components/layout/PageNav'
 import PageFooter from '@/components/layout/PageFooter'
 
-const BYPASS_DOMAINS = ['hfgagents.com', 'amhomelife.com']
+const BYPASS_DOMAINS = ['hfgagents.com', 'amhomelife.com', 'unlinsurance.com']
 
 type Step = 'email' | 'payment' | 'signup' | 'success'
 

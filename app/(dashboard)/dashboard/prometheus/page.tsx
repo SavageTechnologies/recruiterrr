@@ -259,21 +259,14 @@ function PrometheusPageInner() {
   const [scanning, setScanning] = useState(false)
   const [currentStep, setCurrentStep] = useState(-1)
   const [logLines, setLogLines] = useState<string[]>([])
-  const [result, setResult] = useState<{ fmo_name: string; domain: string | null; pages: string[]; analysis: Analysis; cached?: boolean; cached_at?: string; serp_debug?: any[] } | null>(null)
+  const [result, setResult] = useState<{ fmo_name: string; domain: string | null; pages: string[]; analysis: Analysis; serp_debug?: any[] } | null>(null)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'intel' | 'contacts' | 'recruiting' | 'offer' | 'angles' | 'voice' | 'sources'>('intel')
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const [scans, setScans] = useState<any[]>([])
-  const [scanPage, setScanPage] = useState(0)
-  const SCANS_PER_PAGE = 5
 
   useEffect(() => {
     const id = searchParams.get('id')
     if (id) loadSavedScan(id)
-    fetch('/api/prometheus')
-      .then(r => r.json())
-      .then(d => setScans(d.scans || []))
-      .catch(() => {})
   }, [])
 
   async function loadSavedScan(id: string) {
@@ -289,7 +282,7 @@ function PrometheusPageInner() {
 
   function addLog(line: string) { setLogLines(prev => [...prev.slice(-50), line]) }
 
-  async function runScan(forceRefresh = false) {
+  async function runScan() {
     if (!fmoName.trim() || scanning) return
     setScanning(true); setResult(null); setError(''); setLogLines([]); setCurrentStep(0)
 
@@ -307,7 +300,7 @@ function PrometheusPageInner() {
       const res = await fetch('/api/prometheus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fmo_name: fmoName.trim(), website: website.trim() || undefined, force_refresh: forceRefresh }),
+        body: JSON.stringify({ fmo_name: fmoName.trim(), website: website.trim() || undefined }),
       })
       if (res.status === 429) {
         if (timerRef.current) clearTimeout(timerRef.current)
@@ -319,8 +312,9 @@ function PrometheusPageInner() {
       if (data.error) throw new Error(data.error)
       if (timerRef.current) clearTimeout(timerRef.current)
       setCurrentStep(LOADING_STEPS.length - 1)
-      addLog(`[OK] ${data.cached ? 'Cached scan loaded' : 'Scan complete'} — ${fmoName.trim()}`)
+      addLog(`[OK] Scan complete — ${fmoName.trim()}`)
       addLog(`[FOUND] ${data.pages?.length || 0} pages · ${data.analysis?.data_confidence || 'MEDIUM'} confidence`)
+      if ((data.analysis?.contacts || []).length) addLog(`[FOUND] ${data.analysis.contacts.length} contact(s) identified`)
       if ((data.analysis?.agent_sentiment?.agent_quotes || []).length) addLog(`[FOUND] ${data.analysis.agent_sentiment.agent_quotes.length} agent quote(s) extracted`)
       if ((data.analysis?.what_they_offer?.carriers || []).length) addLog(`[FOUND] ${data.analysis.what_they_offer.carriers.length} carrier(s) identified`)
       setResult(data); setActiveTab('intel')
@@ -360,11 +354,11 @@ function PrometheusPageInner() {
 
       {/* Input */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 2, border: `1px solid ${scanning ? 'var(--orange)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: scanning ? '0 0 0 1px var(--orange)' : 'none' }}>
-        <input value={fmoName} onChange={e => setFmoName(e.target.value)} onKeyDown={e => e.key === 'Enter' && runScan(false)}
+        <input value={fmoName} onChange={e => setFmoName(e.target.value)} onKeyDown={e => e.key === 'Enter' && runScan()}
           placeholder="FMO or IMO name — e.g. Brokers Alliance, Senior Market Sales, AmeriLife"
           disabled={scanning}
           style={{ flex: 1, padding: '18px 24px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }} />
-        <button onClick={() => runScan(false)} disabled={scanning || !fmoName.trim()}
+        <button onClick={() => runScan()} disabled={scanning || !fmoName.trim()}
           style={{ padding: '18px 32px', background: scanning ? '#333' : 'var(--orange)', border: 'none', cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', whiteSpace: 'nowrap' }}>
           {scanning ? 'SCANNING...' : 'RUN INTEL'}
         </button>
@@ -402,14 +396,6 @@ function PrometheusPageInner() {
       {/* Results */}
       {result && analysis && !scanning && (
         <div style={{ animation: 'slideIn 0.3s ease both' }}>
-
-          {/* Cached notice */}
-          {result.cached && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #2a2a1a', background: 'rgba(255,200,0,0.04)', padding: '8px 16px', marginBottom: 12 }}>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#887a3a', letterSpacing: 1.5 }}>◷ CACHED · {result.cached_at ? new Date(result.cached_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</span>
-              <button onClick={() => runScan(true)} style={{ background: 'transparent', border: '1px solid #333', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5, padding: '3px 10px', cursor: 'pointer' }}>FORCE REFRESH</button>
-            </div>
-          )}
 
           {/* Result header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
@@ -736,10 +722,7 @@ function PrometheusPageInner() {
 
           <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
             <button onClick={() => { setResult(null); setFmoName(''); setWebsite('') }} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: 'pointer' }}>
-              RUN NEW SCAN
-            </button>
-            <button onClick={() => runScan(true)} style={{ background: 'transparent', border: '1px solid #333', color: '#444', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: 'pointer' }}>
-              FORCE REFRESH
+              ← RUN NEW SCAN
             </button>
           </div>
         </div>
@@ -748,68 +731,6 @@ function PrometheusPageInner() {
       {/* Empty state */}
       {!scanning && !result && (
         <div style={{ marginTop: 40 }}>
-
-          {/* Recent scans */}
-          {scans.length > 0 && (
-            <div style={{ marginBottom: 48 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2 }}>RECENT SCANS</div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
-                  {scanPage * SCANS_PER_PAGE + 1}–{Math.min((scanPage + 1) * SCANS_PER_PAGE, scans.length)} OF {scans.length}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {scans.slice(scanPage * SCANS_PER_PAGE, (scanPage + 1) * SCANS_PER_PAGE).map((s: any) => (
-                  <button
-                    key={s.id}
-                    onClick={() => { setFmoName(s.domain || ''); loadSavedScan(s.id) }}
-                    style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 16, alignItems: 'center', padding: '14px 20px', background: 'var(--card)', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--orange)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-                  >
-                    <div>
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)', letterSpacing: 0.5, marginBottom: 3 }}>
-                        {s.domain}
-                      </div>
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 1 }}>
-                        {s.pages_scanned?.length ? `${s.pages_scanned.length} pages crawled` : 'SERP-only'}
-                      </div>
-                    </div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: s.vendor_tier === 'LARGE' ? 'var(--orange)' : s.vendor_tier === 'MID-SIZE' ? 'var(--yellow)' : 'var(--muted)', letterSpacing: 1 }}>
-                      {s.vendor_tier || '—'}
-                    </div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: s.verdict === 'HIGH' ? 'var(--green)' : s.verdict === 'MEDIUM' ? 'var(--yellow)' : '#444', letterSpacing: 1 }}>
-                      {s.verdict ? `${s.verdict} CONF` : '—'}
-                    </div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
-                      {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              {scans.length > SCANS_PER_PAGE && (
-                <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
-                  <button
-                    onClick={() => setScanPage(p => Math.max(0, p - 1))}
-                    disabled={scanPage === 0}
-                    style={{ flex: 1, padding: '9px', background: 'transparent', border: '1px solid #1e1e1e', color: scanPage === 0 ? '#222' : 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, cursor: scanPage === 0 ? 'default' : 'pointer' }}
-                  >
-                    ← PREV
-                  </button>
-                  <button
-                    onClick={() => setScanPage(p => Math.min(Math.ceil(scans.length / SCANS_PER_PAGE) - 1, p + 1))}
-                    disabled={(scanPage + 1) * SCANS_PER_PAGE >= scans.length}
-                    style={{ flex: 1, padding: '9px', background: 'transparent', border: '1px solid #1e1e1e', color: (scanPage + 1) * SCANS_PER_PAGE >= scans.length ? '#222' : 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, cursor: (scanPage + 1) * SCANS_PER_PAGE >= scans.length ? 'default' : 'pointer' }}
-                  >
-                    NEXT →
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>What Prometheus Extracts</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
             {[

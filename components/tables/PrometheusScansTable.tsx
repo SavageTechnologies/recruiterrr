@@ -8,14 +8,19 @@ type Scan = {
   domain: string
   score: number
   verdict: string
+  fmo_size?: string
   vendor_tier: string
+  actively_recruiting?: boolean
+  has_contacts?: boolean
+  contacts?: Array<{ name: string; title: string }>
   is_shared_lead: boolean
+  pages_scanned?: string[]
   created_at: string
 }
 
 export default function PrometheusScansTable({ scans }: { scans: Scan[] }) {
   const [page, setPage] = useState(0)
-  const PAGE_SIZE = 5
+  const PAGE_SIZE = 10
   const totalPages = Math.ceil(scans.length / PAGE_SIZE)
   const visible = scans.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
 
@@ -26,7 +31,7 @@ export default function PrometheusScansTable({ scans }: { scans: Scan[] }) {
           NO SCANS YET
         </div>
         <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 24 }}>
-          Run Prometheus on any FMO or IMO to get a full competitive briefing.
+          Run Prometheus on any FMO or IMO to get a full sales intelligence briefing.
         </div>
         <Link href="/dashboard/prometheus" style={{ padding: '12px 32px', background: 'transparent', border: '1px solid var(--orange)', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none', display: 'inline-block' }}>
           Run Intel
@@ -38,41 +43,67 @@ export default function PrometheusScansTable({ scans }: { scans: Scan[] }) {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 100px 110px 120px', gap: 16, padding: '8px 16px', marginBottom: 4, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 80px 80px 110px', gap: 12, padding: '8px 16px', marginBottom: 4, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
         <div>FMO / IMO</div>
         <div>Size</div>
-        <div>Confidence</div>
         <div>Tree</div>
+        <div>Hiring</div>
+        <div>Contacts</div>
         <div>Date</div>
       </div>
 
       {visible.map(scan => {
-        const sizeColor = scan.verdict === 'LARGE' ? 'var(--orange)' : scan.verdict === 'MID-SIZE' ? 'var(--yellow)' : 'var(--muted)'
-        const confColor = scan.score >= 75 ? 'var(--green)' : scan.score >= 45 ? 'var(--yellow)' : 'var(--muted)'
-        // Truncate long tree affiliation text
+        const size = scan.fmo_size || scan.verdict || '—'
+        const sizeColor = size === 'LARGE' ? 'var(--orange)' : size === 'MID-SIZE' ? 'var(--yellow)' : 'var(--muted)'
         const treeRaw = scan.vendor_tier || '—'
         const treeShort = treeRaw.length > 12 ? treeRaw.slice(0, 10) + '…' : treeRaw
+        const contactCount = Array.isArray(scan.contacts) ? scan.contacts.length : (scan.has_contacts ? '?' : 0)
+        const topContact = Array.isArray(scan.contacts) && scan.contacts.length > 0 ? scan.contacts[0] : null
 
         return (
           <Link
             key={scan.id}
             href={`/dashboard/prometheus?id=${scan.id}`}
-            style={{ display: 'grid', gridTemplateColumns: '1fr 90px 100px 110px 120px', gap: 16, padding: '14px 16px', background: 'var(--dark)', border: '1px solid var(--border)', marginBottom: 2, textDecoration: 'none', transition: 'border-color 0.15s' }}
+            style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 80px 80px 110px', gap: 12, padding: '14px 16px', background: 'var(--dark)', border: '1px solid var(--border)', marginBottom: 2, textDecoration: 'none', transition: 'border-color 0.15s' }}
             onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--orange)')}
             onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
           >
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)', alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {scan.domain}
+            {/* Name + top contact preview */}
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: topContact ? 3 : 0 }}>
+                {scan.domain}
+              </div>
+              {topContact && (
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {topContact.name} · {topContact.title}
+                </div>
+              )}
             </div>
+
+            {/* Size */}
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: sizeColor, letterSpacing: 1, alignSelf: 'center' }}>
-              {scan.verdict || '—'}
+              {size}
             </div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: confColor, lineHeight: 1, alignSelf: 'center' }}>
-              {scan.score}
-            </div>
+
+            {/* Tree */}
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {treeShort}
             </div>
+
+            {/* Actively recruiting */}
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, alignSelf: 'center' }}>
+              {scan.actively_recruiting
+                ? <span style={{ color: 'var(--green)' }}>● YES</span>
+                : <span style={{ color: '#333' }}>○ NO</span>
+              }
+            </div>
+
+            {/* Contact count */}
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, alignSelf: 'center', color: Number(contactCount) > 0 ? 'var(--orange)' : '#333' }}>
+              {Number(contactCount) > 0 ? `${contactCount} found` : '—'}
+            </div>
+
+            {/* Date */}
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center' }}>
               {new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
