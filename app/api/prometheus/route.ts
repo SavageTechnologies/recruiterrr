@@ -1,4 +1,5 @@
 export const runtime = 'nodejs'
+export const maxDuration = 120  // crawl + SERP + Sonnet analysis
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
@@ -326,9 +327,14 @@ function isResultRelevant(
   r: { title: string; snippet: string; link: string },
   tokens: string[]
 ): boolean {
-  if (tokens.length === 0) return true // no unique tokens = keep everything
+  if (tokens.length === 0) return true
   const hay = `${r.title} ${r.snippet} ${r.link}`.toLowerCase()
-  return tokens.some(t => hay.includes(t))
+  // For FMOs with 1-2 unique tokens, require ALL to match — avoids grabbing
+  // results about a completely different "Premier" or "Apex" company.
+  // For longer names (3+ tokens), require at least 2 to match.
+  const required = tokens.length <= 2 ? tokens.length : 2
+  const matched = tokens.filter(t => hay.includes(t)).length
+  return matched >= required
 }
 
 async function fetchSerpIntel(fmoName: string, domain?: string | null): Promise<{ intel: Record<string, string>; serpDebug: SerpDebugEntry[] }> {
@@ -414,6 +420,8 @@ async function runClaudeAnalysis(
     .slice(0, 18000)
 
   const prompt = `You are a competitive intelligence analyst for an insurance recruiter. Extract FACTS from the raw data below — not scripts, not coaching, not arguments. The recruiter decides how to use the intel. If a fact isn't in the data, say "Not found in scan" — never invent.
+
+CRITICAL RULE: You are analyzing "${fmoName}" ONLY. Any content that does not explicitly mention "${fmoName}" or its confirmed website (${domain || 'unknown'}) must be completely ignored — even if it appears in the data. Do not extract facts from content about other companies. If you cannot confirm a fact is specifically about "${fmoName}", return "Not found in scan" for that field.
 
 FMO/IMO: ${fmoName}
 WEBSITE: ${domain || 'Not found'}
@@ -620,7 +628,7 @@ export async function POST(req: NextRequest) {
         domain: fmo_name,
         score: groundTruthScore,
         verdict: analysis.size_signal || 'UNKNOWN',
-        vendor_tier: analysis.competitive_intel?.tree_affiliation || 'UNKNOWN',
+        vendor_tier: analysis.tree_affiliation || 'UNKNOWN',
         is_shared_lead: false,
         pages_scanned: crawlResult.foundPages,
         analysis_json: analysis,
