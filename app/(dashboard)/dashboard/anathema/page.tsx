@@ -238,6 +238,10 @@ function AnathemaDashboardInner() {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [davidFacts, setDavidFacts] = useState<any>(null)
 
+  const [specimens, setSpecimens] = useState<any[]>([])
+  const [specimenPage, setSpecimenPage] = useState(0)
+  const SPECIMENS_PER_PAGE = 5
+
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const searchParams = useSearchParams()
 
@@ -268,6 +272,13 @@ function AnathemaDashboardInner() {
     }
     loadScan()
   }, [searchParams])
+
+  useEffect(() => {
+    fetch('/api/specimens')
+      .then(r => r.json())
+      .then(d => setSpecimens(d.specimens || []))
+      .catch(() => {})
+  }, [])
 
   function addLog(line: string) {
     setLogLines(prev => [...prev.slice(-40), line])
@@ -397,6 +408,22 @@ function AnathemaDashboardInner() {
     } catch {
       setSaveState('idle')
     }
+  }
+
+  function loadSpecimen(s: any) {
+    setAgencyName(s.agent_name || '')
+    setWebsite(s.agent_website || '')
+    setCity(s.city || '')
+    setState(s.state || '')
+    setResult(null)
+    setError('')
+    setLogLines([])
+    setConfirmedTrees(s.confirmed_tree ? s.confirmed_tree.split(',').map((t: string) => t.trim()) : [])
+    setConfirmedOther(s.confirmed_tree_other || '')
+    setSubImo(s.confirmed_sub_imo || '')
+    setRecruiterNotes(s.recruiter_notes || '')
+    setSaveState('idle')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const stage = result ? getStage(result.confidence, result.predicted_tree) : null
@@ -621,6 +648,79 @@ function AnathemaDashboardInner() {
       {/* Empty state */}
       {!scanning && !result && (
         <div style={{ marginTop: 40 }}>
+
+          {/* Recent scans */}
+          {specimens.length > 0 && (
+            <div style={{ marginBottom: 48 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 2 }}>RECENT SCANS</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
+                  {specimenPage * SPECIMENS_PER_PAGE + 1}–{Math.min((specimenPage + 1) * SPECIMENS_PER_PAGE, specimens.length)} OF {specimens.length}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {specimens.slice(specimenPage * SPECIMENS_PER_PAGE, (specimenPage + 1) * SPECIMENS_PER_PAGE).map((s: any) => {
+                  const tree = TREE_LABELS[s.predicted_tree] || 'UNCLASSIFIED'
+                  const confirmed = s.confirmed_tree
+                  const treeColor = s.predicted_tree === 'integrity' ? 'var(--green)' : s.predicted_tree === 'amerilife' ? '#2196f3' : s.predicted_tree === 'sms' ? '#ff9800' : '#333'
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => loadSpecimen(s)}
+                      style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 16, alignItems: 'center', padding: '14px 20px', background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.08)', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.25)')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.08)')}
+                    >
+                      <div>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)', letterSpacing: 0.5, marginBottom: 3 }}>
+                          {s.agent_name}
+                        </div>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 1 }}>
+                          {[s.city, s.state].filter(Boolean).join(', ')}
+                          {s.confirmed_sub_imo && <span style={{ color: '#555' }}> · {s.confirmed_sub_imo}</span>}
+                        </div>
+                      </div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: treeColor, letterSpacing: 2, textAlign: 'right' }}>
+                        {tree}
+                      </div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1, textAlign: 'right' }}>
+                        {confirmed
+                          ? <span style={{ color: 'var(--green)', fontSize: 9 }}>✓ CONFIRMED</span>
+                          : s.predicted_confidence
+                          ? <span style={{ color: '#444' }}>{s.predicted_confidence}%</span>
+                          : <span style={{ color: '#333' }}>—</span>
+                        }
+                      </div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 0.5, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {specimens.length > SPECIMENS_PER_PAGE && (
+                <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
+                  <button
+                    onClick={() => setSpecimenPage(p => Math.max(0, p - 1))}
+                    disabled={specimenPage === 0}
+                    style={{ flex: 1, padding: '9px', background: 'transparent', border: '1px solid #1e1e1e', color: specimenPage === 0 ? '#222' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, cursor: specimenPage === 0 ? 'default' : 'pointer' }}
+                  >
+                    ← PREV
+                  </button>
+                  <button
+                    onClick={() => setSpecimenPage(p => Math.min(Math.ceil(specimens.length / SPECIMENS_PER_PAGE) - 1, p + 1))}
+                    disabled={(specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length}
+                    style={{ flex: 1, padding: '9px', background: 'transparent', border: '1px solid #1e1e1e', color: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? '#222' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, cursor: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? 'default' : 'pointer' }}
+                  >
+                    NEXT →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>What ANATHEMA Detects</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
             {[
