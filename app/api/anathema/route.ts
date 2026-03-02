@@ -7,8 +7,9 @@ import Anthropic from '@anthropic-ai/sdk'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 
-import { scoreSMSCarriers, scanResultAgainstNetwork, aggregateMatches } from '@/lib/domain/anathema/signals'
-import type { NetworkMatch } from '@/lib/domain/anathema/signals'
+import { scoreSMSCarriers, scanResultAgainstNetwork, aggregateMatches, buildNetworkSignalIndex } from '@/lib/domain/anathema/signals'
+import type { NetworkMatch, NetworkSignal } from '@/lib/domain/anathema/signals'
+
 import { resolveChain } from '@/lib/domain/anathema/chain-resolver'
 import type { ChainResult } from '@/lib/domain/anathema/chain-resolver'
 import { huntUnresolvedUpline } from '@/lib/domain/anathema/upline-hunter'
@@ -17,6 +18,7 @@ import { extractDavidFacts } from '@/lib/domain/anathema/david-facts'
 import type { DavidFactsInput } from '@/lib/domain/anathema/david-facts'
 import { saveObservation, checkExistingSpecimen, getSpecimen, getScan, saveDavidFacts } from '@/lib/db/anathema'
 import { isAdmin } from '@/lib/auth/access'
+import { supabase } from '@/lib/supabase.server'
 
 
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
@@ -115,6 +117,28 @@ export async function POST(req: NextRequest) {
       unresolved_upline: body.unresolved_upline,
       david_facts: body.david_facts,
     })
+    // If the user manually confirmed an "other" tree, write to discovered_fmos
+    if (body.confirmed_tree === 'other' && body.confirmed_tree_other?.trim()) {
+      void (async () => {
+        try {
+          await supabase.rpc('upsert_discovered_fmo', {
+            p_name:       body.confirmed_tree_other.trim(),
+            p_evidence:   {
+              quote:       `Manually confirmed by recruiter for agent ${body.agent_name}`,
+              source_url:  body.agent_website || '',
+              agent_name:  body.agent_name,
+              confidence:  'HIGH',
+              seen_at:     new Date().toISOString(),
+            },
+            p_state:      body.state || '',
+            p_confidence: 'HIGH',
+          })
+        } catch (err: unknown) {
+          console.warn('[discovered_fmos] manual upsert failed:', err)
+        }
+      })()
+    }
+
     return NextResponse.json({ ok: true, id: saved.id })
   }
 
@@ -135,6 +159,9 @@ export async function POST(req: NextRequest) {
   // ─── RUN SCAN ─────────────────────────────────────────────────────────────
   const { agent } = body
   if (!agent) return NextResponse.json({ error: 'Missing agent' }, { status: 400 })
+
+  // ── Build signal index from DB — fresh on every scan ──────────────────────
+  const networkSignals: NetworkSignal[] = await buildNetworkSignalIndex()
 
   const serpKey = process.env.SERPAPI_KEY
   let integrityScore = 0, amerilifeScore = 0, smsScore = 0
@@ -161,7 +188,7 @@ export async function POST(req: NextRequest) {
   // ── Profile text scan ───────────────────────────────────────────────────
   const textBlob = [agent.notes || '', agent.about || ''].join(' ')
   if (textBlob.trim()) {
-    const textMatches = scanResultAgainstNetwork('', textBlob, agent.website || '')
+    const textMatches = scanResultAgainstNetwork('', textBlob, agent.website || '', undefined, networkSignals)
     const agg = aggregateMatches(textMatches)
     integrityScore += agg.integrity
     amerilifeScore += agg.amerilife
@@ -184,7 +211,7 @@ export async function POST(req: NextRequest) {
       const debugEntry: typeof serpDebug[0] = { query: q1, source: 'pass1_broad', results: [] }
 
       for (const r of results1) {
-        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '', agent.name)
+        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '', agent.name, networkSignals)
         allNetworkMatches.push(...matches)
         debugEntry.results.push({
           title: r.title || '',
@@ -210,7 +237,7 @@ export async function POST(req: NextRequest) {
       const debugEntry: typeof serpDebug[0] = { query: q2, source: 'pass2_fmo', results: [] }
 
       for (const r of results2) {
-        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '', agent.name)
+        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '', agent.name, networkSignals)
         allNetworkMatches.push(...matches)
         debugEntry.results.push({
           title: r.title || '',
@@ -271,7 +298,7 @@ export async function POST(req: NextRequest) {
     facebookAbout = fbResult.about || fbResult.postText.slice(0, 500)
     facebookPostText = fbResult.allText
 
-    const fbMatches = scanResultAgainstNetwork('', fbResult.allText, fbResult.profileUrl, agent.name)
+    const fbMatches = scanResultAgainstNetwork('', fbResult.allText, fbResult.profileUrl, agent.name, networkSignals)
     const fbAgg = aggregateMatches(fbMatches)
     integrityScore += fbAgg.integrity
     amerilifeScore += fbAgg.amerilife
@@ -430,6 +457,25 @@ Respond with ONLY valid JSON:
     )
     if (unresolvedUpline) {
       allSignals.push(`Unresolved upline detected: "${unresolvedUpline.name}" — "${unresolvedUpline.evidence}"`)
+      // Write to discovered_fmos — the learning loop
+      void (async () => {
+        try {
+          await supabase.rpc('upsert_discovered_fmo', {
+            p_name:       unresolvedUpline.name,
+            p_evidence:   {
+              quote:       unresolvedUpline.evidence,
+              source_url:  unresolvedUpline.sourceUrl || '',
+              agent_name:  agent.name,
+              confidence:  unresolvedUpline.confidence,
+              seen_at:     new Date().toISOString(),
+            },
+            p_state:      agent.state || '',
+            p_confidence: unresolvedUpline.confidence,
+          })
+        } catch (err: unknown) {
+          console.warn('[discovered_fmos] upsert failed:', err)
+        }
+      })()
     }
   }
 

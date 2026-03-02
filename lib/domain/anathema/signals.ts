@@ -1,11 +1,25 @@
 // ─── lib/domain/anathema/signals.ts ──────────────────────────────────────────
-// Network signal index — built once at module load from networks.ts.
-// Covers all 289 partners + aliases. Never hardcode partner names here.
-// Add new partners to networks.ts instead.
+// Network signal index — built from network_partners DB table on each scan.
+// Covers all active partners + aliases + discovered FMOs with times_seen >= 3.
+// Never hardcode partner names here. Add via admin UI or promote from discovered_fmos.
 
-import { INTEGRITY_PARTNERS, AMERILIFE_PARTNERS, SMS_PARTNERS, type NetworkPartner } from '@/lib/networks'
+import { supabase } from '@/lib/supabase.server'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
+
+export type NetworkPartner = {
+  id: string           // UUID — was number in networks.ts
+  name: string
+  aliases: string[]
+  tree: 'integrity' | 'amerilife' | 'sms'
+  segment?: string | null
+  city: string
+  state: string
+  coords?: number[] | null
+  website: string
+  status: string
+  source: string
+}
 
 export type NetworkSignal = {
   phrase: string
@@ -25,8 +39,8 @@ export type NetworkMatch = {
 
 // ─── PARENT BRAND SIGNALS ─────────────────────────────────────────────────────
 // Unambiguous brand phrases that identify the tree but not a specific partner.
-// These are exempt from the co-mention requirement — explicit brand language
-// doesn't need the agent's name to be meaningful.
+// Exempt from the co-mention requirement — explicit brand language doesn't need
+// the agent's name to be meaningful.
 
 const PARENT_BRAND_SIGNALS: { phrase: string; tree: 'integrity' | 'amerilife' | 'sms' }[] = [
   { phrase: 'integrity marketing group', tree: 'integrity' },
@@ -52,8 +66,6 @@ const PARENT_BRAND_SIGNALS: { phrase: string; tree: 'integrity' | 'amerilife' | 
 ]
 
 // ─── SMS CARRIER COMBO ────────────────────────────────────────────────────────
-// Still the only carrier signal worth using — the Mutual of Omaha + Medico
-// combo is an SMS exclusive fingerprint.
 
 const SMS_EXCLUSIVE_CARRIERS = ['mutual of omaha', 'medico', 'gpm life']
 
@@ -66,12 +78,15 @@ export function scoreSMSCarriers(carriers: string[]): { sms: number; signals: st
 }
 
 // ─── INDEX BUILDER ────────────────────────────────────────────────────────────
+// Queries network_partners (active) + discovered_fmos (times_seen >= 3, not dismissed).
+// Discovered FMOs without a confirmed tree are treated as unknown — they still
+// generate signals but don't contribute to tree scores until promoted.
 
-function buildNetworkSignalIndex(): NetworkSignal[] {
+export async function buildNetworkSignalIndex(): Promise<NetworkSignal[]> {
   const signals: NetworkSignal[] = []
   const seen = new Set<string>()
 
-  // Parent brand signals first — highest priority
+  // Parent brand signals first — highest priority, always included
   for (const b of PARENT_BRAND_SIGNALS) {
     if (!seen.has(b.phrase)) {
       signals.push({ phrase: b.phrase, tree: b.tree, partner: null, weight: 40, isAlias: false })
@@ -79,20 +94,29 @@ function buildNetworkSignalIndex(): NetworkSignal[] {
     }
   }
 
-  // Every partner: name + website domain + aliases
-  const allPartners = [...INTEGRITY_PARTNERS, ...AMERILIFE_PARTNERS, ...SMS_PARTNERS]
-  for (const partner of allPartners) {
+  // ── Active network partners from DB ─────────────────────────────────────
+  const { data: partners, error: partnersError } = await supabase
+    .from('network_partners')
+    .select('id, name, aliases, tree, segment, city, state, coords, website, status, source')
+    .eq('status', 'active')
+
+  if (partnersError) {
+    console.error('[signals] Failed to load network_partners:', partnersError.message)
+  }
+
+  for (const partner of partners || []) {
     const nameLower = partner.name.toLowerCase()
     if (nameLower.length >= 4 && !seen.has(nameLower)) {
       signals.push({ phrase: nameLower, tree: partner.tree, partner, weight: 38, isAlias: false })
       seen.add(nameLower)
     }
-    // Domain match is strongest — it's unambiguous
-    const domain = partner.website.toLowerCase().replace('www.', '')
-    if (domain && !seen.has(domain)) {
+
+    const domain = (partner.website || '').toLowerCase().replace('www.', '')
+    if (domain && domain.includes('.') && !seen.has(domain)) {
       signals.push({ phrase: domain, tree: partner.tree, partner, weight: 45, isAlias: false })
       seen.add(domain)
     }
+
     for (const alias of partner.aliases || []) {
       const aliasLower = alias.toLowerCase()
       if (aliasLower.length >= 4 && !seen.has(aliasLower)) {
@@ -101,38 +125,80 @@ function buildNetworkSignalIndex(): NetworkSignal[] {
       }
     }
   }
+
+  // ── Discovered FMOs — seen 3+ times, not dismissed, not yet promoted ────
+  // These get lower weight than confirmed partners since they're unverified.
+  // They don't have a confirmed tree yet so we use a placeholder — the upline
+  // hunter downstream will still surface them by name.
+  const { data: discovered } = await supabase
+    .from('discovered_fmos')
+    .select('id, name, name_variants, tree, website')
+    .gte('times_seen', 3)
+    .not('status', 'eq', 'dismissed')
+    .not('status', 'eq', 'promoted')   // promoted ones are already in network_partners
+
+  for (const fmo of discovered || []) {
+    // Only add to signal index if we have a confirmed tree — otherwise
+    // there's no tree to score against and it would corrupt predictions
+    if (!fmo.tree || fmo.tree === 'unknown') continue
+
+    const nameLower = fmo.name.toLowerCase()
+    if (nameLower.length >= 4 && !seen.has(nameLower)) {
+      // Shape into NetworkPartner-compatible object for downstream consumers
+      const partnerProxy: NetworkPartner = {
+        id: fmo.id,
+        name: fmo.name,
+        aliases: fmo.name_variants || [],
+        tree: fmo.tree as 'integrity' | 'amerilife' | 'sms',
+        city: '',
+        state: '',
+        website: fmo.website || '',
+        status: 'discovered',
+        source: 'discovered',
+      }
+      signals.push({ phrase: nameLower, tree: fmo.tree as 'integrity' | 'amerilife' | 'sms', partner: partnerProxy, weight: 30, isAlias: false })
+      seen.add(nameLower)
+    }
+
+    for (const variant of fmo.name_variants || []) {
+      const variantLower = variant.toLowerCase()
+      if (variantLower.length >= 4 && !seen.has(variantLower)) {
+        signals.push({ phrase: variantLower, tree: fmo.tree as 'integrity' | 'amerilife' | 'sms', partner: null, weight: 25, isAlias: true })
+        seen.add(variantLower)
+      }
+    }
+  }
+
   return signals
 }
 
-// Built once at module load — not rebuilt per request
-export const NETWORK_SIGNALS = buildNetworkSignalIndex()
-
 // ─── SCANNER ──────────────────────────────────────────────────────────────────
-// Scans a single SERP result against ALL signals simultaneously.
-// Returns every match with the proof URL attached.
+// Scans a single result against the signal index.
+// Takes the pre-built index as a parameter — caller builds it once per scan
+// and reuses it across all SERP results, Facebook content, and website text.
 
 export function scanResultAgainstNetwork(
   title: string,
   snippet: string,
   url: string,
-  agentName?: string
+  agentName?: string,
+  networkSignals?: NetworkSignal[]   // pre-built index; falls back gracefully if not provided
 ): NetworkMatch[] {
+  if (!networkSignals || networkSignals.length === 0) return []
+
   const haystack = `${title} ${snippet} ${url}`.toLowerCase()
   const agentLower = agentName?.toLowerCase() || ''
   const matches: NetworkMatch[] = []
   const firedPhrases = new Set<string>()
 
-  for (const signal of NETWORK_SIGNALS) {
+  for (const signal of networkSignals) {
     if (firedPhrases.has(signal.phrase)) continue
     if (!haystack.includes(signal.phrase)) continue
 
     // Co-mention requirement: for partner signals, agent name must appear in
-    // the same result. Parent brand signals are exempt — they're explicit brand
-    // language, not ambient SEO noise.
+    // the same result. Parent brand signals are exempt.
     if (signal.partner !== null && agentLower && !haystack.includes(agentLower)) continue
 
-    // Domain matches link to the partner's site — unambiguous.
-    // Name/alias matches link to the SERP result that contained both names.
     const isDomainSignal = signal.phrase.includes('.') && !signal.isAlias
     const proofUrl = isDomainSignal ? `https://${signal.phrase}` : url
 
@@ -149,8 +215,6 @@ export function scanResultAgainstNetwork(
 }
 
 // ─── AGGREGATOR ───────────────────────────────────────────────────────────────
-// Aggregates matches from multiple results into tree scores + human-readable
-// signals. Each phrase is counted only once even if it appears in 5 results.
 
 export function aggregateMatches(matches: NetworkMatch[]): {
   integrity: number
