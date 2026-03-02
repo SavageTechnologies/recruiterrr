@@ -1,11 +1,16 @@
 import { UserButton } from '@clerk/nextjs'
+import { auth } from '@clerk/nextjs/server'
 import Link from 'next/link'
+import { isAdmin } from '@/lib/auth/access'
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const { userId } = await auth()
+  const adminUser = userId ? isAdmin(userId) : false
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--black)' }}>
       <nav style={{
@@ -21,6 +26,7 @@ export default function DashboardLayout({
         </Link>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          {/* ── Standard user nav ── */}
           <Link href="/dashboard" style={{
             fontFamily: "'DM Mono', monospace", fontSize: 11,
             color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
@@ -39,6 +45,41 @@ export default function DashboardLayout({
           }}>
             Database
           </Link>
+
+          {/* ── Admin-only nav ── */}
+          {adminUser && (
+            <>
+              <div style={{ width: 1, height: 16, background: 'var(--border)' }} />
+              <Link href="/dashboard/anathema" style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 11,
+                color: 'var(--green)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+                opacity: 0.75,
+              }}>
+                Anathema
+              </Link>
+              <Link href="/dashboard/prometheus" style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 11,
+                color: 'var(--orange)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+                opacity: 0.75,
+              }}>
+                Prometheus
+              </Link>
+              <Link href="/dashboard/david" style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 11,
+                color: '#a78bfa', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+                opacity: 0.75,
+              }}>
+                David
+              </Link>
+              <Link href="/dashboard/admin" style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 11,
+                color: '#555', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+              }}>
+                Admin
+              </Link>
+            </>
+          )}
+
           <UserButton
             afterSignOutUrl="/"
             appearance={{
@@ -70,10 +111,6 @@ export default function DashboardLayout({
                   letterSpacing: '1px',
                   color: '#666',
                   borderRadius: 0,
-                  '&:hover': {
-                    background: '#1a1814',
-                    color: '#ffffff',
-                  },
                 },
                 userButtonPopoverActionButtonText: {
                   fontFamily: "'DM Mono', monospace",
@@ -81,12 +118,8 @@ export default function DashboardLayout({
                   letterSpacing: '1px',
                   textTransform: 'uppercase',
                 },
-                userButtonPopoverActionButtonIcon: {
-                  color: '#444',
-                },
-                userButtonPopoverFooter: {
-                  display: 'none',
-                },
+                userButtonPopoverActionButtonIcon: { color: '#444' },
+                userButtonPopoverFooter: { display: 'none' },
                 userPreviewMainIdentifier: {
                   fontFamily: "'Bebas Neue', sans-serif",
                   fontSize: '18px',
@@ -113,4 +146,3 @@ export default function DashboardLayout({
     </div>
   )
 }
-

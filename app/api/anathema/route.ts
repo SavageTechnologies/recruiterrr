@@ -16,6 +16,7 @@ import { fetchFacebookProfile } from '@/lib/domain/anathema/facebook'
 import { extractDavidFacts } from '@/lib/domain/anathema/david-facts'
 import type { DavidFactsInput } from '@/lib/domain/anathema/david-facts'
 import { saveObservation, checkExistingSpecimen, getSpecimen, getScan, saveDavidFacts } from '@/lib/db/anathema'
+import { isAdmin } from '@/lib/auth/access'
 
 
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
@@ -25,6 +26,7 @@ const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdmin(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
@@ -76,6 +78,7 @@ export async function POST(req: NextRequest) {
 
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdmin(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(20, '1 h'), analytics: true })
   const { success } = await ratelimit.limit(userId)

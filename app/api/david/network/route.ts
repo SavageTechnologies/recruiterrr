@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase.server'
+import { isAdmin } from '@/lib/auth/access'
 
 const ALLOWED_ORIGINS = [
   'https://recruiterrr.com',
@@ -20,6 +21,7 @@ export async function GET(req: NextRequest) {
 
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdmin(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { data, error } = await supabase
     .from('anathema_specimens')
