@@ -410,7 +410,7 @@ function AnathemaDashboardInner() {
     }
   }
 
-  function loadSpecimen(s: any) {
+  async function loadSpecimen(s: any) {
     setAgencyName(s.agent_name || '')
     setWebsite(s.agent_website || '')
     setCity(s.city || '')
@@ -422,8 +422,22 @@ function AnathemaDashboardInner() {
     setConfirmedOther(s.confirmed_tree_other || '')
     setSubImo(s.confirmed_sub_imo || '')
     setRecruiterNotes(s.recruiter_notes || '')
-    setSaveState('idle')
+    setSaveState('saved')
     window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    // Fetch the full scan result so the panel renders
+    try {
+      const res = await fetch(`/api/anathema?id=${s.id}`)
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.scan?.analysis_json) {
+        setResult(data.scan.analysis_json)
+        setDavidFacts(data.scan.david_facts || null)
+        if (data.scan.analysis_json.predicted_sub_imo && !s.confirmed_sub_imo) {
+          setSubImo(data.scan.analysis_json.predicted_sub_imo)
+        }
+      }
+    } catch {}
   }
 
   const stage = result ? getStage(result.confidence, result.predicted_tree) : null
