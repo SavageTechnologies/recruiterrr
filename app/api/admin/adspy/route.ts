@@ -37,11 +37,10 @@ async function runApifyAdScraper(keyword: string, country: string): Promise<any[
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        searchQuery: keyword,
-        country: country,
-        adType: 'ALL',
-        adActiveStatus: 'ACTIVE',
-        limit: 50,
+        urls: [
+          `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=${country}&q=${encodeURIComponent(keyword)}&search_type=keyword_unordered`
+        ],
+        maxResults: 50,
       }),
     }
   )
