@@ -747,7 +747,7 @@ function PrometheusPageInner() {
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2 }}>SCAN HISTORY</div>
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>{scans.length} total</div>
               </div>
-              <PrometheusScansTable scans={scans} />
+              <PrometheusScansTable scans={scans} onSelect={(id, domain) => { setFmoName(domain); loadSavedScan(id) }} />
             </div>
           )}
 

@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 
 type Scan = {
@@ -18,7 +17,13 @@ type Scan = {
   created_at: string
 }
 
-export default function PrometheusScansTable({ scans }: { scans: Scan[] }) {
+export default function PrometheusScansTable({
+  scans,
+  onSelect,
+}: {
+  scans: Scan[]
+  onSelect: (id: string, domain: string) => void
+}) {
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 10
   const totalPages = Math.ceil(scans.length / PAGE_SIZE)
@@ -26,16 +31,10 @@ export default function PrometheusScansTable({ scans }: { scans: Scan[] }) {
 
   if (!scans.length) {
     return (
-      <div style={{ textAlign: 'center', padding: '40px 0' }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#2a2a2a', marginBottom: 12 }}>
-          NO SCANS YET
+      <div style={{ padding: '24px 0' }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#333' }}>
+          No scans yet — run your first FMO above.
         </div>
-        <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 24 }}>
-          Run Prometheus on any FMO or IMO to get a full sales intelligence briefing.
-        </div>
-        <Link href="/dashboard/prometheus" style={{ padding: '12px 32px', background: 'transparent', border: '1px solid var(--orange)', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none', display: 'inline-block' }}>
-          Run Intel
-        </Link>
       </div>
     )
   }
@@ -52,23 +51,22 @@ export default function PrometheusScansTable({ scans }: { scans: Scan[] }) {
         <div>Date</div>
       </div>
 
-      {visible.map(scan => {
+      {visible.map((scan: Scan) => {
         const size = scan.fmo_size || scan.verdict || '—'
         const sizeColor = size === 'LARGE' ? 'var(--orange)' : size === 'MID-SIZE' ? 'var(--yellow)' : 'var(--muted)'
         const treeRaw = scan.vendor_tier || '—'
-        const treeShort = treeRaw.length > 12 ? treeRaw.slice(0, 10) + '…' : treeRaw
-        const contactCount = Array.isArray(scan.contacts) ? scan.contacts.length : (scan.has_contacts ? '?' : 0)
+        const treeShort = treeRaw.length > 12 ? treeRaw.slice(0, 10) + '...' : treeRaw
+        const contactCount = Array.isArray(scan.contacts) ? scan.contacts.length : (scan.has_contacts ? 1 : 0)
         const topContact = Array.isArray(scan.contacts) && scan.contacts.length > 0 ? scan.contacts[0] : null
 
         return (
-          <Link
+          <div
             key={scan.id}
-            href={`/dashboard/prometheus?id=${scan.id}`}
-            style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 80px 80px 110px', gap: 12, padding: '14px 16px', background: 'var(--dark)', border: '1px solid var(--border)', marginBottom: 2, textDecoration: 'none', transition: 'border-color 0.15s' }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--orange)')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+            onClick={() => onSelect(scan.id, scan.domain)}
+            style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 80px 80px 110px', gap: 12, padding: '14px 16px', background: 'var(--dark)', border: '1px solid var(--border)', marginBottom: 2, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.borderColor = 'var(--orange)')}
+            onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.borderColor = 'var(--border)')}
           >
-            {/* Name + top contact preview */}
             <div style={{ overflow: 'hidden' }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: topContact ? 3 : 0 }}>
                 {scan.domain}
@@ -79,39 +77,28 @@ export default function PrometheusScansTable({ scans }: { scans: Scan[] }) {
                 </div>
               )}
             </div>
-
-            {/* Size */}
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: sizeColor, letterSpacing: 1, alignSelf: 'center' }}>
               {size}
             </div>
-
-            {/* Tree */}
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {treeShort}
             </div>
-
-            {/* Actively recruiting */}
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, alignSelf: 'center' }}>
               {scan.actively_recruiting
-                ? <span style={{ color: 'var(--green)' }}>● YES</span>
-                : <span style={{ color: '#333' }}>○ NO</span>
+                ? <span style={{ color: 'var(--green)' }}>YES</span>
+                : <span style={{ color: '#333' }}>NO</span>
               }
             </div>
-
-            {/* Contact count */}
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, alignSelf: 'center', color: Number(contactCount) > 0 ? 'var(--orange)' : '#333' }}>
-              {Number(contactCount) > 0 ? `${contactCount} found` : '—'}
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, alignSelf: 'center', color: contactCount > 0 ? 'var(--orange)' : '#333' }}>
+              {contactCount > 0 ? `${contactCount} found` : '—'}
             </div>
-
-            {/* Date */}
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center' }}>
               {new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
-          </Link>
+          </div>
         )
       })}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, padding: '0 4px' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>
@@ -123,23 +110,14 @@ export default function PrometheusScansTable({ scans }: { scans: Scan[] }) {
               disabled={page === 0}
               style={{ padding: '6px 14px', background: 'transparent', border: '1px solid var(--border)', color: page === 0 ? '#333' : 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1, cursor: page === 0 ? 'not-allowed' : 'pointer' }}
             >
-              ← PREV
+              PREV
             </button>
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setPage(i)}
-                style={{ padding: '6px 12px', background: i === page ? 'var(--orange)' : 'transparent', border: `1px solid ${i === page ? 'var(--orange)' : 'var(--border)'}`, color: i === page ? 'var(--black)' : 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1, cursor: 'pointer' }}
-              >
-                {i + 1}
-              </button>
-            ))}
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page === totalPages - 1}
               style={{ padding: '6px 14px', background: 'transparent', border: '1px solid var(--border)', color: page === totalPages - 1 ? '#333' : 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1, cursor: page === totalPages - 1 ? 'not-allowed' : 'pointer' }}
             >
-              NEXT →
+              NEXT
             </button>
           </div>
         </div>
