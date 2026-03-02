@@ -10,11 +10,43 @@ const MODES = [
   // { value: 'financial', label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
 ]
 
-const SEARCH_TIPS = [
-  { label: 'Major metro',    example: 'Kansas City, MO', tip: 'Use the largest city in the metro' },
-  { label: 'Suburb market',  example: 'Overland Park, KS', tip: 'Suburban cities often have dense independent agents' },
-  { label: 'Rural market',   example: 'Salina, KS', tip: 'Smaller cities = less competition, easier to recruit' },
-  { label: 'Retirement hub', example: 'Sarasota, FL', tip: 'High Medicare-eligible population = more agents' },
+const OPERATOR_TIPS = [
+  {
+    tag: 'PRIORITY',
+    color: 'var(--green)',
+    headline: 'HOT means call today.',
+    body: 'The HOT flag means independent signals fired — no captive contract language, no FMO branding, hiring activity, YouTube presence. These have the shortest path to a real conversation. Work HOT first, every time.',
+  },
+  {
+    tag: 'SIGNAL',
+    color: '#ff4444',
+    headline: 'YouTube is your biggest tell.',
+    body: 'An agent building a personal brand is thinking beyond their current upline. Producers don\'t make videos when they\'re happy where they are. Click the YT badge and watch what they\'re posting before you dial.',
+  },
+  {
+    tag: 'INTEL',
+    color: 'var(--orange)',
+    headline: 'Run ANATHEMA before you call.',
+    body: 'Found a HOT agent? Don\'t call blind. ANATHEMA tells you who owns their contract before you pick up the phone. If they\'re Integrity Stage III you already know the leverage. That\'s an informed conversation, not a cold call.',
+  },
+  {
+    tag: 'OPENER',
+    color: 'var(--orange)',
+    headline: 'The HIRING badge is a backdoor.',
+    body: 'An agent actively hiring subagents has a book of business and is growing — and is probably dealing with support or lead problems from their upline. "I saw you\'re building a team" beats any other opener.',
+  },
+  {
+    tag: 'READING',
+    color: 'var(--muted)',
+    headline: 'Reviews tell you who they are.',
+    body: 'High rating + lots of reviews = established producer with a real client base. That\'s who you want. Both are recruitable but the conversation is completely different. Check the count before you call.',
+  },
+  {
+    tag: 'STRATEGY',
+    color: 'var(--muted)',
+    headline: 'Search the city, not the agent.',
+    body: 'You\'re mapping a market, not hunting one person. Run the search, look at the cluster. If 8 of 30 agents have YouTube, that\'s a market full of ambitious producers. If most are captive, move on.',
+  },
 ]
 
 const LOADING_STEPS = [
@@ -526,29 +558,36 @@ function SearchPageInner() {
             </button>
           </div>
 
-          {/* Search tips (shown before first search only) */}
+          {/* Operator intelligence (shown before first search only) */}
           {!searched && !loading && (
             <div style={{ marginTop: 32, marginBottom: 40 }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>
-                Search Tips
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 16 }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
+                  Operator Intelligence
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
+                  — how to get the most out of every search
+                </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
-                {SEARCH_TIPS.map(tip => (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+                {OPERATOR_TIPS.map((tip, i) => (
                   <div
-                    key={tip.label}
-                    onClick={() => {
-                      const [c, s] = tip.example.split(', ')
-                      setCity(c)
-                      if (s) setState(s)
-                      runSearch(c, s || state)
+                    key={i}
+                    style={{
+                      background: 'var(--card)', border: '1px solid var(--border)',
+                      borderTop: `2px solid ${tip.color}`,
+                      padding: '20px 22px',
                     }}
-                    style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-light)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
                   >
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>{tip.label}</div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--orange)', marginBottom: 4 }}>{tip.example}</div>
-                    <div style={{ fontSize: 11, color: '#444' }}>{tip.tip}</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: tip.color, letterSpacing: 2, marginBottom: 10 }}>
+                      {tip.tag}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 8, lineHeight: 1.3 }}>
+                      {tip.headline}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#555', lineHeight: 1.7 }}>
+                      {tip.body}
+                    </div>
                   </div>
                 ))}
               </div>
