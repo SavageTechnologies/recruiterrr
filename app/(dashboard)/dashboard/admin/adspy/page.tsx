@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 type AdResult = {
   advertiser_name: string
@@ -22,10 +22,24 @@ type ContactResult = {
   found: boolean
 }
 
+type RecentScan = {
+  id: string
+  keyword: string
+  country: string
+  total_ads: number
+  recruitable_count: number
+  recruiting_count: number
+  scanned_at: string
+  results_json: AdResult[]
+}
+
 const KEYWORDS = [
   'Medicare',
   'Medicare Advantage',
   'Medicare supplement',
+  'Medicare insurance agent',
+  'join my insurance team',
+  'become a Medicare agent',
   'turn 65 Medicare',
   'final expense',
 ]
@@ -40,7 +54,38 @@ const AD_TYPE_COLOR: Record<string, string> = {
 export default function AdSpyPage() {
   const [keyword, setKeyword] = useState('Medicare')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [results, setResults] = useState<{
+    ads: AdResult[]
+    total: number
+    recruitable_count: number
+    recruiting_count: number
+    keyword: string
+  } | null>(null)
+  const [filter, setFilter] = useState<'all' | 'recruiting' | 'recruitable'>('recruitable')
   const [contacts, setContacts] = useState<Record<string, ContactResult & { loading?: boolean }>>({})
+  const [recentScans, setRecentScans] = useState<RecentScan[]>([])
+  const [recentLoading, setRecentLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/adspy', { method: 'GET' })
+      .then(r => r.json())
+      .then(d => { setRecentScans(d.scans || []); setRecentLoading(false) })
+      .catch(() => setRecentLoading(false))
+  }, [])
+
+  function loadScan(scan: RecentScan) {
+    setResults({
+      ads: scan.results_json,
+      total: scan.total_ads,
+      recruitable_count: scan.recruitable_count,
+      recruiting_count: scan.recruiting_count,
+      keyword: scan.keyword,
+    })
+    setContacts({})
+    setFilter('recruitable')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   async function findContact(advertiserName: string, pageUrl: string | null) {
     const key = advertiserName
@@ -57,15 +102,6 @@ export default function AdSpyPage() {
       setContacts(prev => ({ ...prev, [key]: { loading: false, found: false, phone: null, email: null, website: null } }))
     }
   }
-  const [error, setError] = useState<string | null>(null)
-  const [results, setResults] = useState<{
-    ads: AdResult[]
-    total: number
-    recruitable_count: number
-    recruiting_count: number
-    keyword: string
-  } | null>(null)
-  const [filter, setFilter] = useState<'all' | 'recruiting' | 'recruitable'>('recruitable')
 
   async function runScan() {
     setLoading(true)
@@ -81,6 +117,11 @@ export default function AdSpyPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Scan failed')
       setResults(data)
+      // Refresh recent scans list
+      fetch('/api/admin/adspy', { method: 'GET' })
+        .then(r => r.json())
+        .then(d => setRecentScans(d.scans || []))
+        .catch(() => {})
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -109,6 +150,37 @@ export default function AdSpyPage() {
           Scrape the Facebook Ad Library for Medicare-related ads. Reverse into the agencies running them. Find agents spending their own money — those are your best prospects.
         </div>
       </div>
+
+      {/* Recent Scans */}
+      {(recentScans.length > 0 || recentLoading) && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2, marginBottom: 8 }}>
+            RECENT SCANS
+          </div>
+          <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            {recentLoading ? (
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444' }}>loading...</div>
+            ) : recentScans.map(scan => (
+              <button
+                key={scan.id}
+                onClick={() => loadScan(scan)}
+                style={{
+                  background: 'var(--card)', border: '1px solid var(--border)',
+                  padding: '8px 14px', cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', flexDirection: 'column', gap: 3,
+                }}
+              >
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--white)', letterSpacing: 1 }}>
+                  {scan.keyword}
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--green)', letterSpacing: 1 }}>
+                  {scan.recruitable_count} recruitable · {new Date(scan.scanned_at).toLocaleDateString()}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Controls */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 2, marginBottom: 32 }}>
