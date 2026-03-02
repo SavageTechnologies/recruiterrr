@@ -1,5 +1,5 @@
 export const runtime = 'nodejs'
-export const maxDuration = 60  // ANATHEMA scan: SERP + Claude + FB fetch, no Apify
+export const maxDuration = 180  // ANATHEMA scan: SERP + Claude + conditional Apify wait (low-confidence path)
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
@@ -10,6 +10,7 @@ import { Redis } from '@upstash/redis'
 import { scoreSMSCarriers, scanResultAgainstNetwork, aggregateMatches, buildNetworkSignalIndex } from '@/lib/domain/anathema/signals'
 import type { NetworkMatch, NetworkSignal } from '@/lib/domain/anathema/signals'
 
+import { enrichWithApify, apifyToSerpSnippets } from '@/lib/domain/anathema/apify'
 import { resolveChain } from '@/lib/domain/anathema/chain-resolver'
 import type { ChainResult } from '@/lib/domain/anathema/chain-resolver'
 import { huntUnresolvedUpline } from '@/lib/domain/anathema/upline-hunter'
@@ -327,8 +328,15 @@ export async function POST(req: NextRequest) {
 
   if (allSignals.length === 0) allSignals.push('No affiliation signals detected in available data')
 
-  // ── Haiku tree prediction ───────────────────────────────────────────────
-  const prompt = `You are ANATHEMA, a pathogen analysis system for the US insurance distribution market. Predict which of three major consolidation trees an agent belongs to.
+  // ── Confidence threshold for fast vs. thorough path ─────────────────────
+  // FAST PATH  (≥ 65): SERP signals were strong enough — skip Apify wait, predict now.
+  // THOROUGH PATH (< 65): Ambiguous. Wait for Apify before predicting so the
+  //   richer Facebook post content can feed the final call.
+  const APIFY_GATE_THRESHOLD = 65
+
+  // Helper — builds and runs the Haiku prediction from whatever signals we have
+  async function runPrediction(signals: string[], iScore: number, aScore: number, sScore: number) {
+    const prompt = `You are ANATHEMA, a pathogen analysis system for the US insurance distribution market. Predict which of three major consolidation trees an agent belongs to.
 
 THE THREE TREES:
 1. INTEGRITY MARKETING GROUP — Brand language: "Integrity Marketing Group", "Family First Life", "FFL agent", "IntegrityCONNECT", "MedicareCENTER". Do NOT classify based on the word "integrity" alone.
@@ -337,10 +345,10 @@ THE THREE TREES:
 
 AGENT: ${agent.name}
 Location: ${agent.city || ''}, ${agent.state || ''}
-Pre-scored signals: Integrity=${integrityScore}, AmeriLife=${amerilifeScore}, SMS=${smsScore}
+Pre-scored signals: Integrity=${iScore}, AmeriLife=${aScore}, SMS=${sScore}
 
 RAW SIGNALS:
-${allSignals.map(s => `- ${s}`).join('\n')}
+${signals.map(s => `- ${s}`).join('\n')}
 
 Rules:
 - Only predict a tree if there is EXPLICIT brand language or the SMS carrier combo. Generic insurance language, location, or common carriers do NOT qualify.
@@ -356,23 +364,99 @@ Respond with ONLY valid JSON:
   "reasoning": "1-2 sentences"
 }`
 
-  let prediction: { predicted_tree: string; confidence: number; signals_used: string[]; reasoning: string } = {
-    predicted_tree: 'unknown',
-    confidence: 0,
-    signals_used: allSignals.filter(s => !s.startsWith('Facebook: No') && !s.startsWith('No affiliation')).slice(0, 4),
-    reasoning: 'Insufficient signals to determine affiliation.',
+    const fallback = {
+      predicted_tree: 'unknown',
+      confidence: 0,
+      signals_used: signals.filter(s => !s.startsWith('Facebook: No') && !s.startsWith('No affiliation')).slice(0, 4),
+      reasoning: 'Insufficient signals to determine affiliation.',
+    }
+
+    try {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+      const claudeRes = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 500,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      return JSON.parse(((claudeRes.content[0] as any).text || '').replace(/```json|```/g, '').trim())
+    } catch {
+      return fallback
+    }
   }
 
-  try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-    const claudeRes = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 500,
-      messages: [{ role: 'user', content: prompt }],
+  // ── Pre-flight confidence estimate (no Claude call yet) ──────────────────
+  // Rough score-based estimate to decide which path to take.
+  // We don't want to spend a Claude call just to find out we need Apify.
+  const topScore = Math.max(integrityScore, amerilifeScore, smsScore)
+  const hasApifyTargets = !!(facebookProfileUrl || agent.youtube_channel)
+  const apifyAvailable = !!(hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET)
+
+  // Track whether we used Apify in this scan (for debug/response)
+  let apifyUsedInPrediction = false
+  let apifyPostCount = 0
+  let apifyVideoCount = 0
+
+  // ── THOROUGH PATH: wait for Apify before predicting ─────────────────────
+  if (apifyAvailable && topScore < APIFY_GATE_THRESHOLD) {
+    // Run Apify now and wait — confidence was too low to trust SERP alone
+    const apifyEnrichment = await enrichWithApify({
+      facebookProfileUrl,
+      youtubeChannelUrl: agent.youtube_channel || null,
     })
-    const parsed = JSON.parse(((claudeRes.content[0] as any).text || '').replace(/```json|```/g, '').trim())
-    prediction = parsed
-  } catch {}
+
+    apifyPostCount = apifyEnrichment.facebookPosts.length
+    apifyVideoCount = apifyEnrichment.youtubeVideos.length
+
+    if (apifyPostCount > 0 || apifyVideoCount > 0) {
+      apifyUsedInPrediction = true
+
+      // Scan Apify content against the signal index — same scanner, richer text
+      const apifyMatches = scanResultAgainstNetwork(
+        '',
+        [apifyEnrichment.facebookText, apifyEnrichment.youtubeText].join('\n'),
+        facebookProfileUrl || '',
+        agent.name,
+        networkSignals,
+      )
+      const apifyAgg = aggregateMatches(apifyMatches)
+      integrityScore += apifyAgg.integrity
+      amerilifeScore += apifyAgg.amerilife
+      smsScore += apifyAgg.sms
+
+      if (apifyAgg.signals.length > 0) {
+        allSignals.push(...apifyAgg.signals.map(s => `Apify: ${s}`))
+        if (apifyAgg.topPartnerMatch && !autoDetectedSubImo) autoDetectedSubImo = apifyAgg.topPartnerMatch
+      }
+
+      // Add Apify snippets to serpDebug for full audit trail
+      const apifySnippets = apifyToSerpSnippets(apifyEnrichment)
+      serpDebug.push({
+        query: `apify_facebook:${facebookProfileUrl || 'n/a'}`,
+        source: 'apify_facebook_posts',
+        results: apifySnippets
+          .filter(s => s.title.startsWith('Facebook'))
+          .slice(0, 5)
+          .map(s => ({ title: s.title, url: s.url, snippet: s.snippet.slice(0, 200), signals_matched: [] })),
+      })
+      if (apifyVideoCount > 0) {
+        serpDebug.push({
+          query: `apify_youtube:${agent.youtube_channel || 'n/a'}`,
+          source: 'apify_youtube_videos',
+          results: apifySnippets
+            .filter(s => !s.title.startsWith('Facebook'))
+            .slice(0, 5)
+            .map(s => ({ title: s.title, url: s.url, snippet: s.snippet.slice(0, 200), signals_matched: [] })),
+        })
+      }
+
+      // Update serpSnippetsForHunter with Apify content too
+      serpSnippetsForHunter.push(...apifySnippets.map(s => s.snippet))
+    }
+  }
+
+  // ── Haiku prediction — runs after Apify if we waited, or immediately if fast path
+  const prediction: { predicted_tree: string; confidence: number; signals_used: string[]; reasoning: string } =
+    await runPrediction(allSignals, integrityScore, amerilifeScore, smsScore)
 
   // ── Chain resolver ──────────────────────────────────────────────────────
   let chainResult: ChainResult = null
@@ -479,10 +563,9 @@ Respond with ONLY valid JSON:
     }
   }
 
-  // ── DAVID facts extraction (SERP-only, fast) ────────────────────────────
-  // Runs immediately so the response is never blocked.
-  // Apify deep enrichment runs in the background after response is sent
-  // and overwrites david_facts in the DB — client picks it up on next load.
+  // ── DAVID facts extraction ───────────────────────────────────────────────
+  // Always uses whatever content we have at this point — if we took the
+  // thorough path, Apify content is already in serpDebug and facebookPostText.
   const davidFactsInput: DavidFactsInput = {
     agentName: agent.name,
     serpSnippets: serpDebug.flatMap(e => e.results.map(r => ({
@@ -496,19 +579,16 @@ Respond with ONLY valid JSON:
     agentWebsite: agent.website || null,
     agentNotes: agent.notes || null,
     agentAbout: agent.about || null,
-    apifyFacebookPostCount: 0,
-    apifyYouTubeVideoCount: 0,
+    apifyFacebookPostCount: apifyPostCount,
+    apifyYouTubeVideoCount: apifyVideoCount,
   }
 
   const davidFacts = await extractDavidFacts(davidFactsInput)
 
-  // ── Apify deep enrichment — fire and forget to dedicated route ──────────
-  // WHY: Vercel kills the function the moment this response is sent.
-  // A .then() block after NextResponse.json() silently dies mid-execution.
-  // The /api/david/enrich route has its own maxDuration = 300 budget and
-  // stays alive independently. We fire it and don't wait.
-  const hasApifyTargets = !!(facebookProfileUrl || agent.youtube_channel)
-  if (hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET) {
+  // ── Apify fire-and-forget — FAST PATH ONLY ──────────────────────────────
+  // If we already waited for Apify above (thorough path), don't fire again.
+  // If we took the fast path (high confidence), fire now for David enrichment.
+  if (!apifyUsedInPrediction && hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET) {
     const enrichPayload = {
       userId,
       agentName: agent.name,
@@ -528,11 +608,7 @@ Respond with ONLY valid JSON:
       agentAbout: agent.about || null,
     }
 
-    // Derive base URL from the incoming request — works on prod, preview, and local
-    // without relying on NEXT_PUBLIC_BASE_URL being set in the environment.
     const baseUrl = `${req.nextUrl.protocol}//${req.nextUrl.host}`
-
-    // Fire-and-forget: no await, no catch needed — enrich route handles its own errors
     fetch(`${baseUrl}/api/david/enrich`, {
       method: 'POST',
       headers: {
@@ -561,6 +637,7 @@ Respond with ONLY valid JSON:
     unresolved_upline_evidence: unresolvedUpline?.evidence ?? null,
     unresolved_upline_source_url: unresolvedUpline?.sourceUrl ?? null,
     unresolved_upline_confidence: unresolvedUpline?.confidence ?? null,
+    apify_used_in_prediction: apifyUsedInPrediction,  // true = thorough path, false = fast path
     serp_debug: serpDebug,
     david_facts: davidFacts,
   })
