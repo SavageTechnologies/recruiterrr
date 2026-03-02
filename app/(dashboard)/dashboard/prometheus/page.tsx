@@ -12,6 +12,15 @@ type AgentQuote = {
   source: string
 }
 
+type Contact = {
+  name: string
+  title: string
+  email: string | null
+  phone: string | null
+  linkedin: string | null
+  source: string
+}
+
 type Analysis = {
   fmo_name: string
   website: string
@@ -19,6 +28,13 @@ type Analysis = {
   size_signal: 'LARGE' | 'MID-SIZE' | 'SMALL' | 'UNKNOWN'
   overview: string
   recent_news: string
+  contacts: Contact[]
+  recruiting_activity: {
+    actively_recruiting: boolean
+    signals: string[]
+    target_agent_profile: string
+    recruiting_pitch_headline: string
+  }
   what_they_offer: {
     carriers: string[]
     products: string[]
@@ -29,6 +45,7 @@ type Analysis = {
     trip_current: string
     trip_threshold: string
     trip_past: string[]
+    events: string[]
   }
   agent_sentiment: {
     agent_quotes: AgentQuote[]
@@ -36,15 +53,11 @@ type Analysis = {
     common_complaints: string[]
     contract_flags: string[]
   }
-  recruiting_pitch: {
-    headline: string
-    claims: string[]
-    target_agent: string
-  }
-  gaps: {
-    missing_carriers: string[]
-    weak_areas: string
-    ownership_risk: string
+  sales_angles: {
+    tech_gap: string
+    retention_problem: string
+    recruiting_pain: string
+    size_and_budget_read: string
   }
   pages_found: string[]
   data_confidence: 'HIGH' | 'MEDIUM' | 'LOW'
@@ -58,12 +71,12 @@ const LOADING_STEPS = [
   'Crawling homepage + about',
   'Scanning agent / join pages',
   'Extracting carrier contracts',
-  'Hunting incentive trips',
-  'Pulling lead programs',
-  'Checking tech stack',
+  'Hunting incentive trips + events',
+  'Pulling tech stack + tools',
+  'Searching for leadership contacts',
   'Running SERP intelligence',
   'Pulling agent reviews + Glassdoor',
-  'Extracting facts',
+  'Extracting facts + sales angles',
 ]
 
 const STAGE_LOGS: Record<number, string[]> = {
@@ -72,11 +85,11 @@ const STAGE_LOGS: Record<number, string[]> = {
   2: ['[OK] Probing /agents', '[OK] Probing /join', '[FOUND] Agent value prop located'],
   3: ['[OK] Probing /carriers', '[OK] Probing /products', '[FOUND] Carrier stack extracted'],
   4: ['[OK] Probing /trips', '[OK] Probing /incentives', '[FOUND] Trip intel compiled'],
-  5: ['[OK] Probing /leads', '[OK] Probing /marketing', '[FOUND] Lead program analyzed'],
-  6: ['[OK] Probing /technology', '[OK] Probing /tools', '[FOUND] Tech stack identified'],
-  7: ['[OK] Running trip SERP', '[OK] Running carrier SERP', '[OK] Running contract SERP', '[FOUND] SERP data compiled'],
+  5: ['[OK] Probing /technology', '[OK] Probing /tools', '[FOUND] Tech stack identified'],
+  6: ['[OK] Probing /team', '[OK] Probing /about/leadership', '[FOUND] Contacts identified'],
+  7: ['[OK] Running trip SERP', '[OK] Running carrier SERP', '[OK] Running leadership SERP', '[FOUND] SERP data compiled'],
   8: ['[OK] Querying Reddit/forums', '[OK] Querying Glassdoor', '[OK] Pulling agent complaints', '[FOUND] Agent voice captured'],
-  9: ['[OK] Sending to analysis engine', '[OK] Extracting facts...', '[OK] Compiling briefing...', '[OK] Intel ready'],
+  9: ['[OK] Sending to analysis engine', '[OK] Extracting facts...', '[OK] Building sales angles...', '[OK] Intel ready'],
 }
 
 // ─── SMALL COMPONENTS ─────────────────────────────────────────────────────────
@@ -248,7 +261,7 @@ function PrometheusPageInner() {
   const [logLines, setLogLines] = useState<string[]>([])
   const [result, setResult] = useState<{ fmo_name: string; domain: string | null; pages: string[]; analysis: Analysis; cached?: boolean; cached_at?: string; serp_debug?: any[] } | null>(null)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'intel' | 'voice' | 'offer' | 'gaps' | 'sources'>('intel')
+  const [activeTab, setActiveTab] = useState<'intel' | 'contacts' | 'recruiting' | 'offer' | 'angles' | 'voice' | 'sources'>('intel')
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const [scans, setScans] = useState<any[]>([])
   const [scanPage, setScanPage] = useState(0)
@@ -322,11 +335,13 @@ function PrometheusPageInner() {
   const analysis = result?.analysis
 
   const TABS = [
-    { key: 'intel',   label: 'INTEL BRIEF'    },
-    { key: 'voice',   label: 'AGENT VOICE'    },
-    { key: 'offer',   label: 'WHAT THEY OFFER'},
-    { key: 'gaps',    label: 'GAPS & FLAGS'   },
-    { key: 'sources', label: '⬡ SOURCES'      },
+    { key: 'intel',      label: 'INTEL BRIEF'       },
+    { key: 'contacts',   label: '◎ CONTACTS'        },
+    { key: 'recruiting', label: 'RECRUITING SIGNALS' },
+    { key: 'offer',      label: 'WHAT THEY OFFER'   },
+    { key: 'angles',     label: '⚡ SALES ANGLES'   },
+    { key: 'voice',      label: 'AGENT VOICE'       },
+    { key: 'sources',    label: '⬡ SOURCES'         },
   ] as const
 
   return (
@@ -339,14 +354,14 @@ function PrometheusPageInner() {
 
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>Competitive Intelligence</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>FMO Sales Intelligence</div>
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>PROMETHEUS<span style={{ color: 'var(--orange)' }}>.</span></h1>
       </div>
 
       {/* Input */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 2, border: `1px solid ${scanning ? 'var(--orange)' : 'var(--border-light)'}`, background: 'var(--card)', transition: 'border-color 0.2s', boxShadow: scanning ? '0 0 0 1px var(--orange)' : 'none' }}>
         <input value={fmoName} onChange={e => setFmoName(e.target.value)} onKeyDown={e => e.key === 'Enter' && runScan(false)}
-          placeholder="FMO or IMO name — e.g. Integrity Marketing Group, AmeriLife, Brokers Alliance"
+          placeholder="FMO or IMO name — e.g. Brokers Alliance, Senior Market Sales, AmeriLife"
           disabled={scanning}
           style={{ flex: 1, padding: '18px 24px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }} />
         <button onClick={() => runScan(false)} disabled={scanning || !fmoName.trim()}
@@ -359,7 +374,7 @@ function PrometheusPageInner() {
           style={{ width: '100%', padding: '12px 24px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5, boxSizing: 'border-box' }} />
       </div>
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 1, marginBottom: 32 }}>
-        ENTER ANY FMO OR IMO · PROMETHEUS EXTRACTS FACTS FROM THEIR SITE, SERP, AGENT REVIEWS & GLASSDOOR
+        ENTER ANY FMO OR IMO · PROMETHEUS FINDS CONTACTS, SALES ANGLES, THEIR FULL PACKAGE, AND AGENT SENTIMENT
       </div>
 
       {/* Loading */}
@@ -453,23 +468,33 @@ function PrometheusPageInner() {
                 </div>
               )}
 
-              {/* Recruiting pitch */}
-              {analysis.recruiting_pitch?.headline && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, marginBottom: 10 }}>THEIR RECRUITING PITCH</div>
-                  <div style={{ background: 'var(--dark)', border: '1px solid var(--border)', borderLeft: '3px solid var(--border-light)', padding: '14px 18px', fontSize: 14, color: 'var(--white)', lineHeight: 1.6, fontStyle: 'italic', marginBottom: 10 }}>
-                    "{analysis.recruiting_pitch.headline}"
+              {/* Recruiting activity badge */}
+              {analysis.recruiting_activity && (
+                <div style={{ marginBottom: 20, padding: '14px 18px', background: analysis.recruiting_activity.actively_recruiting ? 'rgba(0,230,118,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${analysis.recruiting_activity.actively_recruiting ? 'rgba(0,230,118,0.25)' : 'var(--border)'}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: analysis.recruiting_activity.actively_recruiting ? 10 : 0 }}>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: analysis.recruiting_activity.actively_recruiting ? 'var(--green)' : '#444', letterSpacing: 2 }}>
+                      {analysis.recruiting_activity.actively_recruiting ? '● ACTIVELY RECRUITING' : '○ NO ACTIVE RECRUITING SIGNALS'}
+                    </span>
                   </div>
-                  {(analysis.recruiting_pitch.claims || []).filter(Boolean).length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {analysis.recruiting_pitch.claims.map((claim, i) => (
-                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                          <span style={{ color: 'var(--muted)', flexShrink: 0, marginTop: 3, fontSize: 10 }}>→</span>
-                          <span style={{ fontSize: 13, color: 'var(--white)', lineHeight: 1.6 }}>{claim}</span>
+                  {analysis.recruiting_activity.actively_recruiting && analysis.recruiting_activity.signals?.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {analysis.recruiting_activity.signals.slice(0, 3).map((s, i) => (
+                        <div key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', display: 'flex', gap: 8 }}>
+                          <span style={{ color: 'var(--green)' }}>→</span>{s}
                         </div>
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Recruiting pitch */}
+              {analysis.recruiting_activity?.recruiting_pitch_headline && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, marginBottom: 10 }}>THEIR RECRUITING PITCH</div>
+                  <div style={{ background: 'var(--dark)', border: '1px solid var(--border)', borderLeft: '3px solid var(--border-light)', padding: '14px 18px', fontSize: 14, color: 'var(--white)', lineHeight: 1.6, fontStyle: 'italic' }}>
+                    &ldquo;{analysis.recruiting_activity.recruiting_pitch_headline}&rdquo;
+                  </div>
                 </div>
               )}
 
@@ -478,9 +503,144 @@ function PrometheusPageInner() {
                 <Tags label="Carriers" items={analysis.what_they_offer.carriers} />
               )}
 
-              <Row label="Target Agent" value={analysis.recruiting_pitch?.target_agent} />
+              <Row label="Target Agent" value={analysis.recruiting_activity?.target_agent_profile} />
               <Row label="Lead Program" value={analysis.what_they_offer?.lead_program} />
               <Row label="Confidence Note" value={analysis.confidence_note} />
+            </div>
+          )}
+
+          {/* ── CONTACTS ── */}
+          {activeTab === 'contacts' && (
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 3, marginBottom: 24 }}>CONTACTS</div>
+              {(analysis.contacts || []).length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {analysis.contacts.map((c, i) => (
+                    <div key={i} style={{ padding: '16px 20px', background: 'var(--dark)', border: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'start' }}>
+                      <div>
+                        <div style={{ fontSize: 14, color: 'var(--white)', fontWeight: 600, marginBottom: 4 }}>{c.name}</div>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1, marginBottom: 8 }}>{c.title}</div>
+                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                          {c.email && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)' }}>✉ {c.email}</span>}
+                          {c.phone && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)' }}>☎ {c.phone}</span>}
+                          {c.linkedin && (
+                            <a href={c.linkedin} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', textDecoration: 'none' }}>in LinkedIn ↗</a>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1, textAlign: 'right', paddingTop: 2 }}>{c.source}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#333', padding: '20px 0' }}>
+                  No named contacts found in this scan. Try a LinkedIn search for {result.fmo_name} leadership.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── RECRUITING SIGNALS ── */}
+          {activeTab === 'recruiting' && (
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 3, marginBottom: 24 }}>RECRUITING SIGNALS</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, padding: '12px 16px', background: analysis.recruiting_activity?.actively_recruiting ? 'rgba(0,230,118,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${analysis.recruiting_activity?.actively_recruiting ? 'rgba(0,230,118,0.25)' : '#2a2a2a'}` }}>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: analysis.recruiting_activity?.actively_recruiting ? 'var(--green)' : '#444', letterSpacing: 1 }}>
+                  {analysis.recruiting_activity?.actively_recruiting ? '● ACTIVELY RECRUITING' : '○ NO ACTIVE RECRUITING SIGNALS FOUND'}
+                </span>
+              </div>
+              {(analysis.recruiting_activity?.signals || []).length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, marginBottom: 12 }}>EVIDENCE</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {analysis.recruiting_activity.signals.map((s, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        <span style={{ color: 'var(--green)', flexShrink: 0, marginTop: 3, fontSize: 10 }}>→</span>
+                        <span style={{ fontSize: 13, color: 'var(--white)', lineHeight: 1.6 }}>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <Row label="Target Agent" value={analysis.recruiting_activity?.target_agent_profile} />
+              <Row label="Their Pitch" value={analysis.recruiting_activity?.recruiting_pitch_headline} />
+              {(analysis.what_they_offer?.events || []).length > 0 && (
+                <Tags label="Events" items={analysis.what_they_offer.events} />
+              )}
+            </div>
+          )}
+
+          {/* ── WHAT THEY OFFER ── */}
+          {activeTab === 'offer' && (
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 3, marginBottom: 24 }}>WHAT THEY OFFER</div>
+              <Tags label="Carriers" items={analysis.what_they_offer?.carriers || []} />
+              <Tags label="Products" items={analysis.what_they_offer?.products || []} />
+              <Row label="Contracts" value={analysis.what_they_offer?.contract_terms} />
+              <Row label="Lead Program" value={analysis.what_they_offer?.lead_program} />
+              <Tags label="Technology" items={analysis.what_they_offer?.technology || []} />
+              {(analysis.what_they_offer?.technology || []).length === 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 16, marginBottom: 14 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>Technology</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', fontStyle: 'italic' }}>None mentioned — potential tech gap</div>
+                </div>
+              )}
+              <Row label="Training" value={analysis.what_they_offer?.training} />
+              {analysis.what_they_offer?.trip_current && analysis.what_they_offer.trip_current !== 'Not found in scan' && (
+                <Row label="Current Trip" value={analysis.what_they_offer.trip_current} />
+              )}
+              {analysis.what_they_offer?.trip_threshold && analysis.what_they_offer.trip_threshold !== 'Not found in scan' && (
+                <Row label="Trip Threshold" value={analysis.what_they_offer.trip_threshold} />
+              )}
+              {(analysis.what_they_offer?.trip_past || []).length > 0 && (
+                <Tags label="Past Trips" items={analysis.what_they_offer.trip_past} />
+              )}
+              {(analysis.what_they_offer?.events || []).length > 0 && (
+                <Tags label="Events" items={analysis.what_they_offer.events} />
+              )}
+            </div>
+          )}
+
+          {/* ── SALES ANGLES ── */}
+          {activeTab === 'angles' && (
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 3, marginBottom: 24 }}>SALES ANGLES</div>
+              {analysis.sales_angles?.size_and_budget_read && (
+                <div style={{ padding: '16px 18px', background: 'rgba(255,165,0,0.04)', border: '1px solid rgba(255,165,0,0.15)', marginBottom: 12 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 2, marginBottom: 8 }}>SIZE & BUDGET READ</div>
+                  <div style={{ fontSize: 13, color: 'var(--white)', lineHeight: 1.6 }}>{analysis.sales_angles.size_and_budget_read}</div>
+                </div>
+              )}
+              {analysis.sales_angles?.tech_gap && analysis.sales_angles.tech_gap !== 'Not found in scan' && (
+                <div style={{ padding: '16px 18px', background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.15)', marginBottom: 12 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)', letterSpacing: 2, marginBottom: 8 }}>TECH GAP</div>
+                  <div style={{ fontSize: 13, color: 'var(--white)', lineHeight: 1.6 }}>{analysis.sales_angles.tech_gap}</div>
+                </div>
+              )}
+              {analysis.sales_angles?.retention_problem && analysis.sales_angles.retention_problem !== 'Not found in scan' && (
+                <div style={{ padding: '16px 18px', background: 'rgba(255,23,68,0.04)', border: '1px solid rgba(255,23,68,0.15)', marginBottom: 12 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--red)', letterSpacing: 2, marginBottom: 8 }}>RETENTION PROBLEM</div>
+                  <div style={{ fontSize: 13, color: 'var(--white)', lineHeight: 1.6 }}>{analysis.sales_angles.retention_problem}</div>
+                </div>
+              )}
+              {analysis.sales_angles?.recruiting_pain && analysis.sales_angles.recruiting_pain !== 'Not found in scan' && (
+                <div style={{ padding: '16px 18px', background: 'rgba(255,165,0,0.04)', border: '1px solid rgba(255,165,0,0.15)', marginBottom: 12 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 2, marginBottom: 8 }}>RECRUITING PAIN</div>
+                  <div style={{ fontSize: 13, color: 'var(--white)', lineHeight: 1.6 }}>{analysis.sales_angles.recruiting_pain}</div>
+                </div>
+              )}
+              {/* Agent complaints as additional angles */}
+              {(analysis.agent_sentiment?.common_complaints || []).length > 0 && (
+                <div style={{ marginTop: 8, padding: '16px 18px', background: 'rgba(255,23,68,0.03)', border: '1px solid #2a1a1a' }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#664444', letterSpacing: 2, marginBottom: 12 }}>AGENT PAIN POINTS (additional angles)</div>
+                  {analysis.agent_sentiment.common_complaints.map((c, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                      <span style={{ color: 'var(--red)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>−</span>
+                      <span style={{ fontSize: 12, color: 'var(--white)', lineHeight: 1.5 }}>{c}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -499,7 +659,7 @@ function PrometheusPageInner() {
                         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--muted)', letterSpacing: 2 }}>{q.topic?.toUpperCase()}</span>
                         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', letterSpacing: 1 }}>{q.source}</span>
                       </div>
-                      <div style={{ fontSize: 13, color: 'var(--white)', lineHeight: 1.7, fontStyle: 'italic' }}>"{q.quote}"</div>
+                      <div style={{ fontSize: 13, color: 'var(--white)', lineHeight: 1.7, fontStyle: 'italic' }}>&ldquo;{q.quote}&rdquo;</div>
                     </div>
                   ))}
                 </div>
@@ -544,46 +704,6 @@ function PrometheusPageInner() {
                   ))}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* ── WHAT THEY OFFER ── */}
-          {activeTab === 'offer' && (
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 3, marginBottom: 24 }}>WHAT THEY OFFER</div>
-              <Tags label="Carriers" items={analysis.what_they_offer?.carriers || []} />
-              <Tags label="Products" items={analysis.what_they_offer?.products || []} />
-              <Row label="Contracts" value={analysis.what_they_offer?.contract_terms} />
-              <Row label="Lead Program" value={analysis.what_they_offer?.lead_program} />
-              <Tags label="Technology" items={analysis.what_they_offer?.technology || []} />
-              <Row label="Training" value={analysis.what_they_offer?.training} />
-              {analysis.what_they_offer?.trip_current && analysis.what_they_offer.trip_current !== 'Not found in scan' && (
-                <Row label="Current Trip" value={analysis.what_they_offer.trip_current} />
-              )}
-              {analysis.what_they_offer?.trip_threshold && analysis.what_they_offer.trip_threshold !== 'Not found in scan' && (
-                <Row label="Trip Threshold" value={analysis.what_they_offer.trip_threshold} />
-              )}
-              {(analysis.what_they_offer?.trip_past || []).length > 0 && (
-                <Tags label="Past Trips" items={analysis.what_they_offer.trip_past} />
-              )}
-            </div>
-          )}
-
-          {/* ── GAPS & FLAGS ── */}
-          {activeTab === 'gaps' && (
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 3, marginBottom: 24 }}>GAPS & FLAGS</div>
-
-              {analysis.gaps?.ownership_risk && analysis.gaps.ownership_risk !== 'None found in scan' && (
-                <div style={{ padding: '16px 18px', background: 'rgba(255,23,68,0.04)', border: '1px solid rgba(255,23,68,0.2)', marginBottom: 16 }}>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--red)', letterSpacing: 2, marginBottom: 8 }}>OWNERSHIP / CONTRACT RISK</div>
-                  <div style={{ fontSize: 13, color: 'var(--white)', lineHeight: 1.6 }}>{analysis.gaps.ownership_risk}</div>
-                </div>
-              )}
-
-              <Tags label="Missing Carriers" items={analysis.gaps?.missing_carriers || []} />
-              <Row label="Weak Areas" value={analysis.gaps?.weak_areas} />
-              <Row label="Confidence Note" value={analysis.confidence_note} />
             </div>
           )}
 
@@ -693,12 +813,12 @@ function PrometheusPageInner() {
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>What Prometheus Extracts</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
             {[
-              { n: '01', title: 'Carrier Stack',       tip: 'Every carrier they contract. Names only — no guesses.' },
-              { n: '02', title: 'Incentive Trips',      tip: '2025 & 2026 destinations and qualifying thresholds when found.' },
-              { n: '03', title: 'Agent Voice',          tip: 'Actual quotes from Reddit, forums, and Glassdoor — sourced and tagged by topic.' },
-              { n: '04', title: 'Contract Flags',       tip: 'Specific captive language, release clauses, or chargeback terms agents have flagged.' },
-              { n: '05', title: 'Gaps in Their Offer',  tip: 'Carriers they\'re missing, weak areas, and ownership risk.' },
-              { n: '06', title: 'Evidence Trail',       tip: 'Every SERP query, every source. You can see exactly where the intel came from.' },
+              { n: '01', title: 'Contacts',              tip: 'Named leaders with titles — CEO, VP, founder. Pulled from team pages, SERP, and press releases.' },
+              { n: '02', title: 'Recruiting Activity',   tip: 'Is this FMO actively trying to grow agents right now? Job postings, ads, recent announcements.' },
+              { n: '03', title: 'Sales Angles',          tip: 'Tech gaps, retention problems, and recruiting pain — the specific reasons they need a tool.' },
+              { n: '04', title: 'Their Full Package',    tip: 'Carriers, trips, lead program, events, tech stack. Walk in knowing their offer cold.' },
+              { n: '05', title: 'Agent Voice',           tip: 'What agents actually say on Reddit, forums, and Glassdoor. Pain points = your opening.' },
+              { n: '06', title: 'Evidence Trail',        tip: 'Every SERP query, every source. You see exactly where the intel came from.' },
             ].map(c => (
               <div key={c.n} style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '20px 24px', transition: 'border-color 0.15s' }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--orange)')}
