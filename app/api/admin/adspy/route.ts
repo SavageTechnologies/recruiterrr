@@ -40,7 +40,7 @@ async function runApifyAdScraper(keyword: string, country: string): Promise<any[
         urls: [
           { url: `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=${country}&q=${encodeURIComponent(keyword)}&search_type=keyword_unordered&media_type=all` }
         ],
-        count: 200,
+        count: 30,
       }),
     }
   )
