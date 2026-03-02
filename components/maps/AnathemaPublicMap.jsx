@@ -341,7 +341,6 @@ export default function AnathemaPublicMap() {
         </div>
       </section>
 
-      <PageFooter />
     </div>
   )
 }
