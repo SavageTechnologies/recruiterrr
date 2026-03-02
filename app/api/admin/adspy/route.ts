@@ -40,7 +40,7 @@ async function runApifyAdScraper(keyword: string, country: string): Promise<any[
         urls: [
           { url: `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=${country}&q=${encodeURIComponent(keyword)}&search_type=keyword_unordered&media_type=all` }
         ],
-        count: 50,
+        count: 200,
       }),
     }
   )
@@ -241,7 +241,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ads: [], total: 0, keyword, country })
     }
 
-    const classified = await classifyAds(rawAds, keyword)
+    // Deduplicate by page_id — keep only the most recent ad per advertiser
+    // This prevents MedicareSchool (or any heavy retargeter) from flooding results
+    const seenPages = new Set<string>()
+    const deduped = rawAds.filter(ad => {
+      const pageId = ad.page_id || ad.pageId || ad.page_name || ad.pageName || 'unknown'
+      if (seenPages.has(pageId)) return false
+      seenPages.add(pageId)
+      return true
+    })
+
+    const classified = await classifyAds(deduped, keyword)
 
     // Sort: recruiting first, then by recruitable
     const sorted = classified.sort((a, b) => {
@@ -259,7 +269,7 @@ export async function POST(req: NextRequest) {
       recruiting_count: sorted.filter(a => a.ad_type === 'recruiting').length,
       keyword,
       country,
-      _debug_sample: rawAds[0] || null, // first raw ad so we can see field names
+      _debug_sample: deduped[0] || null,
     })
 
   } catch (err: any) {

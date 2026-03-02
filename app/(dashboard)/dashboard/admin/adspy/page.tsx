@@ -15,6 +15,13 @@ type AdResult = {
   claude_take: string
 }
 
+type ContactResult = {
+  phone: string | null
+  email: string | null
+  website: string | null
+  found: boolean
+}
+
 const KEYWORDS = [
   'Medicare',
   'Medicare Advantage',
@@ -48,6 +55,23 @@ export default function AdSpyPage() {
   const [keyword, setKeyword] = useState('Medicare')
   const [stateFilter, setStateFilter] = useState('')
   const [loading, setLoading] = useState(false)
+  const [contacts, setContacts] = useState<Record<string, ContactResult & { loading?: boolean }>>({})
+
+  async function findContact(advertiserName: string, pageUrl: string | null) {
+    const key = advertiserName
+    setContacts(prev => ({ ...prev, [key]: { loading: true, found: false, phone: null, email: null, website: null } }))
+    try {
+      const res = await fetch('/api/admin/adspy/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: advertiserName, page_url: pageUrl, state: stateFilter }),
+      })
+      const data = await res.json()
+      setContacts(prev => ({ ...prev, [key]: { ...data, loading: false } }))
+    } catch {
+      setContacts(prev => ({ ...prev, [key]: { loading: false, found: false, phone: null, email: null, website: null } }))
+    }
+  }
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<{
     ads: AdResult[]
@@ -274,6 +298,60 @@ export default function AdSpyPage() {
                         ◈ {ad.claude_take}
                       </div>
                     )}
+
+                    {/* Contact enrichment */}
+                    {(() => {
+                      const contact = contacts[ad.advertiser_name]
+                      if (!contact) {
+                        return ad.recruitable ? (
+                          <button
+                            onClick={() => findContact(ad.advertiser_name, ad.advertiser_page_url)}
+                            style={{
+                              marginTop: 10, padding: '5px 12px',
+                              background: 'transparent', border: '1px solid var(--green)',
+                              color: 'var(--green)', fontFamily: "'DM Mono', monospace",
+                              fontSize: 8, letterSpacing: 2, cursor: 'pointer',
+                            }}
+                          >
+                            + FIND CONTACT
+                          </button>
+                        ) : null
+                      }
+                      if (contact.loading) {
+                        return (
+                          <div style={{ marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1 }}>
+                            ◐ searching...
+                          </div>
+                        )
+                      }
+                      if (!contact.found) {
+                        return (
+                          <div style={{ marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1 }}>
+                            ✕ no contact info found
+                          </div>
+                        )
+                      }
+                      return (
+                        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {contact.phone && (
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)', letterSpacing: 1 }}>
+                              ☎ {contact.phone}
+                            </div>
+                          )}
+                          {contact.email && (
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)', letterSpacing: 1 }}>
+                              ✉ {contact.email}
+                            </div>
+                          )}
+                          {contact.website && (
+                            <a href={contact.website} target="_blank" rel="noopener noreferrer"
+                              style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1, textDecoration: 'none' }}>
+                              ⬡ {contact.website}
+                            </a>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
 
                   {/* Right side metadata */}
