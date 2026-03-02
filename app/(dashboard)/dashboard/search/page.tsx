@@ -26,8 +26,8 @@ const OPERATOR_TIPS = [
   {
     tag: 'INTEL',
     color: 'var(--orange)',
-    headline: 'Run ANATHEMA before you call.',
-    body: 'Found a HOT agent? Don\'t call blind. ANATHEMA tells you who owns their contract before you pick up the phone. If they\'re Integrity Stage III you already know the leverage. That\'s an informed conversation, not a cold call.',
+    headline: 'Their website tells you everything.',
+    body: 'Before you call, click the website link and spend 60 seconds on it. Carrier logos on the homepage = independent. One company\'s branding everywhere = captive. "Powered by" or FMO co-branding = they already have an upline. Know before you dial.',
   },
   {
     tag: 'OPENER',

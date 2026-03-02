@@ -46,6 +46,9 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
       base.push(`Medicare supplement broker ${cityPrefix}`)
       base.push(`Medicare advantage agent ${cityPrefix}`)
       base.push(`senior health insurance agent ${cityPrefix}`)
+      base.push(`health insurance broker ${cityPrefix}`)
+      base.push(`independent insurance agent ${cityPrefix}`)
+      base.push(`Medicare broker ${cityPrefix}`)
     }
     if (mode === 'life') {
       base.push(`life insurance agent ${cityPrefix}`)
@@ -418,6 +421,10 @@ async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: bool
 
   const prompt = `You are an expert ${ctx.analyst} industry analyst helping FMO/IMO recruiters identify recruitable independent agents.
 
+CORE ASSUMPTION: In the Medicare/senior insurance market, the vast majority of agents are INDEPENDENT brokers who can be recruited. Assume INDEPENDENT unless you find explicit evidence of a captive brand. Do NOT penalize agents because you can't confirm independence — absence of captive signals IS itself a positive signal.
+
+CAPTIVE = unrecruitable. Only flag captive if you see these specific brand names explicitly in the listing or website: ${ctx.captive.join(', ')}. Generic insurance language, multi-carrier mentions, Medicare/senior specialty focus all point AWAY from captive.
+
 GOOGLE LISTING DATA:
 Name: ${name}
 Business Type: ${type}
@@ -429,7 +436,12 @@ Rating: ${rating} stars / ${reviews} reviews
 Has Website: ${hasWebsite ? 'YES — ' + raw.website : 'NO'}
 
 WEBSITE INTELLIGENCE:
-${intel.fullText || 'No website available'}
+${intel.fullText
+  ? intel.fullText
+  : hasWebsite
+    ? `Website exists at ${raw.website} but content could not be extracted (JavaScript-rendered site). Do NOT penalize for this — treat as neutral and score on listing data and name signals only.`
+    : 'No website available.'
+}
 
 JOB POSTINGS:
 ${jobData.hiring ? `ACTIVELY HIRING — Roles: ${jobData.roles.join(', ')}` : 'No active job postings found'}
@@ -440,25 +452,25 @@ ${ytData.channel ? `HAS YOUTUBE CHANNEL — ${ytData.subscribers || 'unknown sub
 SEARCH LINE: ${mode.toUpperCase()}
 
 SCORING RULES:
-1. NAME / DESCRIPTION is primary signal — focus keywords for this line:
-   ${ctx.signals}
-2. Reviews: 50+=established, 100+=well-established, 200+=dominant
-3. High reviews + no website = strong referral-based independent, do NOT penalize
-4. CAPTIVE (score 15-35): ${ctx.captive.join(', ')} in name/description
-5. INDEPENDENT (score 65-95): multiple carriers, "independent" in description, broker language
-6. ACTIVELY HIRING for agents = +5 to +10 points
-7. HAS YOUTUBE with relevant content = +5 points
-8. HOT=75+, WARM=50-74, COLD=0-49
+1. DEFAULT is INDEPENDENT and recruitable. Only mark captive:true and score 15-35 if a known captive brand is explicitly present: ${ctx.captive.join(', ')}.
+2. Medicare/senior/supplement/health specialty name or description = strong independent signal. Score 65+ baseline.
+3. Multi-carrier mentions, "broker", "independent", specialty product focus (Medicare Advantage, Supplement, Annuities, Final Expense) = score 70-80.
+4. Reviews signal production volume: 50+ = established producer (score boost), 100+ = well-established, 200+ = dominant. High reviews + independent signals = HOT.
+5. ACTIVELY HIRING for agents = +8 points. They are growing and likely frustrated with upline support.
+6. HAS YOUTUBE = +7 points. Building a personal brand means they are thinking beyond their current upline.
+7. Website exists but content could not be scraped = completely neutral. Do NOT dock points.
+8. HOT = 75+, WARM = 50-74, COLD = 0-49.
+9. When in doubt score HIGHER. A missed HOT agent costs a recruit. An extra call costs nothing.
 
 Return ONLY valid JSON:
 {
-  "carriers": ["array of carriers/products identified"],
+  "carriers": ["carriers or product lines identified — infer from specialty focus if not explicitly listed"],
   "captive": boolean,
   "years": number or null,
   "score": 0-100,
   "flag": "hot"|"warm"|"cold",
-  "notes": "2-3 sentences with specific data points",
-  "about": "1-2 sentence plain-English summary of who this agency is. null if no about content found.",
+  "notes": "2-3 sentences explaining the score. If website was unscrapable say so and explain what you scored on instead.",
+  "about": "1-2 sentence plain-English summary of who this agency is. null if no content found.",
   "contact_email": "primary contact email if found on website, else null"
 }`
 
@@ -491,30 +503,33 @@ Return ONLY valid JSON:
   } catch {
     const nl = name.toLowerCase()
     const modeKeywords: Record<string, string[]> = {
-      medicare:  ['medicare','senior','supplement','advantage','medigap'],
+      medicare:  ['medicare','senior','supplement','advantage','medigap','health','insurance','broker'],
       life:      ['life','final expense','burial','legacy','term','whole life'],
       annuities: ['annuity','annuities','retirement','indexed','myga','income'],
       financial: ['financial','wealth','planning','advisor','investment','cfp'],
     }
     const modeCapt: Record<string, string[]> = {
-      medicare:  ['bankers life','state farm','farmers','allstate'],
+      medicare:  ['bankers life','state farm','farmers','allstate','geico'],
       life:      ['new york life','northwestern','mass mutual','globe life'],
       annuities: ['edward jones','ameriprise','raymond james'],
       financial: ['edward jones','ameriprise','raymond james','merrill','morgan stanley'],
     }
     const keywords = modeKeywords[mode] || modeKeywords['medicare']
     const captiveNames = modeCapt[mode] || modeCapt['medicare']
-    const isMatch = keywords.some(k => nl.includes(k))
+    // Only flag captive if an explicit captive brand is found
     const isCaptive = captiveNames.some(c => nl.includes(c))
-    let score = 45
-    if (isCaptive) score = 25
-    else if (isMatch && reviews >= 100) score = 70
-    else if (isMatch && reviews >= 50) score = 62
-    else if (isMatch) score = 55
-    else if (reviews >= 100) score = 60
-    else if (hasWebsite) score = 52
-    if (jobData.hiring) score = Math.min(100, score + 7)
-    if (ytData.channel) score = Math.min(100, score + 5)
+    // Default assumption: independent and recruitable
+    // Start at 60 and work up from there
+    let score = isCaptive ? 25 : 60
+    if (!isCaptive) {
+      if (reviews >= 200) score = 82
+      else if (reviews >= 100) score = 76
+      else if (reviews >= 50) score = 70
+      else if (reviews >= 20) score = 65
+      if (hasWebsite) score = Math.min(100, score + 3)
+    }
+    if (jobData.hiring) score = Math.min(100, score + 8)
+    if (ytData.channel) score = Math.min(100, score + 7)
     return {
       name, type: type || modeTypeFallback[mode] || 'Insurance Agency',
       phone: raw.phone || '', address: raw.address || '',
