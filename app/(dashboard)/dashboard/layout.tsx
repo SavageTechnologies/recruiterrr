@@ -77,6 +77,13 @@ export default async function DashboardLayout({
               }}>
                 Admin
               </Link>
+              <Link href="/dashboard/admin/adspy" style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 11,
+                color: '#38bdf8', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
+                opacity: 0.75,
+              }}>
+                Meredith
+              </Link>
             </>
           )}
 

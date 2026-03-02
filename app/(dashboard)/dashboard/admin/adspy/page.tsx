@@ -114,11 +114,11 @@ export default function AdSpyPage() {
 
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#38bdf8', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>
           Admin Tool · Experimental
         </div>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, letterSpacing: 2, lineHeight: 1, marginBottom: 8 }}>
-          AD SPY
+          MEREDITH
         </div>
         <div style={{ fontSize: 13, color: 'var(--muted)', maxWidth: 520, lineHeight: 1.7 }}>
           Scrape the Facebook Ad Library for Medicare-related ads. Reverse into the agencies running them. Find agents spending their own money — those are your best prospects.
