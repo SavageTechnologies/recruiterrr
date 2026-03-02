@@ -263,18 +263,17 @@ export async function POST(req: NextRequest) {
       return 0
     })
 
-    // Save scan to DB — fire and forget
-    supabase.from('meredith_scans').insert({
-      keyword,
-      country,
-      total_ads: sorted.length,
-      recruitable_count: sorted.filter(a => a.recruitable).length,
-      recruiting_count: sorted.filter(a => a.ad_type === 'recruiting').length,
-      results_json: sorted,
-      scanned_at: new Date().toISOString(),
-    }).then(({ error }) => {
-      if (error) console.error('[adspy] DB save error:', error.message)
-    })
+      // Save scan to DB — awaited so Vercel doesn't kill it before completing
+      const { error: saveError } = await supabase.from('meredith_scans').insert({
+        keyword,
+        country,
+        total_ads: sorted.length,
+        recruitable_count: sorted.filter(a => a.recruitable).length,
+        recruiting_count: sorted.filter(a => a.ad_type === 'recruiting').length,
+        results_json: sorted,
+        scanned_at: new Date().toISOString(),
+      })
+      if (saveError) console.error('[adspy] DB save error:', saveError.message)
 
     return NextResponse.json({
       ads: sorted,
