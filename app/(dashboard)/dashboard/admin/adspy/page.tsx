@@ -33,17 +33,6 @@ const KEYWORDS = [
   'final expense',
 ]
 
-const US_STATES = [
-  'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
-  'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa',
-  'Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan',
-  'Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada',
-  'New Hampshire','New Jersey','New Mexico','New York','North Carolina',
-  'North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island',
-  'South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont',
-  'Virginia','Washington','West Virginia','Wisconsin','Wyoming',
-]
-
 const AD_TYPE_COLOR: Record<string, string> = {
   recruiting: 'var(--green)',
   sales:      'var(--orange)',
@@ -53,7 +42,6 @@ const AD_TYPE_COLOR: Record<string, string> = {
 
 export default function AdSpyPage() {
   const [keyword, setKeyword] = useState('Medicare')
-  const [stateFilter, setStateFilter] = useState('')
   const [loading, setLoading] = useState(false)
   const [contacts, setContacts] = useState<Record<string, ContactResult & { loading?: boolean }>>({})
 
@@ -64,7 +52,7 @@ export default function AdSpyPage() {
       const res = await fetch('/api/admin/adspy/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: advertiserName, page_url: pageUrl, state: stateFilter }),
+        body: JSON.stringify({ name: advertiserName, page_url: pageUrl }),
       })
       const data = await res.json()
       setContacts(prev => ({ ...prev, [key]: { ...data, loading: false } }))
@@ -91,7 +79,7 @@ export default function AdSpyPage() {
       const res = await fetch('/api/admin/adspy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: stateFilter ? `${keyword} ${stateFilter}` : keyword, country: 'US' }),
+        body: JSON.stringify({ keyword, country: 'US' }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Scan failed')
@@ -126,9 +114,7 @@ export default function AdSpyPage() {
       </div>
 
       {/* Controls */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px auto', gap: 2, marginBottom: 32 }}>
-
-        {/* Keyword dropdown */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 2, marginBottom: 32 }}>
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '0 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, whiteSpace: 'nowrap', flexShrink: 0 }}>KEYWORD</div>
           <select
@@ -145,34 +131,12 @@ export default function AdSpyPage() {
             ))}
           </select>
         </div>
-
-        {/* State dropdown */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, whiteSpace: 'nowrap', flexShrink: 0 }}>STATE</div>
-          <select
-            value={stateFilter}
-            onChange={e => setStateFilter(e.target.value)}
-            style={{
-              flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: stateFilter ? 'var(--white)' : 'var(--muted)',
-              fontFamily: "'DM Mono', monospace", fontSize: 11,
-              cursor: 'pointer', padding: '18px 0',
-            }}
-          >
-            <option value="" style={{ background: '#1a1814' }}>All US</option>
-            {US_STATES.map(s => (
-              <option key={s} value={s} style={{ background: '#1a1814' }}>{s}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Run */}
         <button
           onClick={runScan}
           disabled={loading || !keyword.trim()}
           style={{
             padding: '0 40px',
-            background: loading ? '#333' : 'var(--orange)',
+            background: loading ? '#333' : '#38bdf8',
             border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2,
             color: 'var(--black)', whiteSpace: 'nowrap',
@@ -189,7 +153,7 @@ export default function AdSpyPage() {
             <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--orange)', animation: 'loadSlide 1s ease-in-out infinite' }} />
           </div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 1 }}>
-            ◐ Firing Apify actor — scraping Facebook Ad Library for "{keyword}"{stateFilter ? ` in ${stateFilter}` : ' across the US'}...
+            ◐ Firing Apify actor — scraping Facebook Ad Library for "{keyword}" across the US...
           </div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 1, marginTop: 6 }}>
             This takes 60–90 seconds. Apify is doing the heavy lifting.
