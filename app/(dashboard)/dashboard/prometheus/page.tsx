@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import PrometheusScansTable from '@/components/tables/PrometheusScansTable'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -263,10 +264,15 @@ function PrometheusPageInner() {
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'intel' | 'contacts' | 'recruiting' | 'offer' | 'angles' | 'voice' | 'sources'>('intel')
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const [scans, setScans] = useState<any[]>([])
 
   useEffect(() => {
     const id = searchParams.get('id')
     if (id) loadSavedScan(id)
+    fetch('/api/prometheus')
+      .then(r => r.json())
+      .then(d => setScans(d.scans || []))
+      .catch(() => {})
   }, [])
 
   async function loadSavedScan(id: string) {
@@ -318,6 +324,8 @@ function PrometheusPageInner() {
       if ((data.analysis?.agent_sentiment?.agent_quotes || []).length) addLog(`[FOUND] ${data.analysis.agent_sentiment.agent_quotes.length} agent quote(s) extracted`)
       if ((data.analysis?.what_they_offer?.carriers || []).length) addLog(`[FOUND] ${data.analysis.what_they_offer.carriers.length} carrier(s) identified`)
       setResult(data); setActiveTab('intel')
+      // Refresh scan history
+      fetch('/api/prometheus').then(r => r.json()).then(d => setScans(d.scans || [])).catch(() => {})
     } catch (err: any) {
       if (timerRef.current) clearTimeout(timerRef.current)
       addLog(`[ALERT] Scan failed: ${err.message}`)
@@ -731,6 +739,18 @@ function PrometheusPageInner() {
       {/* Empty state */}
       {!scanning && !result && (
         <div style={{ marginTop: 40 }}>
+
+          {/* Past scans */}
+          {scans.length > 0 && (
+            <div style={{ marginBottom: 48 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2 }}>SCAN HISTORY</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>{scans.length} total</div>
+              </div>
+              <PrometheusScansTable scans={scans} />
+            </div>
+          )}
+
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>What Prometheus Extracts</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
             {[
