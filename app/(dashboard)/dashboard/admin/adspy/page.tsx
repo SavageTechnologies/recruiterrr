@@ -26,9 +26,6 @@ const KEYWORDS = [
   'Medicare',
   'Medicare Advantage',
   'Medicare supplement',
-  'Medicare insurance agent',
-  'join my insurance team',
-  'become a Medicare agent',
   'turn 65 Medicare',
   'final expense',
 ]
