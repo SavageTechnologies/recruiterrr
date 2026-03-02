@@ -6,12 +6,12 @@ import { SignUp } from '@clerk/nextjs'
 import PageNav from '@/components/layout/PageNav'
 import PageFooter from '@/components/layout/PageFooter'
 
-const HEARTLAND_DOMAIN = 'hfgagents.com'
+const BYPASS_DOMAINS = ['hfgagents.com', 'amhomelife.com']
 
 type Step = 'email' | 'payment' | 'signup' | 'success'
 
 function isHeartland(email: string) {
-  return email.toLowerCase().trim().endsWith(`@${HEARTLAND_DOMAIN}`)
+  return BYPASS_DOMAINS.some(domain => email.toLowerCase().trim().endsWith(`@${domain}`))
 }
 
 const clerkAppearance = {

@@ -6,8 +6,8 @@ import { useSearchParams } from 'next/navigation'
 const MODES = [
   { value: 'medicare',  label: 'Medicare / Senior',    desc: 'Medicare Advantage, Supplement, PDP' },
   { value: 'life',      label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
-  { value: 'annuities', label: 'Annuities',            desc: 'Fixed indexed, MYGA, retirement income' },
-  { value: 'financial', label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
+  // { value: 'annuities', label: 'Annuities',            desc: 'Fixed indexed, MYGA, retirement income' },
+  // { value: 'financial', label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
 ]
 
 const SEARCH_TIPS = [
