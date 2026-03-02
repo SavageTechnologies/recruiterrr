@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { isAdmin } from '@/lib/auth/access'
+import { supabase } from '@/lib/supabase.server'
 
 const APIFY_BASE = 'https://api.apify.com/v2'
 const ACTOR_ID = 'curious_coder~facebook-ads-library-scraper'
@@ -262,6 +263,19 @@ export async function POST(req: NextRequest) {
       return 0
     })
 
+    // Save scan to DB — fire and forget
+    supabase.from('meredith_scans').insert({
+      keyword,
+      country,
+      total_ads: sorted.length,
+      recruitable_count: sorted.filter(a => a.recruitable).length,
+      recruiting_count: sorted.filter(a => a.ad_type === 'recruiting').length,
+      results_json: sorted,
+      scanned_at: new Date().toISOString(),
+    }).then(({ error }) => {
+      if (error) console.error('[adspy] DB save error:', error.message)
+    })
+
     return NextResponse.json({
       ads: sorted,
       total: sorted.length,
@@ -276,4 +290,25 @@ export async function POST(req: NextRequest) {
     console.error('[/api/admin/adspy] error:', err)
     return NextResponse.json({ error: err.message || 'Scan failed' }, { status: 500 })
   }
+}
+
+export async function GET(req: NextRequest) {
+  const origin = req.headers.get('origin')
+  const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
+  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdmin(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { data, error } = await supabase
+    .from('meredith_scans')
+    .select('id, keyword, country, total_ads, recruitable_count, recruiting_count, scanned_at, results_json')
+    .order('scanned_at', { ascending: false })
+    .limit(20)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ scans: data || [] })
 }
