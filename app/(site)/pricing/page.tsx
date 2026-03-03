@@ -15,10 +15,10 @@ export default function PricingPage() {
           Pricing
         </div>
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(56px, 8vw, 96px)', letterSpacing: 2, lineHeight: 0.9, marginBottom: 24 }}>
-          ONE PLATFORM<br /><span style={{ color: 'var(--orange)' }}>BUILT TO STACK.</span>
+          ONE PRICE.<br /><span style={{ color: 'var(--orange)' }}>EVERYTHING INCLUDED.</span>
         </h1>
         <p style={{ fontSize: 15, color: 'var(--muted)', maxWidth: 520, lineHeight: 1.7 }}>
-          Start with the most powerful agent search in the industry. Add intelligence modules as your recruiting operation grows.
+          Agent search, distribution tree analysis, and FMO competitive intelligence — all in one platform. No add-ons. No unlocks. Just the full stack.
         </p>
       </div>
 
@@ -27,7 +27,7 @@ export default function PricingPage() {
         {/* ── OPERATOR BASE PLAN ── */}
         <div style={{ marginBottom: 4 }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>
-            Base Plan
+            Base Plan — Full Stack Included
           </div>
         </div>
 
@@ -55,8 +55,8 @@ export default function PricingPage() {
 
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 2, marginBottom: 4 }}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: 'var(--orange)', marginTop: 14, letterSpacing: 0 }}>$</span>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 80, letterSpacing: 1, lineHeight: 1, color: 'var(--orange)' }}>499</span>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: 'var(--orange)', marginTop: 18 }}>.95</span>
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 80, letterSpacing: 1, lineHeight: 1, color: 'var(--orange)' }}>799</span>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: 'var(--orange)', marginTop: 18 }}>.95</span>
               </div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 36 }}>
                 per month · no contract · cancel anytime
@@ -82,11 +82,13 @@ export default function PricingPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {[
-                  { label: 'Agent search',             detail: '15 searches per hour' },
-                  { label: 'Up to 50 results',         detail: 'per search' },
+                  { label: 'Agent search',              detail: '15 searches per hour' },
+                  { label: 'Up to 50 results',          detail: 'per search' },
                   { label: 'AI recruitability scoring', detail: 'HOT / WARM / COLD + analyst notes' },
                   { label: 'YouTube & hiring signals',  detail: 'Full enrichment on every agent' },
                   { label: 'Website & carrier intel',   detail: 'Auto-crawled per result' },
+                  { label: 'ANATHEMA included',         detail: 'Distribution tree analysis — 20 scans/hr' },
+                  { label: 'PROMETHEUS included',       detail: 'FMO competitive intelligence — 20 scans/hr' },
                   { label: 'Search history',            detail: 'Full history, reload instantly' },
                   { label: 'Agent database',            detail: 'Persistent — every agent saved' },
                   { label: 'Dashboard access',          detail: 'All past searches at a glance' },
@@ -107,214 +109,58 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* ── ADD-ONS ── */}
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 4 }}>
-            Intelligence Add-Ons
+        {/* ── INCLUDED MODULES ── */}
+        <div style={{ marginBottom: 48 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 16 }}>
+            Everything that's included
           </div>
-          <div style={{ fontSize: 14, color: 'var(--muted)', maxWidth: 560, lineHeight: 1.6 }}>
-            Bolt on deeper intelligence modules to your Operator plan. Each add-on is enabled by contacting us — we'll turn it on for your account.
-          </div>
-        </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
 
-        {/* Add-on cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, marginBottom: 48 }}>
-
-          {/* PROMETHEUS */}
-          <div className="addon-card" style={{
-            background: 'var(--card)', border: '1px solid var(--border)',
-            borderTop: '3px solid var(--orange)',
-            padding: '32px 28px', display: 'flex', flexDirection: 'column',
-            transition: 'border-color 0.15s',
-            ['--hover-color' as any]: 'var(--orange)',
-          }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--orange)', letterSpacing: 2, marginBottom: 12 }}>
-              ADD-ON
-            </div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 3, color: 'var(--white)', marginBottom: 6 }}>
-              PROMETHEUS
-            </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 24, lineHeight: 1.6 }}>
-              FMO competitive intelligence
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
-              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: 'var(--orange)', lineHeight: 1 }}>$99</span>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>/mo</span>
-            </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1, marginBottom: 28 }}>
-              added to your Operator plan
-            </div>
-
-            <div style={{ height: 1, background: 'var(--border)', marginBottom: 24 }} />
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, marginBottom: 28 }}>
-              {[
-                'Enter any FMO or IMO name',
-                'Auto-crawls their site + 5 SERP queries',
-                'Carrier stack + incentive trips + lead program',
-                'Their full recruiting pitch decoded',
-                'Custom counter-script written to beat them',
-                '20 scans per hour',
-              ].map((f, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 9, color: 'var(--orange)', flexShrink: 0, marginTop: 3 }}>✦</span>
-                  <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{f}</span>
-                </div>
-              ))}
-            </div>
-
-            <Link href="/contact" style={{
-              display: 'block', textAlign: 'center', padding: '14px',
-              background: 'transparent', border: '1px solid var(--orange)',
-              color: 'var(--orange)', fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 16, letterSpacing: 3, textDecoration: 'none',
-            }}>
-              CONTACT US TO ENABLE
-            </Link>
-          </div>
-
-          {/* ANATHEMA */}
-          <div className="addon-card" style={{
-            background: 'var(--card)', border: '1px solid var(--border)',
-            borderTop: '3px solid var(--green)',
-            padding: '32px 28px', display: 'flex', flexDirection: 'column',
-            transition: 'border-color 0.15s',
-            ['--hover-color' as any]: 'var(--green)',
-          }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--green)', letterSpacing: 2, marginBottom: 12 }}>
-              ADD-ON
-            </div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 3, color: 'var(--white)', marginBottom: 6 }}>
-              ANATHEMA
-            </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 24, lineHeight: 1.6 }}>
-              Distribution tree analysis
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
-              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: 'var(--green)', lineHeight: 1 }}>$149</span>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>/mo</span>
-            </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1, marginBottom: 28 }}>
-              added to your Operator plan
-            </div>
-
-            <div style={{ height: 1, background: 'var(--border)', marginBottom: 24 }} />
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, marginBottom: 28 }}>
-              {[
-                'Predict Integrity, AmeriLife, or SMS affiliation',
-                'Stage I–IV infection scale per agent',
-                'Confidence score on every prediction',
-                'Signal breakdown — what gave it away',
-                'Changes how you approach every call',
-                '20 scans per hour',
-              ].map((f, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 9, color: 'var(--green)', flexShrink: 0, marginTop: 3 }}>✦</span>
-                  <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{f}</span>
-                </div>
-              ))}
-            </div>
-
-            <Link href="/contact" style={{
-              display: 'block', textAlign: 'center', padding: '14px',
-              background: 'transparent', border: '1px solid var(--green)',
-              color: 'var(--green)', fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 16, letterSpacing: 3, textDecoration: 'none',
-            }}>
-              CONTACT US TO ENABLE
-            </Link>
-          </div>
-
-          {/* BUNDLE */}
-          <div style={{
-            background: '#181520', border: '1px solid #2e2840',
-            borderTop: '3px solid #a78bfa',
-            padding: '32px 28px', display: 'flex', flexDirection: 'column',
-            position: 'relative', overflow: 'hidden',
-          }}>
-            {/* Best value badge */}
-            <div style={{
-              position: 'absolute', top: 20, right: -22, background: '#a78bfa',
-              color: '#0a0a0a', fontFamily: "'DM Mono', monospace", fontSize: 8,
-              letterSpacing: 2, padding: '4px 32px', transform: 'rotate(45deg)',
-              transformOrigin: 'center',
-            }}>
-              SAVE $49
-            </div>
-
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#a78bfa', letterSpacing: 2, marginBottom: 12 }}>
-              BUNDLE
-            </div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 3, color: 'var(--white)', marginBottom: 6 }}>
-              FULL STACK
-            </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 24, lineHeight: 1.6 }}>
-              Prometheus + ANATHEMA together
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
-              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#a78bfa', lineHeight: 1 }}>$199</span>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>/mo</span>
-            </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1, marginBottom: 8 }}>
-              added to your Operator plan
-            </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 1, marginBottom: 28, textDecoration: 'line-through' }}>
-              $248 if purchased separately
-            </div>
-
-            <div style={{ height: 1, background: '#2a2535', marginBottom: 24 }} />
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, marginBottom: 28 }}>
-              {[
-                { label: 'Everything in Prometheus', color: 'var(--orange)' },
-                { label: 'Everything in ANATHEMA', color: 'var(--green)' },
-                { label: 'Combined stack price — $49 off', color: '#a78bfa' },
-                { label: 'Find agents, know their tree,', color: '#a78bfa' },
-                { label: 'beat their FMO on the call', color: '#a78bfa' },
-              ].map((f, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 9, color: f.color, flexShrink: 0, marginTop: 3 }}>✦</span>
-                  <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{f.label}</span>
-                </div>
-              ))}
-            </div>
-
-            <Link href="/contact" style={{
-              display: 'block', textAlign: 'center', padding: '14px',
-              background: 'rgba(167,139,250,0.12)', border: '1px solid #a78bfa',
-              color: '#a78bfa', fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 16, letterSpacing: 3, textDecoration: 'none',
-            }}>
-              CONTACT US TO ENABLE
-            </Link>
-          </div>
-
-        </div>
-
-        {/* ── STACK SUMMARY ── */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 32px', marginBottom: 48 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20 }}>
-            What the full stack costs
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2 }}>
-            {[
-              { label: 'Operator only',            price: '$499.95', sub: '/mo', color: 'var(--orange)' },
-              { label: '+ Prometheus',              price: '$598.95', sub: '/mo', color: 'var(--orange)' },
-              { label: '+ ANATHEMA',                price: '$648.95', sub: '/mo', color: 'var(--green)' },
-              { label: 'Full stack (bundle)',        price: '$698.95', sub: '/mo', color: '#a78bfa' },
-            ].map((t, i) => (
-              <div key={i} style={{ padding: '20px 20px', background: '#1a1814', borderLeft: `2px solid ${t.color}` }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1, marginBottom: 8 }}>{t.label}</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: t.color, lineHeight: 1 }}>{t.price}</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1 }}>{t.sub}</span>
-                </div>
+            {/* SEARCH */}
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderTop: '3px solid var(--orange)', padding: '32px 28px' }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 3, color: 'var(--white)', marginBottom: 6 }}>SEARCH</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 24, lineHeight: 1.6 }}>Agent discovery engine</div>
+              <div style={{ height: 1, background: 'var(--border)', marginBottom: 24 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {['15 searches per hour', 'Up to 50 results per search', 'HOT / WARM / COLD scoring', 'YouTube & hiring signals', 'Website & carrier intel', 'Persistent agent database'].map((f, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 9, color: 'var(--orange)', flexShrink: 0, marginTop: 3 }}>✦</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{f}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* ANATHEMA */}
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderTop: '3px solid var(--green)', padding: '32px 28px' }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 3, color: 'var(--white)', marginBottom: 6 }}>ANATHEMA</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 24, lineHeight: 1.6 }}>Distribution tree analysis</div>
+              <div style={{ height: 1, background: 'var(--border)', marginBottom: 24 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {['Predict Integrity, AmeriLife, or SMS affiliation', 'Stage I–IV infection scale per agent', 'Confidence score on every prediction', 'Signal breakdown — what gave it away', 'Changes how you approach every call', '20 scans per hour'].map((f, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 9, color: 'var(--green)', flexShrink: 0, marginTop: 3 }}>✦</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* PROMETHEUS */}
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderTop: '3px solid var(--orange)', padding: '32px 28px' }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 3, color: 'var(--white)', marginBottom: 6 }}>PROMETHEUS</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 24, lineHeight: 1.6 }}>FMO competitive intelligence</div>
+              <div style={{ height: 1, background: 'var(--border)', marginBottom: 24 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {['Enter any FMO or IMO name', 'Auto-crawls their site + 5 SERP queries', 'Carrier stack + incentive trips + lead program', 'Their full recruiting pitch decoded', 'Custom counter-script written to beat them', '20 scans per hour'].map((f, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 9, color: 'var(--orange)', flexShrink: 0, marginTop: 3 }}>✦</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -406,15 +252,6 @@ export default function PricingPage() {
             </div>
             <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
               Month to month.<br />Cancel any time. No setup fees.
-            </div>
-          </div>
-          <div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>
-              Add-on activation
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
-              Intelligence modules are enabled manually.<br />
-              <Link href="/contact" style={{ color: 'var(--white)', textDecoration: 'underline' }}>Contact us</Link> and we'll turn it on same day.
             </div>
           </div>
           <div>
