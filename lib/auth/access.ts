@@ -26,3 +26,21 @@ export const COMPED_IDS = new Set([
 export const isAdmin      = (userId: string) => ADMIN_IDS.has(userId)
 export const isComped     = (userId: string) => COMPED_IDS.has(userId)
 export const hasFullAccess = (userId: string) => isAdmin(userId) || isComped(userId)
+
+// Subscriber check — for use in API route handlers only (does a DB lookup)
+import { createClient } from '@supabase/supabase-js'
+
+export async function hasActiveSubscription(userId: string): Promise<boolean> {
+  if (isAdmin(userId)) return true
+  if (isComped(userId)) return true
+  const client = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  const { data } = await client
+    .from('users')
+    .select('plan, subscription_status')
+    .eq('clerk_id', userId)
+    .single()
+  return data?.plan === 'pro' && data?.subscription_status === 'active'
+}

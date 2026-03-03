@@ -7,7 +7,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
-import { isAdmin } from '@/lib/auth/access'
+import { isAdmin, hasActiveSubscription } from '@/lib/auth/access'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -530,7 +530,7 @@ Return ONLY valid JSON, no markdown, no backticks:
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!isAdmin(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!await hasActiveSubscription(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const id = req.nextUrl.searchParams.get('id')
   if (id) {
@@ -566,7 +566,7 @@ export async function POST(req: NextRequest) {
 
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!isAdmin(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!await hasActiveSubscription(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(20, '1 h'), analytics: true })
   const { success, reset } = await ratelimit.limit(userId)

@@ -18,7 +18,7 @@ import { fetchFacebookProfile } from '@/lib/domain/anathema/facebook'
 import { extractDavidFacts } from '@/lib/domain/anathema/david-facts'
 import type { DavidFactsInput } from '@/lib/domain/anathema/david-facts'
 import { saveObservation, checkExistingSpecimen, getSpecimen, getScan, saveDavidFacts } from '@/lib/db/anathema'
-import { isAdmin } from '@/lib/auth/access'
+import { isAdmin, hasActiveSubscription } from '@/lib/auth/access'
 import { supabase } from '@/lib/supabase.server'
 
 
@@ -29,7 +29,7 @@ const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!isAdmin(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!await hasActiveSubscription(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
