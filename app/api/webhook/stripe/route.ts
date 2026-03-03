@@ -33,20 +33,26 @@ export async function POST(req: NextRequest) {
         const email          = session.customer_email || session.metadata?.email || ''
 
         const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-        const item = subscription.items.data[0]
-        const periodEnd = new Date((item as any).current_period_end * 1000).toISOString()
+        // current_period_end is on the subscription object — cast needed for this SDK version
+        const periodEnd = new Date((subscription as any).current_period_end * 1000).toISOString()
 
         if (email) {
-          await supabase
+          // UPSERT on email — handles the race condition where Stripe webhook fires
+          // before the user has created their Clerk account. If the row doesn't exist
+          // yet, this creates it with payment data. When Clerk's user.created fires
+          // later, it will merge in the clerk_id without clobbering Stripe fields.
+          const { error } = await supabase
             .from('users')
-            .update({
+            .upsert({
+              email,
               stripe_customer_id:     customerId,
               stripe_subscription_id: subscriptionId,
               subscription_status:    'active',
               plan:                   'pro',
               current_period_end:     periodEnd,
-            })
-            .eq('email', email)
+            }, { onConflict: 'email' })
+
+          if (error) console.error('[webhook/stripe] upsert error:', error)
         }
 
         console.log(`[webhook/stripe] checkout.completed — ${email} -> pro`)
@@ -55,8 +61,7 @@ export async function POST(req: NextRequest) {
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
-        const item = subscription.items.data[0]
-        const periodEnd = new Date((item as any).current_period_end * 1000).toISOString()
+        const periodEnd = new Date((subscription as any).current_period_end * 1000).toISOString()
 
         await supabase
           .from('users')

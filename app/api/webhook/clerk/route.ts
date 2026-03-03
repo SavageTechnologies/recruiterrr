@@ -52,12 +52,15 @@ export async function POST(req: NextRequest) {
     const email = data.email_addresses?.[0]?.email_address || null
 
     try {
+      // UPSERT on email — if the Stripe webhook already created this row (paid before
+      // signing up), this merges in the clerk_id without clobbering plan/subscription fields.
+      // If the row is brand new, this creates it with free/null status as expected.
       await supabase.from('users').upsert({
-        clerk_id: data.id,
+        clerk_id:   data.id,
         email,
         first_name: data.first_name || null,
-        last_name: data.last_name || null,
-      }, { onConflict: 'clerk_id' })
+        last_name:  data.last_name  || null,
+      }, { onConflict: 'email', ignoreDuplicates: false })
     } catch (err) {
       console.error('[webhook] user.created upsert error:', err)
     }

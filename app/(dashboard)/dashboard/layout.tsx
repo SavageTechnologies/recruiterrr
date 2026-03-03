@@ -1,7 +1,9 @@
 import { UserButton } from '@clerk/nextjs'
 import { auth } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { isAdmin } from '@/lib/auth/access'
+import { isAdmin, hasFullAccess } from '@/lib/auth/access'
+import { supabase } from '@/lib/supabase.server'
 
 export default async function DashboardLayout({
   children,
@@ -10,6 +12,22 @@ export default async function DashboardLayout({
 }) {
   const { userId } = await auth()
   const adminUser = userId ? isAdmin(userId) : false
+
+  // ── Subscription gate ────────────────────────────────────────────────────────
+  // Admins and comped users pass through unconditionally.
+  // Everyone else needs plan='pro' + subscription_status='active' in Supabase
+  // (set by the Stripe checkout.session.completed webhook).
+  // The subscribe page lives in its own route group so it's never under this layout.
+  if (userId && !hasFullAccess(userId)) {
+    const { data: user } = await supabase
+      .from('users')
+      .select('plan, subscription_status')
+      .eq('clerk_id', userId)
+      .single()
+
+    const isActive = user?.plan === 'pro' && user?.subscription_status === 'active'
+    if (!isActive) redirect('/dashboard/subscribe')
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--black)' }}>
