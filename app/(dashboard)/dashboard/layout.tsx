@@ -19,6 +19,7 @@ export default async function DashboardLayout({
   // Everyone else needs plan='pro' + subscription_status='active' in Supabase
   // (set by the Stripe checkout.session.completed webhook).
   // The subscribe page lives in its own route group so it's never under this layout.
+  let subscriberUser = adminUser || (userId ? hasFullAccess(userId) : false)
   if (userId && !hasFullAccess(userId)) {
     const { data: user } = await supabase
       .from('users')
@@ -28,6 +29,7 @@ export default async function DashboardLayout({
 
     const isActive = user?.plan === 'pro' && user?.subscription_status === 'active'
     if (!isActive) redirect('/dashboard/subscribe')
+    subscriberUser = isActive
   }
 
   return (
@@ -67,8 +69,8 @@ export default async function DashboardLayout({
 
           <BillingButton />
 
-          {/* ── Admin-only nav ── */}
-          {adminUser && (
+          {/* ── Subscriber nav — Anathema + Prometheus ── */}
+          {subscriberUser && (
             <>
               <div style={{ width: 1, height: 16, background: 'var(--border)' }} />
               <Link href="/dashboard/anathema" style={{
@@ -85,6 +87,12 @@ export default async function DashboardLayout({
               }}>
                 Prometheus
               </Link>
+            </>
+          )}
+
+          {/* ── Admin-only nav ── */}
+          {adminUser && (
+            <>
               <Link href="/dashboard/david" style={{
                 fontFamily: "'DM Mono', monospace", fontSize: 11,
                 color: '#a78bfa', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
