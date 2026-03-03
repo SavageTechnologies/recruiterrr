@@ -8,8 +8,10 @@ const isProtectedRoute  = createRouteMatcher(['/dashboard(.*)'])
 // so direct URL entry and direct API calls both bounce
 const isAdminRoute = createRouteMatcher([
   '/dashboard/anathema(.*)',
+  '/dashboard/prometheus(.*)',
   '/dashboard/david(.*)',
   '/api/anathema(.*)',
+  '/api/prometheus(.*)',
   '/api/david(.*)',
 ])
 
