@@ -11,6 +11,8 @@ export async function GET(req: NextRequest) {
   const tree      = searchParams.get('tree') || 'all'
   const anathema  = searchParams.get('anathema') || 'all'
   const state     = searchParams.get('state') || 'all'
+  const city      = searchParams.get('city') || 'all'
+  const hasPhone  = searchParams.get('has_phone') === 'true'
   const search    = searchParams.get('search') || ''
   const sort      = searchParams.get('sort') || 'last_seen'
   const page      = Math.max(1, parseInt(searchParams.get('page') || '1'))
@@ -27,6 +29,8 @@ export async function GET(req: NextRequest) {
   if (flag !== 'all') query = query.eq('prometheus_flag', flag)
   if (tree !== 'all') query = query.eq('predicted_tree', tree)
   if (state !== 'all') query = query.eq('state', state.toUpperCase())
+  if (city !== 'all') query = query.ilike('city', city)
+  if (hasPhone) query = query.not('phone', 'is', null)
   if (anathema === 'scanned') query = query.eq('anathema_run', true)
   if (anathema === 'unscanned') query = query.eq('anathema_run', false)
   if (search.trim()) query = query.ilike('name', `%${search.trim()}%`)
@@ -53,14 +57,17 @@ export async function GET(req: NextRequest) {
   // ── Stats (always unfiltered) ──────────────────────────────────────────────
   const { data: allProfiles } = await supabase
     .from('agent_profiles')
-    .select('prometheus_flag, anathema_run, state, hiring, phone')
+    .select('prometheus_flag, anathema_run, state, city, hiring, phone')
     .eq('clerk_id', userId)
+
+  const allStates = [...new Set(allProfiles?.map(a => a.state).filter(Boolean))].sort() as string[]
+  const allCities = [...new Set(allProfiles?.map(a => a.city).filter(Boolean))].sort() as string[]
 
   const stats = {
     total:        allProfiles?.length ?? 0,
     hot:          allProfiles?.filter(a => a.prometheus_flag === 'hot').length ?? 0,
     anathema_run: allProfiles?.filter(a => a.anathema_run).length ?? 0,
-    states:       new Set(allProfiles?.map(a => a.state)).size ?? 0,
+    states:       allStates.length,
     hiring:       allProfiles?.filter(a => a.hiring).length ?? 0,
     with_phone:   allProfiles?.filter(a => a.phone).length ?? 0,
   }
@@ -68,6 +75,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     agents: agents || [],
     stats,
+    allStates,
+    allCities,
     pagination: {
       total: count ?? 0,
       page,

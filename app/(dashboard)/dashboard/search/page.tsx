@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 const MODES = [
   { value: 'medicare',  label: 'Medicare / Senior',    desc: 'Medicare Advantage, Supplement, PDP' },
   { value: 'life',      label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
-  // { value: 'annuities', label: 'Annuities',            desc: 'Fixed indexed, MYGA, retirement income' },
+  { value: 'annuities', label: 'FIA / MYGA',           desc: 'Fixed index annuities, MYGA, safe money' },
   // { value: 'financial', label: 'Financial Advisors',   desc: 'Wealth management, CFP, retirement planning' },
 ]
 
@@ -46,6 +46,45 @@ const OPERATOR_TIPS = [
     color: 'var(--muted)',
     headline: 'Search the city, not the agent.',
     body: 'You\'re mapping a market, not hunting one person. Run the search, look at the cluster. If 8 of 30 agents have YouTube, that\'s a market full of ambitious producers. If most are captive, move on.',
+  },
+]
+
+const ANNUITY_TIPS = [
+  {
+    tag: 'FIA / MYGA',
+    color: 'var(--green)',
+    headline: 'They won\'t look like annuity agents.',
+    body: 'The best FIA producers call themselves "retirement planners" or "financial advisors" — not annuity agents. They serve the same retirement-age client but are insurance-only licensed. Look past the title and into the notes.',
+  },
+  {
+    tag: 'SIGNAL',
+    color: '#ff4444',
+    headline: '"Safe money" is the magic phrase.',
+    body: 'If their website or notes mention "safe money", "principal protection", "no market risk", or "guaranteed income" — that\'s a pure FIA producer. These phrases are industry-specific shorthand that only insurance-licensed annuity agents use.',
+  },
+  {
+    tag: 'INTEL',
+    color: 'var(--orange)',
+    headline: 'Carrier names confirm the kill.',
+    body: 'Athene, North American, American Equity, Allianz, Nationwide, Pacific Life, Global Atlantic, Midland National — if you see any of these on their site, they\'re selling FIAs. That\'s your green light.',
+  },
+  {
+    tag: 'AVOID',
+    color: '#ff4444',
+    headline: 'Fee-only = walk away.',
+    body: 'Fee-only fiduciaries are philosophically anti-annuity. "AUM", "assets under management", "portfolio management" — these are securities-first advisors. The score will reflect it. Don\'t waste time on COLD results here.',
+  },
+  {
+    tag: 'NUANCE',
+    color: 'var(--muted)',
+    headline: '"Fiduciary" alone means nothing.',
+    body: 'Insurance agents can legally call themselves fiduciaries — and many do now. Don\'t let the word spook you. Only walk away if you see "fee-only fiduciary" or "fiduciary financial advisor" with AUM language. Context is everything.',
+  },
+  {
+    tag: 'STRATEGY',
+    color: 'var(--muted)',
+    headline: 'Retirement income = your target market.',
+    body: 'Search results will include some hybrid advisors who do both securities and insurance. WARM scores here often mean "I do some annuities" — that\'s a conversation worth having. Don\'t skip WARM on annuity searches the way you might on Medicare.',
   },
 ]
 
@@ -566,11 +605,11 @@ function SearchPageInner() {
                   Operator Intelligence
                 </div>
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
-                  — how to get the most out of every search
+                  — {mode === 'annuities' ? 'how to find FIA & MYGA producers hiding in plain sight' : 'how to get the most out of every search'}
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
-                {OPERATOR_TIPS.map((tip, i) => (
+                {(mode === 'annuities' ? ANNUITY_TIPS : OPERATOR_TIPS).map((tip, i) => (
                   <div
                     key={i}
                     style={{

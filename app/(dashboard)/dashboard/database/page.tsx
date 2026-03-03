@@ -102,8 +102,8 @@ function ProfileRow({ agent, onClick }: { agent: AgentProfile; onClick: () => vo
           {agent.rating ? ` · ★ ${agent.rating} (${agent.reviews})` : ''}
         </div>
         {agent.prometheus_notes && (
-          <div style={{ fontSize: 11, color: '#555', marginTop: 4, lineHeight: 1.4 }}>
-            {agent.prometheus_notes.slice(0, 120)}{agent.prometheus_notes.length > 120 ? '…' : ''}
+          <div style={{ fontSize: 11, color: '#666', marginTop: 4, lineHeight: 1.4 }}>
+            {agent.prometheus_notes.slice(0, 100)}{agent.prometheus_notes.length > 100 ? '…' : ''}
           </div>
         )}
       </div>
@@ -265,44 +265,71 @@ export default function DatabasePage() {
   const [selected, setSelected]   = useState<AgentProfile | null>(null)
   const [exporting, setExporting] = useState(false)
 
-  const [filterFlag,  setFilterFlag]  = useState('all')
+  // ── Filters — default to HOT + recent ──────────────────────────────────────
+  const [filterFlag,  setFilterFlag]  = useState('hot')
   const [filterState, setFilterState] = useState('all')
+  const [filterCity,  setFilterCity]  = useState('all')
+  const [filterPhone, setFilterPhone] = useState(false)
   const [search,      setSearch]      = useState('')
   const [sortBy,      setSortBy]      = useState<'score' | 'last_seen' | 'search_count'>('last_seen')
   const [page,        setPage]        = useState(1)
   const [perPage,     setPerPage]     = useState(50)
   const [pagination,  setPagination]  = useState<{ total: number; total_pages: number } | null>(null)
 
-  const allStates = [...new Set(agents.map(a => a.state))].sort()
+  // ── State + city lists from API (not derived from current page) ─────────────
+  const [allStates, setAllStates] = useState<string[]>([])
+  const [allCities, setAllCities] = useState<string[]>([])
+
+  // Filter cities shown based on selected state
+  const visibleCities = filterState === 'all'
+    ? allCities
+    : allCities.filter(c => {
+        // We can't easily filter cities by state client-side without storing state per city.
+        // Show all cities when a state is selected — API will handle the actual filtering.
+        return true
+      })
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
-        flag: filterFlag, state: filterState, search,
-        sort: sortBy, page: String(page), per_page: String(perPage),
+        flag: filterFlag, state: filterState, city: filterCity,
+        search, sort: sortBy, page: String(page), per_page: String(perPage),
         anathema: 'all', tree: 'all',
       })
+      if (filterPhone) params.set('has_phone', 'true')
       const res = await fetch(`/api/database?${params}`)
       if (!res.ok) throw new Error('Failed')
       const data = await res.json()
       setAgents(data.agents || [])
       setStats(data.stats || null)
       setPagination(data.pagination || null)
+      // Always update state/city lists from full DB — not derived from current page
+      if (data.allStates) setAllStates(data.allStates)
+      if (data.allCities) setAllCities(data.allCities)
     } catch {
       setAgents([])
     } finally {
       setLoading(false)
     }
-  }, [filterFlag, filterState, search, sortBy, page, perPage])
+  }, [filterFlag, filterState, filterCity, filterPhone, search, sortBy, page, perPage])
 
   useEffect(() => { load() }, [load])
-  useEffect(() => { setPage(1) }, [filterFlag, filterState, search, sortBy, perPage])
+  useEffect(() => { setPage(1) }, [filterFlag, filterState, filterCity, filterPhone, search, sortBy, perPage])
+
+  // Reset city when state changes
+  useEffect(() => { setFilterCity('all') }, [filterState])
 
   async function handleExport() {
     setExporting(true)
     await exportCSV()
     setExporting(false)
+  }
+
+  const selectStyle = {
+    fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1,
+    padding: '7px 12px', background: 'var(--card)', border: '1px solid var(--border)',
+    color: 'var(--muted)', cursor: 'pointer', outline: 'none',
   }
 
   return (
@@ -329,7 +356,7 @@ export default function DatabasePage() {
             fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2,
             cursor: exporting ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
           }}
-          onMouseEnter={e => { if (!exporting) (e.currentTarget.style.borderColor = 'var(--orange)'); (e.currentTarget.style.color = 'var(--orange)') }}
+          onMouseEnter={e => { if (!exporting) { (e.currentTarget.style.borderColor = 'var(--orange)'); (e.currentTarget.style.color = 'var(--orange)') } }}
           onMouseLeave={e => { (e.currentTarget.style.borderColor = 'var(--border-light)'); (e.currentTarget.style.color = 'var(--white)') }}
         >
           {exporting ? '↓ EXPORTING...' : '↓ EXPORT CSV'}
@@ -354,8 +381,10 @@ export default function DatabasePage() {
         </div>
       )}
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* ── Filters row ── */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+
+        {/* Search */}
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -367,6 +396,7 @@ export default function DatabasePage() {
           }}
         />
 
+        {/* Flag filters */}
         {(['all', 'hot', 'warm', 'cold'] as const).map(f => (
           <button key={f} onClick={() => setFilterFlag(f)} style={{
             fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px',
@@ -385,39 +415,57 @@ export default function DatabasePage() {
           </button>
         ))}
 
-        <select
-          value={filterState}
-          onChange={e => setFilterState(e.target.value)}
-          style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '7px 12px', background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', outline: 'none' }}
+        {/* Has Phone toggle */}
+        <button
+          onClick={() => setFilterPhone(v => !v)}
+          style={{
+            fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px',
+            background: filterPhone ? 'var(--orange)' : 'transparent',
+            border: `1px solid ${filterPhone ? 'var(--orange)' : 'var(--border)'}`,
+            color: filterPhone ? 'var(--black)' : 'var(--muted)',
+            cursor: 'pointer',
+          }}
         >
+          HAS PHONE
+        </button>
+
+        {/* State dropdown — populated from full DB */}
+        <select value={filterState} onChange={e => setFilterState(e.target.value)} style={selectStyle}>
           <option value="all">ALL STATES</option>
           {allStates.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
-        <select
-          value={sortBy}
-          onChange={e => setSortBy(e.target.value as any)}
-          style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '7px 12px', background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', outline: 'none', marginLeft: 'auto' }}
-        >
+        {/* City dropdown — populated from full DB */}
+        <select value={filterCity} onChange={e => setFilterCity(e.target.value)} style={selectStyle}>
+          <option value="all">ALL CITIES</option>
+          {visibleCities.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        {/* Sort + per page pushed right */}
+        <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} style={{ ...selectStyle, marginLeft: 'auto' }}>
           <option value="last_seen">RECENT FIRST</option>
           <option value="score">HIGHEST SCORE</option>
           <option value="search_count">MOST SEEN</option>
         </select>
 
-        <select
-          value={perPage}
-          onChange={e => setPerPage(Number(e.target.value))}
-          style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '7px 12px', background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--muted)', cursor: 'pointer', outline: 'none' }}
-        >
+        <select value={perPage} onChange={e => setPerPage(Number(e.target.value))} style={selectStyle}>
           <option value={25}>25 / PAGE</option>
           <option value={50}>50 / PAGE</option>
           <option value={100}>100 / PAGE</option>
         </select>
       </div>
 
-      {/* Count */}
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 2, marginBottom: 8 }}>
-        {loading ? 'LOADING...' : `${pagination?.total ?? agents.length} PROFILES${filterFlag !== 'all' || filterState !== 'all' || search ? ' (FILTERED)' : ''}`}
+      {/* Active filter summary */}
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 2, marginBottom: 8, display: 'flex', gap: 16, alignItems: 'center' }}>
+        <span>{loading ? 'LOADING...' : `${pagination?.total ?? agents.length} PROFILES${filterFlag !== 'all' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search ? ' (FILTERED)' : ''}`}</span>
+        {(filterFlag !== 'hot' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search) && (
+          <button
+            onClick={() => { setFilterFlag('hot'); setFilterState('all'); setFilterCity('all'); setFilterPhone(false); setSearch('') }}
+            style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 2, padding: '3px 10px', background: 'transparent', border: '1px solid #333', color: '#555', cursor: 'pointer' }}
+          >
+            RESET FILTERS
+          </button>
+        )}
       </div>
 
       {/* Table header */}
@@ -436,10 +484,14 @@ export default function DatabasePage() {
         ) : agents.length === 0 ? (
           <div style={{ padding: '80px 0', textAlign: 'center' }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: '#1a1a1a', marginBottom: 12, letterSpacing: 4 }}>
-              NO PROFILES YET
+              {filterFlag !== 'all' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search
+                ? 'NO MATCHES'
+                : 'NO PROFILES YET'}
             </div>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#333', letterSpacing: 2 }}>
-              Run searches to start building your database.
+              {filterFlag !== 'all' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search
+                ? 'Try adjusting your filters.'
+                : 'Run searches to start building your database.'}
             </div>
           </div>
         ) : agents.map(agent => (
@@ -476,3 +528,4 @@ export default function DatabasePage() {
     </div>
   )
 }
+

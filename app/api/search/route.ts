@@ -60,11 +60,14 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
       base.push(`whole life insurance agent ${cityPrefix}`)
     }
     if (mode === 'annuities') {
-      base.push(`annuity agent ${cityPrefix}`)
+      base.push(`fixed index annuity agent ${cityPrefix}`)
+      base.push(`MYGA annuity specialist ${cityPrefix}`)
+      base.push(`safe money advisor ${cityPrefix}`)
+      base.push(`retirement income specialist ${cityPrefix}`)
+      base.push(`independent annuity broker ${cityPrefix}`)
+      base.push(`fixed annuity broker ${cityPrefix}`)
       base.push(`annuity advisor ${cityPrefix}`)
-      base.push(`fixed indexed annuity broker ${cityPrefix}`)
-      base.push(`retirement income advisor ${cityPrefix}`)
-      base.push(`independent annuity agent ${cityPrefix}`)
+      base.push(`insurance and financial services ${cityPrefix}`)
     }
     if (mode === 'financial') {
       base.push(`financial advisor ${cityPrefix}`)
@@ -414,7 +417,7 @@ async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: bool
     financial: 'Financial Advisory',
   }
 
-  const modeContext: Record<string, { analyst: string; keywords: string[]; captive: string[]; signals: string; coreAssumption: string; baselineRule: string; specialtySignals: string }> = {
+  const modeContext: Record<string, { analyst: string; keywords: string[]; captive: string[]; signals: string; coreAssumption: string; baselineRule: string; specialtySignals: string; negativeSignals?: string }> = {
     medicare: {
       analyst: 'Medicare/senior insurance',
       keywords: ['Medicare','Senior','Supplement','Advantage','Medigap','PDP'],
@@ -434,13 +437,14 @@ async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: bool
       specialtySignals: 'Final Expense, Burial, Term Life, Whole Life, independent broker language all point AWAY from captive. Generic "life insurance agent" or "insurance agency" without a known captive brand name = assume independent.',
     },
     annuities: {
-      analyst: 'annuity and retirement income',
-      keywords: ['Annuity','Retirement','Fixed Indexed','MYGA','Income','Wealth','Estate'],
-      captive: ['Edward Jones','Ameriprise','Raymond James'],
-      signals: 'Annuity, Retirement Income, Fixed Indexed, Wealth, Estate Planning = strong positive',
-      coreAssumption: 'In the annuity and retirement income market, independent advisors are highly recruitable. Assume INDEPENDENT unless you find explicit evidence of a captive/wirehouse brand. Generic retirement or financial planning focus without a known captive brand = assume independent.',
-      baselineRule: 'Annuity, retirement income, or fixed indexed specialty name or description = strong independent signal. Score 65+ baseline.',
-      specialtySignals: 'Annuity, Fixed Indexed, MYGA, Retirement Income focus all point AWAY from captive.',
+      analyst: 'fixed index annuity (FIA) and MYGA specialist',
+      keywords: ['Annuity','Fixed Index','FIA','MYGA','Safe Money','Retirement Income','Principal Protection','Guaranteed Income','No Market Risk','Fixed Annuity'],
+      captive: ['Edward Jones','Ameriprise','Raymond James','Merrill Lynch','Morgan Stanley','Wells Fargo Advisors','Fidelity','Vanguard','Schwab','LPL Financial','Northwestern Mutual','New York Life'],
+      signals: 'Fixed Index Annuity, MYGA, Safe Money, Principal Protection, Guaranteed Income, Retirement Income Specialist, carrier names (Athene, North American, American Equity, Allianz, Nationwide, Pacific Life, Global Atlantic, Midland National) = strong positive',
+      coreAssumption: 'CRITICAL CONTEXT: The best FIA and MYGA producers often do NOT advertise as annuity agents. They hide in plain sight as "financial advisors", "retirement planners", or "retirement income specialists" — because they serve the same retirement-age client base but are insurance-only licensed (not securities). Your job is to identify insurance-only or insurance-primary advisors who sell fixed products, NOT securities-licensed wirehouses or fee-only RIAs who actively avoid annuities. A generic "retirement planning" or "financial services" firm without wirehouse/RIA signals = likely FIA producer. Assume recruitable UNLESS you find explicit wirehouse, fee-only, AUM, or securities-focused signals.',
+      baselineRule: 'Any retirement-focused, income-focused, or insurance-and-financial-services firm without explicit wirehouse/RIA/fee-only signals = score 60+ baseline. Explicit FIA, MYGA, fixed annuity, safe money, or principal protection language = score 72+ baseline. Known FIA carrier mention (Athene, North American, American Equity, Allianz, Nationwide, Pacific Life, Global Atlantic, Midland National) = score 78+ baseline.',
+      specialtySignals: 'Safe money, principal protection, no market risk, guaranteed income, fixed indexed annuity, MYGA, retirement income specialist = extremely strong FIA producer signals. Insurance and financial services (not pure financial advisor) = positive. Generic "retirement planning" without securities language = lean positive.',
+      negativeSignals: 'NEGATIVE SIGNALS — these suggest a securities-focused or anti-annuity advisor, score 30-45 if present: "fee-only" (strong negative — fee-only fiduciaries actively avoid annuities), "assets under management" or "AUM" (securities-focused), "portfolio management" or "investment portfolio" (securities-focused), "registered investment advisor" or "RIA" combined with fee-only language, "fiduciary fee-only" (near-certain anti-annuity). NOTE: "fiduciary" alone is neutral — insurance agents can be fiduciaries. Only penalize when combined with fee-only or AUM language.',
     },
     financial: {
       analyst: 'financial advisory and wealth management',
@@ -497,6 +501,7 @@ SCORING RULES:
 8. HOT = 75+, WARM = 50-74, COLD = 0-49.
 9. When in doubt score HIGHER. A missed HOT agent costs a recruit. An extra call costs nothing.
 10. KEY SIGNALS FOR THIS MODE (${mode.toUpperCase()}): ${ctx.signals}
+${ctx.negativeSignals ? `11. ${ctx.negativeSignals}` : ''}
 
 Return ONLY valid JSON:
 {
@@ -547,7 +552,7 @@ Return ONLY valid JSON:
     const modeCapt: Record<string, string[]> = {
       medicare:  ['bankers life','state farm','farmers','allstate','geico'],
       life:      ['new york life','northwestern','mass mutual','globe life'],
-      annuities: ['edward jones','ameriprise','raymond james'],
+      annuities: ['edward jones','ameriprise','raymond james','merrill lynch','morgan stanley','wells fargo advisors','fidelity','vanguard','schwab','lpl financial','northwestern mutual','new york life'],
       financial: ['edward jones','ameriprise','raymond james','merrill','morgan stanley'],
     }
     const keywords = modeKeywords[mode] || modeKeywords['medicare']
