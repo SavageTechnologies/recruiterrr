@@ -33,8 +33,15 @@ export async function POST(req: NextRequest) {
         const email          = session.customer_email || session.metadata?.email || ''
 
         const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-        // current_period_end is on the subscription object — cast needed for this SDK version
-        const periodEnd = new Date((subscription as any).current_period_end * 1000).toISOString()
+        console.log('[webhook/stripe] subscription keys:', JSON.stringify(Object.keys(subscription)))
+        console.log('[webhook/stripe] subscription.items.data[0] keys:', JSON.stringify(Object.keys(subscription.items?.data?.[0] ?? {})))
+        // In API version 2026-01-28.clover, current_period_end moved to items
+        const rawPeriodEnd = (subscription as any).current_period_end
+          ?? (subscription.items?.data?.[0] as any)?.current_period_end
+          ?? null
+        const periodEnd = rawPeriodEnd
+          ? new Date(rawPeriodEnd * 1000).toISOString()
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
         if (email) {
           // UPSERT on email — handles the race condition where Stripe webhook fires
@@ -61,7 +68,12 @@ export async function POST(req: NextRequest) {
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
-        const periodEnd = new Date((subscription as any).current_period_end * 1000).toISOString()
+        const rawPeriodEnd = (subscription as any).current_period_end
+          ?? (subscription.items?.data?.[0] as any)?.current_period_end
+          ?? null
+        const periodEnd = rawPeriodEnd
+          ? new Date(rawPeriodEnd * 1000).toISOString()
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
         await supabase
           .from('users')
