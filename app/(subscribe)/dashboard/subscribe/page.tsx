@@ -38,12 +38,12 @@ export default function SubscribePage() {
           </div>
 
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 32 }}>
-            Your account was created but doesn't have an active subscription yet. Subscribe to get full access to agent search, AI scoring, and your persistent agent database.
+            Your account was created but doesn't have an active subscription yet. Subscribe to get full access to agent search, AI scoring, ANATHEMA distribution tree analysis, and Prometheus FMO competitive intelligence.
           </p>
 
           {/* Price */}
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 2, marginBottom: 4 }}>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: 'var(--orange)', lineHeight: 1 }}>$499</span>
+            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: 'var(--orange)', lineHeight: 1 }}>$799</span>
             <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'var(--orange)', marginTop: 6 }}>.95</span>
             <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#555', marginTop: 14, marginLeft: 4 }}>/mo</span>
           </div>
@@ -68,7 +68,7 @@ export default function SubscribePage() {
               opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? 'REDIRECTING TO CHECKOUT...' : 'ACTIVATE OPERATOR — $499.95/MO'}
+            {loading ? 'REDIRECTING TO CHECKOUT...' : 'ACTIVATE OPERATOR — $799.95/MO'}
           </button>
 
           <div style={{ marginTop: 20, fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#2a2a2a', letterSpacing: 1, lineHeight: 1.8 }}>

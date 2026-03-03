@@ -194,7 +194,7 @@ export default function SignUpPage() {
                 OPERATOR
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 2, marginBottom: 4 }}>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: 'var(--orange)', lineHeight: 1 }}>$499</span>
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: 'var(--orange)', lineHeight: 1 }}>$799</span>
                 <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'var(--orange)', marginTop: 6 }}>.95</span>
               </div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#555', letterSpacing: 1, marginBottom: 28 }}>
@@ -232,7 +232,7 @@ export default function SignUpPage() {
                   opacity: checkingOut ? 0.7 : 1,
                 }}
               >
-                {checkingOut ? 'REDIRECTING...' : 'START OPERATOR — $499.95/MO'}
+                {checkingOut ? 'REDIRECTING...' : 'START OPERATOR — $799.95/MO'}
               </button>
 
               <button
