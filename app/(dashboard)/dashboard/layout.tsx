@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { isAdmin, hasFullAccess } from '@/lib/auth/access'
 import { supabase } from '@/lib/supabase.server'
+import BillingButton from '@/components/dashboard/BillingButton'
 
 export default async function DashboardLayout({
   children,
@@ -63,6 +64,8 @@ export default async function DashboardLayout({
           }}>
             Database
           </Link>
+
+          <BillingButton />
 
           {/* ── Admin-only nav ── */}
           {adminUser && (
