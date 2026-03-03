@@ -51,7 +51,14 @@ export default function SignUpPage() {
   // Handle return from Stripe checkout
   useEffect(() => {
     const checkout = searchParams.get('checkout')
-    if (checkout === 'success') setStep('signup')
+    if (checkout === 'success') {
+      const stored = localStorage.getItem('pendingCheckoutEmail')
+      if (stored) {
+        setEmail(stored)
+        localStorage.removeItem('pendingCheckoutEmail')
+      }
+      setStep('signup')
+    }
     if (checkout === 'cancelled') setStep('email')
   }, [searchParams])
 
@@ -74,7 +81,10 @@ export default function SignUpPage() {
         body: JSON.stringify({ email }),
       })
       const data = await res.json()
-      if (data.url) window.location.href = data.url
+      if (data.url) {
+        localStorage.setItem('pendingCheckoutEmail', email.trim().toLowerCase())
+        window.location.href = data.url
+      }
     } catch {
       setCheckingOut(false)
     }
