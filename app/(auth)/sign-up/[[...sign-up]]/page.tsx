@@ -243,6 +243,7 @@ export default function SignUpPage() {
           {step === 'signup' && (
             <SignUp
               initialValues={{ emailAddress: email }}
+              forceRedirectUrl="/dashboard/activate"
               appearance={clerkAppearance}
             />
           )}
