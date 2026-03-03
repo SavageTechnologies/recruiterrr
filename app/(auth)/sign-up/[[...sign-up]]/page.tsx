@@ -102,8 +102,8 @@ export default function SignUpPage() {
             {[
               'Agent search across every US market',
               'HOT / WARM / COLD AI scoring',
-              'ANATHEMA distribution tree analysis',
-              'Prometheus FMO competitive intel',
+              'YouTube & hiring enrichment',
+              'Website & carrier intel',
               'Persistent agent database',
             ].map(f => (
               <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#444', letterSpacing: 0.5 }}>
@@ -195,10 +195,10 @@ export default function SignUpPage() {
                 {[
                   'Agent search — every US market',
                   'HOT / WARM / COLD AI scoring',
-                  'ANATHEMA distribution scanner',
-                  'Prometheus FMO intel',
+                  'YouTube & hiring enrichment',
+                  'Website & carrier intel',
                   'Persistent agent database',
-                  'YouTube + hiring enrichment',
+                  'Full search history',
                 ].map(f => (
                   <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ color: 'var(--orange)', fontSize: 10, flexShrink: 0 }}>✦</span>
