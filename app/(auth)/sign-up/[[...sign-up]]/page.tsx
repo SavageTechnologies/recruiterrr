@@ -112,6 +112,8 @@ export default function SignUpPage() {
             {[
               'Agent search across every US market',
               'HOT / WARM / COLD AI scoring',
+              'ANATHEMA — distribution tree analysis',
+              'PROMETHEUS — FMO competitive intelligence',
               'YouTube & hiring enrichment',
               'Website & carrier intel',
               'Persistent agent database',
@@ -205,6 +207,8 @@ export default function SignUpPage() {
                 {[
                   'Agent search — every US market',
                   'HOT / WARM / COLD AI scoring',
+                  'ANATHEMA — distribution tree analysis',
+                  'PROMETHEUS — FMO competitive intelligence',
                   'YouTube & hiring enrichment',
                   'Website & carrier intel',
                   'Persistent agent database',

@@ -38,7 +38,7 @@ export default function SubscribePage() {
           </div>
 
           <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 32 }}>
-            Your account was created but doesn't have an active subscription yet. Subscribe to get full access to agent search, AI scoring, ANATHEMA distribution tree analysis, and Prometheus FMO competitive intelligence.
+            Your account was created but doesn't have an active subscription yet. Subscribe to get full access to agent search, AI scoring, ANATHEMA distribution tree analysis, Prometheus FMO competitive intelligence, and your persistent agent database.
           </p>
 
           {/* Price */}
