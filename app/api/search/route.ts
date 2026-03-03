@@ -55,6 +55,9 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
       base.push(`final expense insurance agent ${cityPrefix}`)
       base.push(`term life insurance broker ${cityPrefix}`)
       base.push(`burial insurance agent ${cityPrefix}`)
+      base.push(`independent life insurance broker ${cityPrefix}`)
+      base.push(`life insurance agency ${cityPrefix}`)
+      base.push(`whole life insurance agent ${cityPrefix}`)
     }
     if (mode === 'annuities') {
       base.push(`annuity agent ${cityPrefix}`)
@@ -411,19 +414,51 @@ async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: bool
     financial: 'Financial Advisory',
   }
 
-  const modeContext: Record<string, { analyst: string; keywords: string[]; captive: string[]; signals: string }> = {
-    medicare:   { analyst: 'Medicare/senior insurance', keywords: ['Medicare','Senior','Supplement','Advantage','Medigap','PDP'], captive: ['Bankers Life','State Farm','Farmers','Allstate','GEICO','New York Life','Northwestern'], signals: 'Medicare, Supplement, Advantage, Senior, Medigap = strong positive' },
-    life:       { analyst: 'life and final expense insurance', keywords: ['Life','Final Expense','Burial','Legacy','Family Protection','Term','Whole Life'], captive: ['New York Life','Northwestern','Mass Mutual','Bankers Life','Globe Life'], signals: 'Final Expense, Burial, Life, Legacy, Family = strong positive' },
-    annuities:  { analyst: 'annuity and retirement income', keywords: ['Annuity','Retirement','Fixed Indexed','MYGA','Income','Wealth','Estate'], captive: ['Edward Jones','Ameriprise','Raymond James'], signals: 'Annuity, Retirement Income, Fixed Indexed, Wealth, Estate Planning = strong positive' },
-    financial:  { analyst: 'financial advisory and wealth management', keywords: ['Financial','Wealth','Retirement','Planning','Investment','Advisor','CFP'], captive: ['Edward Jones','Ameriprise','Raymond James','Merrill','Morgan Stanley','Wells Fargo Advisors'], signals: 'Financial Advisor, Wealth Management, CFP, Retirement Planning, Investment = strong positive' },
+  const modeContext: Record<string, { analyst: string; keywords: string[]; captive: string[]; signals: string; coreAssumption: string; baselineRule: string; specialtySignals: string }> = {
+    medicare: {
+      analyst: 'Medicare/senior insurance',
+      keywords: ['Medicare','Senior','Supplement','Advantage','Medigap','PDP'],
+      captive: ['Bankers Life','State Farm','Farmers','Allstate','GEICO','New York Life','Northwestern'],
+      signals: 'Medicare, Supplement, Advantage, Senior, Medigap = strong positive',
+      coreAssumption: 'In the Medicare/senior insurance market, the vast majority of agents are INDEPENDENT brokers who can be recruited. Assume INDEPENDENT unless you find explicit evidence of a captive brand. Do NOT penalize agents because you can\'t confirm independence — absence of captive signals IS itself a positive signal.',
+      baselineRule: 'Medicare/senior/supplement/health specialty name or description = strong independent signal. Score 65+ baseline.',
+      specialtySignals: 'Medicare, Supplement, Advantage, Senior, Medigap specialty focus all point AWAY from captive and toward independent.',
+    },
+    life: {
+      analyst: 'life and final expense insurance',
+      keywords: ['Life','Final Expense','Burial','Legacy','Family Protection','Term','Whole Life'],
+      captive: ['New York Life','Northwestern','Mass Mutual','Bankers Life','Globe Life'],
+      signals: 'Final Expense, Burial, Life, Legacy, Family = strong positive',
+      coreAssumption: 'In the life and final expense insurance market, independent agents are common and highly recruitable. Many life agents do NOT have "final expense" or "burial" in their name — a generic "life insurance agency" or "insurance broker" is just as likely to be independent. Assume INDEPENDENT unless you find explicit evidence of a captive brand name. Do NOT penalize for lack of life-specific keywords in the name — most independent life agents brand generically.',
+      baselineRule: 'Life insurance specialty name OR generic insurance agency/broker description = strong independent signal. Score 65+ baseline. Final Expense, Burial, or Term Life specialty focus = score 70+ baseline.',
+      specialtySignals: 'Final Expense, Burial, Term Life, Whole Life, independent broker language all point AWAY from captive. Generic "life insurance agent" or "insurance agency" without a known captive brand name = assume independent.',
+    },
+    annuities: {
+      analyst: 'annuity and retirement income',
+      keywords: ['Annuity','Retirement','Fixed Indexed','MYGA','Income','Wealth','Estate'],
+      captive: ['Edward Jones','Ameriprise','Raymond James'],
+      signals: 'Annuity, Retirement Income, Fixed Indexed, Wealth, Estate Planning = strong positive',
+      coreAssumption: 'In the annuity and retirement income market, independent advisors are highly recruitable. Assume INDEPENDENT unless you find explicit evidence of a captive/wirehouse brand. Generic retirement or financial planning focus without a known captive brand = assume independent.',
+      baselineRule: 'Annuity, retirement income, or fixed indexed specialty name or description = strong independent signal. Score 65+ baseline.',
+      specialtySignals: 'Annuity, Fixed Indexed, MYGA, Retirement Income focus all point AWAY from captive.',
+    },
+    financial: {
+      analyst: 'financial advisory and wealth management',
+      keywords: ['Financial','Wealth','Retirement','Planning','Investment','Advisor','CFP'],
+      captive: ['Edward Jones','Ameriprise','Raymond James','Merrill','Morgan Stanley','Wells Fargo Advisors'],
+      signals: 'Financial Advisor, Wealth Management, CFP, Retirement Planning, Investment = strong positive',
+      coreAssumption: 'In the financial advisory market, independent RIAs and fee-only planners are highly recruitable. Assume INDEPENDENT unless you find explicit evidence of a wirehouse or captive brand. Generic "financial advisor" or "wealth management" without a known captive brand = assume independent.',
+      baselineRule: 'Financial advisory, wealth management, or CFP specialty name or description = strong independent signal. Score 65+ baseline.',
+      specialtySignals: 'Independent RIA, fee-only, CFP, wealth management focus all point AWAY from captive.',
+    },
   }
   const ctx = modeContext[mode] || modeContext['medicare']
 
   const prompt = `You are an expert ${ctx.analyst} industry analyst helping FMO/IMO recruiters identify recruitable independent agents.
 
-CORE ASSUMPTION: In the Medicare/senior insurance market, the vast majority of agents are INDEPENDENT brokers who can be recruited. Assume INDEPENDENT unless you find explicit evidence of a captive brand. Do NOT penalize agents because you can't confirm independence — absence of captive signals IS itself a positive signal.
+CORE ASSUMPTION: ${ctx.coreAssumption}
 
-CAPTIVE = unrecruitable. Only flag captive if you see these specific brand names explicitly in the listing or website: ${ctx.captive.join(', ')}. Generic insurance language, multi-carrier mentions, Medicare/senior specialty focus all point AWAY from captive.
+CAPTIVE = unrecruitable. Only flag captive if you see these specific brand names explicitly in the listing or website: ${ctx.captive.join(', ')}. ${ctx.specialtySignals}
 
 GOOGLE LISTING DATA:
 Name: ${name}
@@ -453,14 +488,15 @@ SEARCH LINE: ${mode.toUpperCase()}
 
 SCORING RULES:
 1. DEFAULT is INDEPENDENT and recruitable. Only mark captive:true and score 15-35 if a known captive brand is explicitly present: ${ctx.captive.join(', ')}.
-2. Medicare/senior/supplement/health specialty name or description = strong independent signal. Score 65+ baseline.
-3. Multi-carrier mentions, "broker", "independent", specialty product focus (Medicare Advantage, Supplement, Annuities, Final Expense) = score 70-80.
+2. ${ctx.baselineRule}
+3. Multi-carrier mentions, "broker", "independent", specialty product focus = score 70-80.
 4. Reviews signal production volume: 50+ = established producer (score boost), 100+ = well-established, 200+ = dominant. High reviews + independent signals = HOT.
 5. ACTIVELY HIRING for agents = +8 points. They are growing and likely frustrated with upline support.
 6. HAS YOUTUBE = +7 points. Building a personal brand means they are thinking beyond their current upline.
 7. Website exists but content could not be scraped = completely neutral. Do NOT dock points.
 8. HOT = 75+, WARM = 50-74, COLD = 0-49.
 9. When in doubt score HIGHER. A missed HOT agent costs a recruit. An extra call costs nothing.
+10. KEY SIGNALS FOR THIS MODE (${mode.toUpperCase()}): ${ctx.signals}
 
 Return ONLY valid JSON:
 {
@@ -476,7 +512,7 @@ Return ONLY valid JSON:
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-sonnet-4-6',
       max_tokens: 500,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -516,8 +552,12 @@ Return ONLY valid JSON:
     }
     const keywords = modeKeywords[mode] || modeKeywords['medicare']
     const captiveNames = modeCapt[mode] || modeCapt['medicare']
-    // Only flag captive if an explicit captive brand is found
-    const isCaptive = captiveNames.some(c => nl.includes(c))
+    // Only flag captive if an explicit captive brand is found — use word-boundary aware matching
+    // to avoid false positives like "new life" matching "new york life"
+    const isCaptive = captiveNames.some(c => {
+      const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      return new RegExp(`\\b${escaped}\\b`, 'i').test(name)
+    })
     // Default assumption: independent and recruitable
     // Start at 60 and work up from there
     let score = isCaptive ? 25 : 60
