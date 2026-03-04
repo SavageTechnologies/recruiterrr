@@ -342,7 +342,7 @@ export default function DatabasePage() {
             AGENT DATABASE
           </div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2 }}>
-            Every agent surfaced by your searches — scored and stored.
+            Every agent surfaced by your searches and lookups — scored and stored.
           </div>
         </div>
         <button
