@@ -22,6 +22,7 @@ export default function BillingButton() {
     <button
       onClick={handleBilling}
       disabled={loading}
+      data-billing="true"
       style={{
         background: 'none', border: 'none', cursor: loading ? 'default' : 'crosshair',
         fontFamily: "'DM Mono', monospace", fontSize: 11,

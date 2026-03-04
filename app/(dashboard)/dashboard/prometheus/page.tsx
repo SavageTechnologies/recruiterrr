@@ -352,12 +352,35 @@ function PrometheusPageInner() {
         @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes loadSlide { 0% { left: -40%; } 100% { left: 100%; } }
         @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes betaSweep { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(100%); } }
       `}</style>
 
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>FMO Sales Intelligence</div>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>PROMETHEUS<span style={{ color: 'var(--orange)' }}>.</span></h1>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>PROMETHEUS<span style={{ color: 'var(--orange)' }}>.</span></h1>
+          <div style={{
+            fontFamily: "'DM Mono', monospace",
+            fontSize: 9,
+            letterSpacing: 3,
+            color: 'var(--orange)',
+            border: '1px solid rgba(255,85,0,0.45)',
+            background: 'rgba(255,85,0,0.07)',
+            padding: '5px 10px',
+            marginBottom: 6,
+            position: 'relative',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+          }}>
+            <span style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(90deg, transparent, rgba(255,85,0,0.14), transparent)',
+              animation: 'betaSweep 3s ease-in-out infinite',
+            }} />
+            ⚡ BETA
+          </div>
+        </div>
       </div>
 
       {/* Input */}
