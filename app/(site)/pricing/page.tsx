@@ -55,7 +55,7 @@ export default function PricingPage() {
 
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 2, marginBottom: 4 }}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: 'var(--orange)', marginTop: 14, letterSpacing: 0 }}>$</span>
-                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 80, letterSpacing: 1, lineHeight: 1, color: 'var(--orange)' }}>799</span>
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 80, letterSpacing: 1, lineHeight: 1, color: 'var(--orange)' }}>{process.env.NEXT_PUBLIC_PRO_PRICE_WHOLE || '499'}</span>
               <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: 'var(--orange)', marginTop: 18 }}>.95</span>
               </div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 36 }}>

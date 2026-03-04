@@ -6,9 +6,9 @@ import { useState, useEffect } from 'react'
 // Based on actual API calls per operation (see route analysis)
 const COSTS = {
   search:     0.003,   // Sonnet 4.6 — ~500 input + 500 output tokens per enrichment
-  anathema:   0.050,   // Sonnet 4.6 tree prediction + Haiku david-facts + optional upline hunter
+  anathema:   0.035,   // Sonnet 4.6 tree+subimo combined + Haiku david-facts (rebuilt analyzer — 4 parallel SERP)
   prometheus: 0.150,   // Sonnet 4.6 — ~25k input + 5k output tokens per FMO scan
-  revenue:    799.95,  // Monthly subscription
+  revenue:    parseFloat(process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'),  // Monthly subscription
 }
 
 function costForUser(u: UserStat): number {
@@ -288,12 +288,12 @@ export default function AdminPage() {
         <div style={{ padding: '16px 20px', background: '#0c0b09', border: '1px solid #1c1a16' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 8 }}>BREAKEVEN — ANATHEMA</div>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: '#00e676' }}>{breakEvenScansAnathema} scans</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 4 }}>per user per month to fully consume $799.95</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 4 }}>per user per month to fully consume {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}</div>
         </div>
         <div style={{ padding: '16px 20px', background: '#0c0b09', border: '1px solid #1c1a16' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 8 }}>BREAKEVEN — PROMETHEUS</div>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: '#ff5500' }}>{breakEvenScanPrometheus} scans</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 4 }}>per user per month to fully consume $799.95</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 4 }}>per user per month to fully consume {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}</div>
         </div>
         <div style={{ padding: '16px 20px', background: '#0c0b09', border: '1px solid #1c1a16' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 8 }}>AVG USAGE PER USER</div>
@@ -443,7 +443,7 @@ export default function AdminPage() {
                       {fmt$(cost)}
                     </div>
                     <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 1 }}>
-                      of $799.95
+                      of {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}
                     </div>
                   </div>
 
@@ -557,7 +557,7 @@ export default function AdminPage() {
             <div style={{ padding: '28px 28px', background: '#0c0b09', border: '1px solid #1c1a16', borderTop: '2px solid #00e676' }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 12 }}>MONTHLY REVENUE</div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, color: '#00e676', lineHeight: 1 }}>{fmt$(totalRevenue)}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 6 }}>{users.length} users × $799.95</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 6 }}>{users.length} users × {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}</div>
             </div>
             <div style={{ padding: '28px 28px', background: '#0c0b09', border: '1px solid #1c1a16', borderTop: '2px solid #ff5500' }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 12 }}>TOTAL API COST</div>
