@@ -865,43 +865,31 @@ function SearchPageInner() {
           </div>
 
           {/* Optional city + state row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 2, marginBottom: 2 }}>
-            <div ref={acRef} style={{ position: 'relative' }}>
-              <input
-                value={city}
-                onChange={e => handleCityChange(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { setShowSuggestions(false); runLookup() } if (e.key === 'Escape') setShowSuggestions(false) }}
-                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                placeholder="City (optional — improves accuracy)"
-                disabled={lookupLoading}
-                autoComplete="off"
-                style={{ width: '100%', padding: '12px 16px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5, boxSizing: 'border-box' }}
-              />
-              {showSuggestions && suggestions.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 300 }}>
-                  {suggestions.map((s, i) => (
-                    <div key={i} onMouseDown={() => selectSuggestion(s)}
-                      style={{ padding: '10px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2 }}>{s.state}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <select
-              value={state}
-              onChange={e => setState(e.target.value)}
+          <div ref={acRef} style={{ position: 'relative', marginBottom: 2 }}>
+            <input
+              value={city}
+              onChange={e => handleCityChange(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { setShowSuggestions(false); runLookup() } if (e.key === 'Escape') setShowSuggestions(false) }}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              placeholder="City (optional — improves accuracy)"
               disabled={lookupLoading}
-              style={{ padding: '12px 8px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, appearance: 'none', textAlign: 'center' }}
-            >
-              {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+              autoComplete="off"
+              style={{ width: '100%', padding: '12px 16px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5, boxSizing: 'border-box' }}
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 300 }}>
+                {suggestions.map((s, i) => (
+                  <div key={i} onMouseDown={() => selectSuggestion(s)}
+                    style={{ padding: '10px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2 }}>{s.state}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 1, marginBottom: 24 }}>
