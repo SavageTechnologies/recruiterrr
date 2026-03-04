@@ -42,8 +42,10 @@ type LookupResult = {
 }
 
 // ─── FIND AGENT VIA ORGANIC SERP ─────────────────────────────────────────────
-// Uses google organic (not google_local) so we find agents even without
-// a Google Business listing. Returns their website URL + basic info.
+// Runs 3 queries in parallel — name only, name + location, name + industry —
+// then picks the best match across all results. This way a CEO, agency owner,
+// or recruiter who isn't literally an "insurance agent" still gets found.
+// Mode only affects scoring, NOT the search queries.
 
 async function findAgentWebsite(
   name: string,
@@ -51,50 +53,79 @@ async function findAgentWebsite(
   state: string,
   mode: string
 ): Promise<{ url: string | null; title: string | null; snippet: string | null; confidence: 'HIGH' | 'MEDIUM' | 'LOW'; note: string }> {
-  const modeTerms: Record<string, string> = {
-    medicare:  'insurance agent',
-    life:      'insurance agent',
-    annuities: 'financial advisor',
-    financial: 'financial advisor',
-  }
-  const term = modeTerms[mode] || 'insurance agent'
   const location = [city, state].filter(Boolean).join(', ')
-  const query = location
-    ? `"${name}" ${term} ${location}`
-    : `"${name}" ${term}`
+
+  // Three query angles — cast wide, let the match logic pick the best result
+  const queries = [
+    `"${name}"${location ? ` ${location}` : ''}`,                          // name + location (most targeted)
+    `"${name}" insurance`,                                                   // name + industry (no role assumption)
+    `"${name}" ${location ? `${location} ` : ''}site:linkedin.com OR Medicare OR IMO OR FMO OR insurance`, // broader net
+  ]
 
   try {
-    const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&gl=us&hl=en&num=5&api_key=${process.env.SERPAPI_KEY}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
-    if (!res.ok) return { url: null, title: null, snippet: null, confidence: 'LOW', note: 'SERP request failed' }
+    // Run all queries in parallel
+    const allResults = await Promise.all(queries.map(async (q) => {
+      try {
+        const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&gl=us&hl=en&num=5&api_key=${process.env.SERPAPI_KEY}`
+        const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+        if (!res.ok) return []
+        const data = await res.json()
+        return data.organic_results || []
+      } catch { return [] }
+    }))
 
-    const data = await res.json()
-    const results = data.organic_results || []
+    // Deduplicate across all query results by URL
+    const seen = new Set<string>()
+    const results: any[] = []
+    for (const batch of allResults) {
+      for (const r of batch) {
+        if (r.link && !seen.has(r.link)) {
+          seen.add(r.link)
+          results.push(r)
+        }
+      }
+    }
 
     if (!results.length) return { url: null, title: null, snippet: null, confidence: 'LOW', note: 'No web results found for this name' }
 
     const nameLower = name.toLowerCase()
     const nameParts = nameLower.split(/\s+/).filter(p => p.length > 1)
 
-    // Tier 1: result title contains the name AND location
-    const tier1 = results.find((r: any) => {
-      const t = (r.title || '').toLowerCase()
-      const s = (r.snippet || '').toLowerCase()
-      const nameMatch = nameParts.filter(p => t.includes(p) || s.includes(p)).length >= Math.ceil(nameParts.length * 0.6)
-      const locMatch = location ? (t.includes(city.toLowerCase()) || s.includes(city.toLowerCase()) || s.includes(state.toLowerCase())) : true
-      return nameMatch && locMatch
-    })
-    if (tier1) return { url: tier1.link, title: tier1.title, snippet: tier1.snippet, confidence: 'HIGH', note: 'Name + location matched in top result' }
-
-    // Tier 2: name match only
-    const tier2 = results.find((r: any) => {
+    const nameMatches = (r: any) => {
       const t = (r.title || '').toLowerCase()
       const s = (r.snippet || '').toLowerCase()
       return nameParts.filter(p => t.includes(p) || s.includes(p)).length >= Math.ceil(nameParts.length * 0.6)
-    })
-    if (tier2) return { url: tier2.link, title: tier2.title, snippet: tier2.snippet, confidence: 'MEDIUM', note: 'Name matched but location not confirmed' }
+    }
 
-    // Tier 3: take first result, flag as low confidence
+    const locMatches = (r: any) => {
+      if (!location) return true
+      const t = (r.title || '').toLowerCase()
+      const s = (r.snippet || '').toLowerCase()
+      return t.includes(city.toLowerCase()) || s.includes(city.toLowerCase()) || s.includes(state.toLowerCase())
+    }
+
+    const insuranceMatches = (r: any) => {
+      const combined = ((r.title || '') + ' ' + (r.snippet || '')).toLowerCase()
+      return /insurance|medicare|imo|fmo|annuity|broker|agent|health plan|carrier|senior|financial/.test(combined)
+    }
+
+    // Tier 1: name + location + insurance context — highest confidence
+    const tier1 = results.find(r => nameMatches(r) && locMatches(r) && insuranceMatches(r))
+    if (tier1) return { url: tier1.link, title: tier1.title, snippet: tier1.snippet, confidence: 'HIGH', note: 'Name + location + industry context matched' }
+
+    // Tier 2: name + location (no insurance context required — they may be a CEO/exec)
+    const tier2 = results.find(r => nameMatches(r) && locMatches(r))
+    if (tier2) return { url: tier2.link, title: tier2.title, snippet: tier2.snippet, confidence: 'HIGH', note: 'Name + location matched in top result' }
+
+    // Tier 3: name + insurance context (no location)
+    const tier3 = results.find(r => nameMatches(r) && insuranceMatches(r))
+    if (tier3) return { url: tier3.link, title: tier3.title, snippet: tier3.snippet, confidence: 'MEDIUM', note: 'Name + industry matched but location not confirmed' }
+
+    // Tier 4: name match only
+    const tier4 = results.find(r => nameMatches(r))
+    if (tier4) return { url: tier4.link, title: tier4.title, snippet: tier4.snippet, confidence: 'MEDIUM', note: 'Name matched — verify this is the right person' }
+
+    // Tier 5: take first result across all queries, flag as low confidence
     const first = results[0]
     return { url: first.link, title: first.title, snippet: first.snippet, confidence: 'LOW', note: 'Could not confirm name match — review result carefully' }
   } catch {
@@ -242,9 +273,9 @@ async function scoreLookupAgent(
   }
   const ctx = modeContext[mode] || modeContext['medicare']
 
-  const prompt = `You are an expert ${ctx.analyst} industry analyst scoring a single agent for recruitability.
+  const prompt = `You are an expert ${ctx.analyst} industry analyst scoring an insurance industry contact for recruitability or competitive intelligence.
 
-AGENT: ${name}
+SUBJECT: ${name}
 LOCATION: ${[city, state].filter(Boolean).join(', ') || 'Unknown'}
 WEBSITE: ${websiteUrl || 'None found'}
 SEARCH RESULT TITLE: ${serpTitle || 'N/A'}
@@ -257,14 +288,15 @@ CORE ASSUMPTION: ${ctx.coreAssumption}
 KEY SIGNALS: ${ctx.signals}
 CAPTIVE BRANDS (only flag if explicitly present): ${ctx.captive.join(', ')}
 
-IMPORTANT — THIS IS A NAMED AGENT LOOKUP, NOT A MARKET SWEEP:
-- The recruiter specifically searched for this person. Score what you find, be honest about data quality.
-- If you have rich website content, score confidently.
-- If you only have a search snippet, say so in your notes and score conservatively.
-- Never hallucinate carriers or signals you didn't actually find.
+CRITICAL — THIS IS A NAMED LOOKUP, NOT A MARKET SWEEP:
+- The subject may be a street-level agent, agency owner, IMO executive, call center CEO, or industry figure — not necessarily a field agent.
+- If the subject appears to be an executive or company leader at an insurance organization, that IS relevant — score them accordingly and note their role clearly.
+- If the content is completely unrelated to insurance (wrong person, name collision, yearbook, etc.) return score 0, flag "cold", and say so explicitly in notes.
+- Score what you find. Be honest about data quality. Never hallucinate signals.
 
 SCORING: HOT = 75+, WARM = 50-74, COLD = 0-49.
-Default WARM (55) when data is thin. Boost for: independent signals, multi-carrier, YouTube, hiring activity.
+Default WARM (55) when data is thin. Score 0 if clearly wrong person or no insurance connection.
+Boost for: independent signals, multi-carrier, YouTube, hiring activity, executive role at insurance org.
 
 Return ONLY valid JSON:
 {
