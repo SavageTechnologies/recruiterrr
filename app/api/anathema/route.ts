@@ -652,11 +652,10 @@ Respond with ONLY valid JSON:
       }
     : null
 
-  // ── Unresolved upline hunter ────────────────────────────────────────────
+// ── Unresolved upline hunter ────────────────────────────────────────────
   let unresolvedUpline = null
   const shouldHunt = (
-  !subImoPartner &&  // hunt whenever we don't have a confirmed sub-IMO
-  (facebookPostText || serpSnippetsForHunter.length > 0)
+    facebookPostText || serpSnippetsForHunter.length > 0
   )
 
   if (shouldHunt) {
@@ -668,25 +667,23 @@ Respond with ONLY valid JSON:
     )
     if (unresolvedUpline) {
       allSignals.push(`Unresolved upline detected: "${unresolvedUpline.name}" — "${unresolvedUpline.evidence}"`)
-      // Write to discovered_fmos — the learning loop
-      void (async () => {
-        try {
-          await supabase.rpc('upsert_discovered_fmo', {
-            p_name:       unresolvedUpline.name,
-            p_evidence:   {
-              quote:       unresolvedUpline.evidence,
-              source_url:  unresolvedUpline.sourceUrl || '',
-              agent_name:  agent.name,
-              confidence:  unresolvedUpline.confidence,
-              seen_at:     new Date().toISOString(),
-            },
-            p_state:      agent.state || '',
-            p_confidence: unresolvedUpline.confidence,
-          })
-        } catch (err: unknown) {
-          console.warn('[discovered_fmos] upsert failed:', err)
-        }
-      })()
+      // Write to discovered_fmos — the learning loop (awaited so it completes before response)
+      try {
+        await supabase.rpc('upsert_discovered_fmo', {
+          p_name:       unresolvedUpline.name,
+          p_evidence:   {
+            quote:       unresolvedUpline.evidence,
+            source_url:  unresolvedUpline.sourceUrl || '',
+            agent_name:  agent.name,
+            confidence:  unresolvedUpline.confidence,
+            seen_at:     new Date().toISOString(),
+          },
+          p_state:      agent.state || 'XX',
+          p_confidence: unresolvedUpline.confidence,
+        })
+      } catch (err: unknown) {
+        console.warn('[discovered_fmos] upsert failed:', err)
+      }
     }
   }
 
