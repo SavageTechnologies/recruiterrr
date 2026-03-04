@@ -595,7 +595,7 @@ Respond with ONLY valid JSON:
 
   if (agent.state && serpKey) {
     for (const tree of treesToTry) {
-      const result = await resolveChain(agent.name, agent.state, tree, serpKey)
+      const result = await resolveChain(agent.name, agent.state, tree, serpKey, networkSignals, serpSnippetsForHunter)
       if (result && (result.resolved_partner_name || result.chain_signals.length > 0)) {
         chainResult = result
         break

@@ -291,11 +291,15 @@ function AnathemaDashboardInner() {
     setError('')
     setLogLines([])
     setCurrentStep(0)
+    // Only reset observation fields if there's no saved observation from a previous scan
+    // This prevents losing confirmed data if the user accidentally re-scans
+    if (saveState !== 'saved') {
+      setConfirmedTrees([])
+      setConfirmedOther('')
+      setSubImo('')
+      setRecruiterNotes('')
+    }
     setSaveState('idle')
-    setConfirmedTrees([])
-    setConfirmedOther('')
-    setSubImo('')
-    setRecruiterNotes('')
 
     let si = 0
     let li = 0
@@ -374,7 +378,7 @@ function AnathemaDashboardInner() {
     if (!result || saveState === 'saving') return
     setSaveState('saving')
     try {
-      await fetch('/api/anathema', {
+      const res = await fetch('/api/anathema', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -404,9 +408,23 @@ function AnathemaDashboardInner() {
           david_facts: davidFacts,
         }),
       })
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        console.error('[logObservation] Save failed:', data)
+        setSaveState('idle')
+        setError('Failed to save observation. Please try again.')
+        return
+      }
       setSaveState('saved')
-    } catch {
+      // Refresh specimens list so the new entry appears immediately
+      fetch('/api/specimens')
+        .then(r => r.json())
+        .then(d => setSpecimens(d.specimens || []))
+        .catch(() => {})
+    } catch (err) {
+      console.error('[logObservation] Network error:', err)
       setSaveState('idle')
+      setError('Failed to save observation. Please try again.')
     }
   }
 
@@ -646,13 +664,20 @@ function AnathemaDashboardInner() {
 
               <button onClick={logObservation} disabled={saveState === 'saving'}
                 style={{ background: saveState === 'saved' ? 'rgba(0,230,118,0.08)' : 'transparent', border: `1px solid ${saveState === 'saved' ? 'var(--green)' : '#333'}`, color: saveState === 'saved' ? 'var(--green)' : '#666', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '9px 20px', cursor: saveState === 'saving' ? 'default' : 'pointer', transition: 'all 0.2s' }}>
-                {saveState === 'saved' ? 'OBSERVATION LOGGED · SPECIMEN DATABASE UPDATED' : saveState === 'saving' ? 'LOGGING...' : 'LOG OBSERVATION'}
+                {saveState === 'saved' ? 'OBSERVATION LOGGED · CLICK TO UPDATE' : saveState === 'saving' ? 'LOGGING...' : 'LOG OBSERVATION'}
               </button>
             </div>
           </div>
 
           <div style={{ marginTop: 12 }}>
-            <button onClick={runScan} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: 'pointer' }}>
+            <button onClick={() => {
+              setConfirmedTrees([])
+              setConfirmedOther('')
+              setSubImo('')
+              setRecruiterNotes('')
+              setSaveState('idle')
+              runScan()
+            }} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: 'pointer' }}>
               RUN NEW SCAN
             </button>
           </div>

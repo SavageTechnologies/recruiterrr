@@ -1,10 +1,27 @@
 // ─── lib/domain/anathema/chain-resolver.ts ───────────────────────────────────
-// Runs two SERP queries in parallel to find named partner agencies co-mentioned
-// with the agent. Any partner that resolves in the network map feeds the parent
-// tree prediction directly — the partner's tree IS the prediction source.
+// Sub-IMO resolution — finds the named partner agency between the agent and
+// the parent tree (Integrity, AmeriLife, SMS).
+//
+// ARCHITECTURE: AI-first, DB-second.
+//
+// The old design queried network_partners for known candidates and scored them.
+// That made the DB a constraint — if the right answer wasn't in the list, the
+// resolver would confidently pick a wrong answer that was.
+//
+// The new design:
+//   1. Gather all available evidence (SERP snippets, Facebook text, domain signals)
+//   2. Feed it to Claude Haiku — unconstrained, open world — and ask who sits
+//      between this agent and the tree. No candidate list.
+//   3. Take the AI's answer and look it up in network_partners + discovered_fmos
+//      as an enrichment step (get the UUID if we know them).
+//   4. If the answer isn't in the DB — that's a FIND, not a failure.
+//      Surface it and write to discovered_fmos for the learning loop.
+//
+// The DB is a notebook, not a guest list.
 
+import Anthropic from '@anthropic-ai/sdk'
 import { supabase } from '@/lib/supabase.server'
-import type { NetworkPartner } from './signals'
+import type { NetworkSignal } from './signals'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -13,236 +30,327 @@ export type ChainSignal = {
   type: 'domain' | 'name' | 'alias' | 'comention' | 'relationship' | 'association' | 'geographic'
   entity: string
   text: string
-  source: 'partner_query' | 'relationship_query' | 'geographic'
+  source: 'partner_query' | 'relationship_query' | 'geographic' | 'ai_inference'
 }
 
 export type ChainResult = {
   resolved_partner_name: string | null
-  resolved_partner_id: string | null    // UUID — was number when backed by networks.ts
+  resolved_partner_id: string | null       // UUID from network_partners if known, else null
   resolved_partner_tree: 'integrity' | 'amerilife' | 'sms' | null
   resolved_confidence: number | null
   chain_signals: ChainSignal[]
+  is_new_discovery: boolean                // true = not in network_partners, written to discovered_fmos
 } | null
 
-// ─── KEYWORDS ─────────────────────────────────────────────────────────────────
+// ─── EVIDENCE GATHERER ────────────────────────────────────────────────────────
+// Runs two targeted SERP queries to pull fresh evidence for the AI.
+// Q1: agent co-mentioned with the tree name + contracting/association language
+// Q2: agent + tree name + known association context
+// Returns raw snippets — the AI reads them, we don't score them.
 
-const UPLINE_KEYWORDS = [
-  'contracted through', 'appointed through', 'writing under', 'downline',
-  'contracts through', 'appointed with', 'contracted with', 'under contract',
-  'agent portal', 'producer portal', 'agent login',
-]
-
-const ASSOCIATION_KEYWORDS = [
-  'trip', 'leaderboard', 'award', 'top producer', 'conference', 'convention',
-  'achievement', 'partner', 'affiliated', 'proud member', 'proud partner',
-  'thank you', 'thanks to', 'honored', 'recognition',
-  'summit', 'incentive', 'qualifier', 'qualified', 'retreat',
-]
-
-// ─── CANDIDATE FETCHER ────────────────────────────────────────────────────────
-// Replaces getCandidatePartners() from networks.ts.
-// Queries network_partners for active partners in the agent's state + neighbors,
-// falling back to the full tree if regional coverage is thin.
-
-const STATE_NEIGHBORS: Record<string, string[]> = {
-  AL: ['FL','GA','TN','MS'], AK: [], AZ: ['CA','NV','UT','CO','NM'],
-  AR: ['MO','TN','MS','LA','TX','OK'], CA: ['OR','NV','AZ'],
-  CO: ['WY','NE','KS','OK','NM','AZ','UT'], CT: ['NY','MA','RI'],
-  DE: ['MD','PA','NJ'], FL: ['GA','AL'], GA: ['FL','AL','TN','NC','SC'],
-  HI: [], ID: ['MT','WY','UT','NV','OR','WA'], IL: ['WI','IA','MO','KY','IN'],
-  IN: ['MI','OH','KY','IL'], IA: ['MN','WI','IL','MO','NE','SD'],
-  KS: ['NE','MO','OK','CO'], KY: ['OH','WV','VA','TN','MO','IL','IN'],
-  LA: ['TX','AR','MS'], ME: ['NH'], MD: ['PA','DE','WV','VA'],
-  MA: ['RI','CT','NY','NH','VT'], MI: ['OH','IN','WI'],
-  MN: ['WI','IA','SD','ND'], MS: ['TN','AL','LA','AR'],
-  MO: ['IA','IL','KY','TN','AR','OK','KS','NE'], MT: ['ID','WY','SD','ND'],
-  NE: ['SD','IA','MO','KS','CO','WY'], NV: ['OR','ID','UT','AZ','CA'],
-  NH: ['VT','ME','MA'], NJ: ['NY','PA','DE'], NM: ['CO','OK','TX','AZ'],
-  NY: ['VT','MA','CT','NJ','PA'], NC: ['VA','TN','GA','SC'],
-  ND: ['MT','SD','MN'], OH: ['PA','WV','KY','IN','MI'],
-  OK: ['KS','MO','AR','TX','NM','CO'], OR: ['WA','ID','NV','CA'],
-  PA: ['NY','NJ','DE','MD','WV','OH'], RI: ['CT','MA'], SC: ['NC','GA'],
-  SD: ['ND','MN','IA','NE','WY','MT'], TN: ['KY','VA','NC','GA','AL','MS','AR','MO'],
-  TX: ['NM','OK','AR','LA'], UT: ['ID','WY','CO','NM','AZ','NV'],
-  VT: ['NY','NH','MA'], VA: ['MD','WV','KY','TN','NC'],
-  WA: ['OR','ID'], WV: ['OH','PA','MD','VA','KY'], WI: ['MN','MI','IL','IA'],
-  WY: ['MT','SD','NE','CO','UT','ID'], DC: ['MD','VA'],
-}
-
-async function getCandidatePartnersFromDB(
+async function gatherEvidence(
+  agentName: string,
+  agentState: string,
   tree: 'integrity' | 'amerilife' | 'sms',
-  agentState: string
-): Promise<NetworkPartner[]> {
-  const state = agentState.toUpperCase()
-  const neighbors = STATE_NEIGHBORS[state] || []
-  const regionalStates = [state, ...neighbors]
+  serpKey: string,
+  existingSnippets: string[] = [],
+): Promise<{ snippets: string[]; domainSignals: string[] }> {
+  const treeShort =
+    tree === 'integrity' ? 'Integrity'
+    : tree === 'amerilife' ? 'AmeriLife'
+    : 'SMS'
 
-  // Try regional first
-  const { data: regional } = await supabase
-    .from('network_partners')
-    .select('id, name, aliases, tree, segment, city, state, coords, website, status, source')
-    .eq('tree', tree)
-    .eq('status', 'active')
-    .in('state', regionalStates)
-    .limit(20)
+  const q1 = `"${agentName}" "${treeShort}" appointed OR contracted OR "writing under" OR upline OR FMO OR IMO OR partner`
+  const q2 = `"${agentName}" "${treeShort}" trip OR leaderboard OR award OR "top producer" OR conference OR recognition OR summit`
 
-  if (regional && regional.length >= 5) {
-    // Sort: same-state first, then neighbors
-    return regional.sort((a, b) => {
-      if (a.state === state && b.state !== state) return -1
-      if (b.state === state && a.state !== state) return 1
-      return 0
-    })
+  const headers = { signal: AbortSignal.timeout(7000) }
+  const base = `https://serpapi.com/search.json?engine=google&num=8&api_key=${serpKey}`
+
+  const [res1, res2] = await Promise.all([
+    fetch(`${base}&q=${encodeURIComponent(q1)}`, headers).catch(() => null),
+    fetch(`${base}&q=${encodeURIComponent(q2)}`, headers).catch(() => null),
+  ])
+
+  const results1: any[] = res1?.ok ? (await res1.json()).organic_results || [] : []
+  const results2: any[] = res2?.ok ? (await res2.json()).organic_results || [] : []
+
+  const snippets: string[] = [...existingSnippets]
+  const domainSignals: string[] = []
+
+  for (const r of [...results1, ...results2]) {
+    const text = [r.title, r.snippet, r.link].filter(Boolean).join(' | ')
+    if (text) snippets.push(text)
+    // Pull any .com domains from URLs — might be sub-IMO sites
+    const urlMatch = (r.link || '').match(/https?:\/\/(?:www\.)?([a-z0-9\-]+\.[a-z]{2,})/i)
+    if (urlMatch) domainSignals.push(urlMatch[1].toLowerCase())
   }
 
-  // Fall back to full tree if regional coverage is thin
-  const { data: full } = await supabase
-    .from('network_partners')
-    .select('id, name, aliases, tree, segment, city, state, coords, website, status, source')
-    .eq('tree', tree)
-    .eq('status', 'active')
-    .limit(40)
-
-  return full || []
+  return { snippets, domainSignals }
 }
 
-// ─── RESOLVER ─────────────────────────────────────────────────────────────────
+// ─── AI RESOLVER ──────────────────────────────────────────────────────────────
+// Feeds all evidence to Claude Haiku with no candidate list.
+// Asks it to name whoever sits between the agent and the tree.
+// Returns the name + confidence + evidence quote, or null.
+
+type AIResolution = {
+  name: string
+  confidence: 'HIGH' | 'MED' | 'LOW'
+  evidence: string
+  evidenceType: 'contracting_language' | 'association_event' | 'domain_signal' | 'comention' | 'brand_content'
+} | null
+
+async function resolveWithAI(
+  agentName: string,
+  agentState: string,
+  tree: 'integrity' | 'amerilife' | 'sms',
+  snippets: string[],
+  domainSignals: string[],
+  networkSignals: NetworkSignal[],
+): Promise<AIResolution> {
+  if (snippets.length === 0 && domainSignals.length === 0) return null
+
+  const treeName =
+    tree === 'integrity' ? 'Integrity Marketing Group'
+    : tree === 'amerilife' ? 'AmeriLife'
+    : 'Senior Market Sales (SMS)'
+
+  // Give the AI context about known partners as hints — NOT as the candidate list.
+  // This helps it recognize names when they appear, but doesn't limit what it can return.
+  const knownPartnerHints = networkSignals
+    .filter(s => s.tree === tree && s.partner !== null && !s.isAlias)
+    .slice(0, 30)
+    .map(s => s.partner!.name)
+    .join(', ')
+
+  const evidenceText = snippets.slice(0, 20).join('\n\n')
+  const domainContext = domainSignals.length > 0
+    ? `\nDOMAINS FOUND IN RESULTS: ${[...new Set(domainSignals)].slice(0, 10).join(', ')}`
+    : ''
+
+  const prompt = `You are analyzing public web evidence to identify the sub-IMO or FMO sitting between an insurance agent and their parent distribution tree.
+
+AGENT: "${agentName}" (${agentState})
+PARENT TREE: ${treeName}
+
+YOUR TASK: Identify the named partner agency, FMO, or IMO that sits directly between this agent and ${treeName}. This is the organization the agent is contracted through — their immediate upline, not the parent tree itself.
+
+EVIDENCE:
+${evidenceText}${domainContext}
+
+KNOWN PARTNERS IN THIS TREE (for reference only — your answer is NOT limited to this list):
+${knownPartnerHints || 'None loaded'}
+
+CONFIDENCE GUIDE:
+- HIGH: Explicit contracting language ("appointed through X", "contracted with X", "writing under X", "my upline is X"), or agent is on their leaderboard/award list, or they share branded content from X
+- MED: Co-mentioned in an association context (trip, conference, award), or domain co-appears with agent, or agent appears in their agent portal
+- LOW: Name appears near agent in results but relationship is unclear
+
+RULES:
+- Name only ONE organization — the most direct upline, not the parent tree itself
+- Do NOT name ${treeName} itself — we already know the tree
+- Do NOT name generic carriers (Humana, Aetna, UnitedHealth, etc.)
+- Do NOT guess if there is no real evidence. Return found: false.
+- If two candidates appear, pick the one with stronger/more explicit evidence
+- The answer may be a company NOT in the known partners list — that is fine and expected
+
+Respond with ONLY valid JSON:
+{
+  "found": true,
+  "name": "exact organization name as it appears in the evidence",
+  "confidence": "HIGH" | "MED" | "LOW",
+  "evidence": "the exact quote or context that reveals this relationship",
+  "evidenceType": "contracting_language" | "association_event" | "domain_signal" | "comention" | "brand_content"
+}
+
+OR if nothing clear found:
+{ "found": false }`
+
+  try {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const res = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      messages: [{ role: 'user', content: prompt }],
+    })
+
+    const raw = ((res.content[0] as any).text || '').replace(/```json|```/g, '').trim()
+    const parsed = JSON.parse(raw)
+
+    if (!parsed.found || !parsed.name) return null
+
+    return {
+      name: parsed.name,
+      confidence: ['HIGH', 'MED', 'LOW'].includes(parsed.confidence) ? parsed.confidence : 'MED',
+      evidence: parsed.evidence || '',
+      evidenceType: parsed.evidenceType || 'comention',
+    }
+  } catch {
+    return null
+  }
+}
+
+// ─── DB ENRICHMENT ────────────────────────────────────────────────────────────
+// Takes the AI's named answer and looks it up in network_partners + discovered_fmos.
+// Returns the UUID if found, null if it's a new discovery.
+// Fuzzy match — the AI may return a slightly different form of the name.
+
+async function enrichFromDB(
+  name: string,
+  tree: 'integrity' | 'amerilife' | 'sms',
+): Promise<{ id: string | null; isKnown: boolean }> {
+  const nameLower = name.toLowerCase().trim()
+
+  // Exact name match first
+  const { data: exact } = await supabase
+    .from('network_partners')
+    .select('id, name, aliases')
+    .eq('tree', tree)
+    .eq('status', 'active')
+    .ilike('name', name)
+    .limit(1)
+
+  if (exact && exact.length > 0) return { id: exact[0].id, isKnown: true }
+
+  // Check aliases
+  const { data: all } = await supabase
+    .from('network_partners')
+    .select('id, name, aliases')
+    .eq('tree', tree)
+    .eq('status', 'active')
+
+  for (const partner of all || []) {
+    for (const alias of partner.aliases || []) {
+      if (alias.toLowerCase().includes(nameLower) || nameLower.includes(alias.toLowerCase())) {
+        return { id: partner.id, isKnown: true }
+      }
+    }
+    // Fuzzy: if the AI name contains the partner name or vice versa (handles "XYZ Insurance" vs "XYZ")
+    const partnerLower = partner.name.toLowerCase()
+    if (nameLower.includes(partnerLower) || partnerLower.includes(nameLower)) {
+      return { id: partner.id, isKnown: true }
+    }
+  }
+
+  // Check discovered_fmos too
+  const { data: discovered } = await supabase
+    .from('discovered_fmos')
+    .select('id, name')
+    .ilike('name', name)
+    .limit(1)
+
+  if (discovered && discovered.length > 0) return { id: discovered[0].id, isKnown: false }
+
+  return { id: null, isKnown: false }
+}
+
+// ─── CONFIDENCE → NUMERIC ─────────────────────────────────────────────────────
+
+function confidenceToNumber(
+  tier: 'HIGH' | 'MED' | 'LOW',
+  evidenceType: string,
+  isKnown: boolean,
+): number {
+  const base =
+    tier === 'HIGH' ? 85
+    : tier === 'MED' ? 65
+    : 45
+
+  // Bonus for explicit contracting language
+  const typeBonus = evidenceType === 'contracting_language' ? 8
+    : evidenceType === 'brand_content' ? 5
+    : 0
+
+  // Slight boost if DB confirmed — validates the AI's read
+  const knownBonus = isKnown ? 5 : 0
+
+  return Math.min(96, base + typeBonus + knownBonus)
+}
+
+// ─── MAIN RESOLVER ────────────────────────────────────────────────────────────
 
 export async function resolveChain(
   agentName: string,
   agentState: string,
   tree: 'integrity' | 'amerilife' | 'sms',
-  serpKey: string
+  serpKey: string,
+  networkSignals: NetworkSignal[] = [],
+  existingSnippets: string[] = [],  // pass in snippets already gathered in route.ts
 ): Promise<ChainResult> {
   try {
-    const candidates = (await getCandidatePartnersFromDB(tree, agentState)).slice(0, 8)
-    if (candidates.length === 0) return null
+    // Step 1: Gather fresh evidence (+ any snippets already collected upstream)
+    const { snippets, domainSignals } = await gatherEvidence(
+      agentName, agentState, tree, serpKey, existingSnippets
+    )
 
-    const treeName = tree === 'integrity' ? 'Integrity Marketing Group'
-      : tree === 'amerilife' ? 'AmeriLife'
-      : 'Senior Market Sales'
-    const treeShort = tree === 'integrity' ? 'Integrity'
-      : tree === 'amerilife' ? 'AmeriLife'
-      : 'SMS'
+    if (snippets.length === 0) return null
 
-    const partnerTerms = candidates.flatMap(p => [
-      `"${p.name}"`,
-      ...(p.aliases || []).map((a: string) => `"${a}"`),
-    ]).join(' OR ')
+    // Step 2: AI reads the evidence — no candidate list, fully open world
+    const aiResult = await resolveWithAI(
+      agentName, agentState, tree, snippets, domainSignals, networkSignals
+    )
 
-    const q1 = `"${agentName}" (${partnerTerms})`
-    const q2 = `"${agentName}" "${treeShort}" trip OR leaderboard OR award OR appointed OR contracted OR partner OR "top producer" OR conference OR achievement OR recognition OR summit OR qualifier`
+    if (!aiResult) return null
 
-    const [res1, res2] = await Promise.all([
-      fetch(`https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q1)}&num=8&api_key=${serpKey}`, { signal: AbortSignal.timeout(7000) }).catch(() => null),
-      fetch(`https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q2)}&num=8&api_key=${serpKey}`, { signal: AbortSignal.timeout(7000) }).catch(() => null),
-    ])
+    // Step 3: DB enrichment — look up the AI's answer, get UUID if known
+    const { id, isKnown } = await enrichFromDB(aiResult.name, tree)
 
-    const results1: any[] = res1?.ok ? (await res1.json()).organic_results || [] : []
-    const results2: any[] = res2?.ok ? (await res2.json()).organic_results || [] : []
-
-    const agentLower = agentName.toLowerCase()
-    const allSignals: ChainSignal[] = []
-
-    type CandidateScore = { partner: NetworkPartner; score: number }
-    const candidateScores: CandidateScore[] = []
-
-    for (const partner of candidates) {
-      let score = 0
-      const nameLower = partner.name.toLowerCase()
-      const domainLower = (partner.website || '').toLowerCase().replace('www.', '')
-
-      for (const r of results1.slice(0, 8)) {
-        const combined = `${r.title || ''} ${r.snippet || ''} ${r.link || ''}`.toLowerCase()
-        if (!combined.includes(agentLower)) continue
-
-        if (domainLower && combined.includes(domainLower)) {
-          score += 50
-          allSignals.push({
-            tier: 'HIGH', type: 'domain', entity: partner.name,
-            text: `Domain ${partner.website} co-appears with agent in: "${(r.title || '').slice(0, 70)}"`,
-            source: 'partner_query',
-          })
-          break
-        }
-
-        if (combined.includes(nameLower)) {
-          score += 30
-          const hasUpline = UPLINE_KEYWORDS.some(k => combined.includes(k))
-          allSignals.push({
-            tier: hasUpline ? 'HIGH' : 'MED',
-            type: hasUpline ? 'relationship' : 'comention',
-            entity: partner.name,
-            text: `"${(r.title || '').slice(0, 70)}" — co-mentions agent and ${partner.name}${hasUpline ? ' with contracting language' : ''}`,
-            source: 'partner_query',
-          })
-          break
-        }
-
-        for (const alias of partner.aliases || []) {
-          const aliasLower = alias.toLowerCase()
-          if (combined.includes(aliasLower)) {
-            const isShort = alias.length <= 4
-            score += isShort ? 15 : 30
-            allSignals.push({
-              tier: isShort ? 'LOW' : 'MED', type: 'alias', entity: partner.name,
-              text: `Alias "${alias}" (${partner.name}) co-appears with agent in results`,
-              source: 'partner_query',
-            })
-            break
-          }
-        }
-      }
-
-      if (score > 0) candidateScores.push({ partner, score })
-    }
-
-    for (const r of results2.slice(0, 6)) {
-      const combined = `${r.title || ''} ${r.snippet || ''}`.toLowerCase()
-      if (!combined.includes(agentLower)) continue
-
-      const uplineMatch = UPLINE_KEYWORDS.find(k => combined.includes(k))
-      if (uplineMatch) {
-        allSignals.push({
-          tier: 'HIGH', type: 'relationship', entity: treeName,
-          text: `"${(r.title || '').slice(0, 70)}" — contains contracting language "${uplineMatch}"`,
-          source: 'relationship_query',
+    // Step 4: If it's new — write to discovered_fmos (the learning loop)
+    let isNewDiscovery = false
+    if (!isKnown) {
+      isNewDiscovery = true
+      try {
+        await supabase.rpc('upsert_discovered_fmo', {
+          p_name:       aiResult.name,
+          p_evidence:   {
+            quote:       aiResult.evidence,
+            source_url:  '',
+            agent_name:  agentName,
+            confidence:  aiResult.confidence,
+            seen_at:     new Date().toISOString(),
+          },
+          p_state:      agentState || 'XX',
+          p_confidence: aiResult.confidence,
         })
-        for (const cs of candidateScores) {
-          if (combined.includes(cs.partner.name.toLowerCase())) cs.score += 35
-        }
-        continue
-      }
-
-      const assocMatch = ASSOCIATION_KEYWORDS.find(k => combined.includes(k))
-      if (assocMatch) {
-        allSignals.push({
-          tier: 'MED', type: 'association', entity: treeName,
-          text: `"${(r.title || '').slice(0, 70)}" — association signal: "${assocMatch}"`,
-          source: 'relationship_query',
-        })
-        for (const cs of candidateScores) {
-          if (combined.includes(cs.partner.name.toLowerCase())) cs.score += 20
-        }
+      } catch (err) {
+        console.warn('[chain-resolver] discovered_fmos write failed:', err)
       }
     }
 
-    candidateScores.sort((a, b) => b.score - a.score)
-    const best = candidateScores[0]
+    // Build chain signal for the UI
+    const tierMap: Record<string, 'HIGH' | 'MED' | 'LOW'> = {
+      contracting_language: 'HIGH',
+      brand_content: 'HIGH',
+      association_event: 'MED',
+      domain_signal: 'MED',
+      comention: 'LOW',
+    }
 
-    const hasResolved = best && best.score >= 65
-    const confidence = hasResolved
-      ? Math.min(92, Math.round((best.score / 145) * 100))
-      : null
+    const typeMap: Record<string, ChainSignal['type']> = {
+      contracting_language: 'relationship',
+      brand_content: 'name',
+      association_event: 'association',
+      domain_signal: 'domain',
+      comention: 'comention',
+    }
 
-    if (allSignals.length === 0 && !hasResolved) return null
+    const chainSignals: ChainSignal[] = [{
+      tier: tierMap[aiResult.evidenceType] || aiResult.confidence,
+      type: typeMap[aiResult.evidenceType] || 'comention',
+      entity: aiResult.name,
+      text: aiResult.evidence,
+      source: 'ai_inference',
+    }]
+
+    const numericConfidence = confidenceToNumber(aiResult.confidence, aiResult.evidenceType, isKnown)
 
     return {
-      resolved_partner_name: hasResolved ? best.partner.name : null,
-      resolved_partner_id: hasResolved ? best.partner.id : null,   // UUID string
-      resolved_partner_tree: hasResolved ? best.partner.tree : null,
-      resolved_confidence: confidence,
-      chain_signals: allSignals,
+      resolved_partner_name: aiResult.name,
+      resolved_partner_id: id,
+      resolved_partner_tree: tree,
+      resolved_confidence: numericConfidence,
+      chain_signals: chainSignals,
+      is_new_discovery: isNewDiscovery,
     }
   } catch {
     return null
