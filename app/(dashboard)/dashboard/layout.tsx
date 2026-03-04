@@ -48,7 +48,7 @@ export default async function DashboardLayout({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
           {/* ── Standard user nav ── */}
-          <Link href="/dashboard" style={{
+          <Link href="/dashboard" data-nav="dashboard" style={{
             fontFamily: "'DM Mono', monospace", fontSize: 11,
             color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none',
           }}>
