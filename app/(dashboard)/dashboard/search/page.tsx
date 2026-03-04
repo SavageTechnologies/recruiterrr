@@ -96,6 +96,13 @@ const LOADING_STEPS = [
   'Scoring recruitability',
 ]
 
+const LOOKUP_STEPS = [
+  'Searching the open web',
+  'Locating agent website',
+  'Crawling website content',
+  'Scoring recruitability',
+]
+
 type Agent = {
   name: string; type: string; phone: string; address: string
   rating: number; reviews: number; website: string | null
@@ -104,6 +111,11 @@ type Agent = {
   hiring: boolean; hiring_roles: string[]
   youtube_channel: string | null; youtube_subscribers: string | null; youtube_video_count: number
   about: string | null; contact_email: string | null; social_links: string[]
+  // Lookup-only fields
+  confidence?: 'HIGH' | 'MEDIUM' | 'LOW'
+  confidence_note?: string
+  source_url?: string | null
+  source_title?: string | null
 }
 
 type CitySuggestion = { city: string; state: string; state_name: string; county: string; label: string }
@@ -369,9 +381,15 @@ function DetailPanel({ agent }: { agent: Agent | null }) {
 function SearchPageInner() {
   const searchParams = useSearchParams()
 
+  // Shared state
   const [city, setCity]                   = useState('')
   const [state, setState]                 = useState('KS')
   const [mode, setMode]                   = useState('medicare')
+
+  // Search mode toggle
+  const [searchMode, setSearchMode]       = useState<'market' | 'lookup'>('market')
+
+  // Market sweep state
   const [loading, setLoading]             = useState(false)
   const [currentStep, setCurrentStep]     = useState(-1)
   const [agents, setAgents]               = useState<Agent[]>([])
@@ -381,6 +399,13 @@ function SearchPageInner() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [showAll, setShowAll]             = useState(false)
   const [searchCollapsed, setSearchCollapsed] = useState(false)
+
+  // Agent lookup state
+  const [lookupName, setLookupName]           = useState('')
+  const [lookupLoading, setLookupLoading]     = useState(false)
+  const [lookupStep, setLookupStep]           = useState(-1)
+  const [lookupResult, setLookupResult]       = useState<Agent | null>(null)
+  const [lookupError, setLookupError]         = useState('')
 
   // City autocomplete
   const [suggestions, setSuggestions]     = useState<CitySuggestion[]>([])
@@ -484,6 +509,35 @@ function SearchPageInner() {
     setSearched(true)
   }
 
+  async function runLookup() {
+    if (!lookupName.trim() || lookupLoading) return
+    setLookupLoading(true)
+    setLookupResult(null)
+    setLookupError('')
+    setLookupStep(0)
+
+    const stepInterval = setInterval(() => {
+      setLookupStep(prev => prev < LOOKUP_STEPS.length - 1 ? prev + 1 : prev)
+    }, 2000)
+
+    try {
+      const res = await fetch('/api/search/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: lookupName.trim(), city: city.trim(), state, mode }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setLookupResult(data.agent)
+    } catch (err: any) {
+      setLookupError(err.message || 'Lookup failed. Try again.')
+    }
+
+    clearInterval(stepInterval)
+    setLookupStep(-1)
+    setLookupLoading(false)
+  }
+
   const selectedAgent = selectedIndex !== null ? agents[selectedIndex] : null
 
   // Only show HOT and WARM by default; reveal COLD on toggle
@@ -501,233 +555,512 @@ function SearchPageInner() {
         select option { background: #1a1814; }
       `}</style>
 
-      {/* ── Page header (hidden once searched) ── */}
+      {/* ── Page header (hidden once market search collapses) ── */}
       {!searchCollapsed && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>
-            Market Search
+            {searchMode === 'market' ? 'Market Search' : 'Agent Lookup'}
           </div>
-          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>
-            FIND AGENTS<span style={{ color: 'var(--orange)' }}>.</span>
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+            <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>
+              {searchMode === 'market'
+                ? <span>FIND AGENTS<span style={{ color: 'var(--orange)' }}>.</span></span>
+                : <span>AGENT LOOKUP<span style={{ color: 'var(--orange)' }}>.</span></span>
+              }
+            </h1>
+            {/* Mode toggle */}
+            <div style={{ display: 'flex', gap: 2, marginBottom: 6 }}>
+              {(['market', 'lookup'] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setSearchMode(m)
+                    setLookupResult(null)
+                    setLookupError('')
+                  }}
+                  style={{
+                    background: searchMode === m ? 'var(--card)' : 'transparent',
+                    border: `1px solid ${searchMode === m ? 'var(--border-light)' : 'var(--border)'}`,
+                    color: searchMode === m ? 'var(--orange)' : 'var(--muted)',
+                    fontFamily: "'DM Mono', monospace",
+                    fontSize: 10, letterSpacing: 2,
+                    padding: '8px 18px', cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                >
+                  {m === 'market' ? '◈ MARKET SWEEP' : '⊕ AGENT LOOKUP'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {searchMode === 'lookup' && (
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 1, marginTop: 6 }}>
+              Find and score a specific agent by name — works without a Google Business listing.
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── Collapsed search bar (post-search) ── */}
-      {searchCollapsed ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: 'var(--card)', border: '1px solid var(--border-light)', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)', letterSpacing: 1 }}>
-              {searchLabel} · {agents.length} results
-            </span>
-          </div>
-          <button
-            onClick={() => { setSearchCollapsed(false); setSearched(false); setAgents([]) }}
-            style={{ background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '5px 12px', cursor: 'pointer' }}
-          >
-            NEW SEARCH ↓
-          </button>
-        </div>
-      ) : (
-        /* ── Search form ── */
+      {/* ════════════════════════════════════════════════════════
+          MARKET SWEEP UI
+          ════════════════════════════════════════════════════════ */}
+      {searchMode === 'market' && (
         <>
-          <div style={{
-            display: 'flex', gap: 0,
-            border: `1px solid ${loading ? 'var(--orange)' : 'var(--border-light)'}`,
-            background: 'var(--card)', marginBottom: 12,
-            boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none',
-            transition: 'border-color 0.2s, box-shadow 0.2s',
-          }}>
-            {/* Mode selector */}
-            <select
-              value={mode}
-              onChange={e => setMode(e.target.value)}
-              disabled={loading}
-              style={{ width: 180, padding: '18px 12px', background: 'transparent', border: 'none', borderRight: '1px solid var(--border-light)', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0 }}
-            >
-              {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-
-            {/* City autocomplete */}
-            <div ref={acRef} style={{ position: 'relative', flex: 1 }}>
-              <input
-                value={city}
-                onChange={e => handleCityChange(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { setShowSuggestions(false); runSearch() } if (e.key === 'Escape') setShowSuggestions(false) }}
-                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                placeholder="City"
-                disabled={loading}
-                autoComplete="off"
-                style={{ width: '100%', padding: '18px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
-              />
-              {acLoading && (
-                <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
-                  <div style={{ width: 10, height: 10, border: '1px solid var(--border-light)', borderTopColor: 'var(--orange)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                </div>
-              )}
-              {showSuggestions && suggestions.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: -1, right: -1, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 300 }}>
-                  {suggestions.map((s, i) => (
-                    <div
-                      key={i}
-                      onMouseDown={() => selectSuggestion(s)}
-                      style={{ padding: '11px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <div>
-                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
-                        {s.county && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 1, marginLeft: 8 }}>{s.county} CO.</span>}
-                      </div>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2, flexShrink: 0 }}>{s.state}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Search button */}
-            <button
-              onClick={() => runSearch()}
-              disabled={loading || !city.trim()}
-              style={{ padding: '18px 36px', background: loading ? '#333' : 'var(--orange)', border: 'none', borderLeft: '1px solid var(--border-light)', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}
-            >
-              {loading ? 'SCANNING...' : 'SEARCH'}
-            </button>
-          </div>
-
-          {/* Operator intelligence (shown before first search only) */}
-          {!searched && !loading && (
-            <div style={{ marginTop: 32, marginBottom: 40 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 16 }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
-                  Operator Intelligence
-                </div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
-                  — {mode === 'annuities' ? 'how to find FIA & MYGA producers hiding in plain sight' : 'how to get the most out of every search'}
-                </div>
+          {/* Collapsed search bar (post-search) */}
+          {searchCollapsed ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: 'var(--card)', border: '1px solid var(--border-light)', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)', letterSpacing: 1 }}>
+                  {searchLabel} · {agents.length} results
+                </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
-                {(mode === 'annuities' ? ANNUITY_TIPS : OPERATOR_TIPS).map((tip, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      background: 'var(--card)', border: '1px solid var(--border)',
-                      borderTop: `2px solid ${tip.color}`,
-                      padding: '20px 22px',
-                    }}
-                  >
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: tip.color, letterSpacing: 2, marginBottom: 10 }}>
-                      {tip.tag}
+              <button
+                onClick={() => { setSearchCollapsed(false); setSearched(false); setAgents([]) }}
+                style={{ background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '5px 12px', cursor: 'pointer' }}
+              >
+                NEW SEARCH ↓
+              </button>
+            </div>
+          ) : (
+            /* Search form */
+            <>
+              <div style={{
+                display: 'flex', gap: 0,
+                border: `1px solid ${loading ? 'var(--orange)' : 'var(--border-light)'}`,
+                background: 'var(--card)', marginBottom: 12,
+                boxShadow: loading ? '0 0 0 1px var(--orange)' : 'none',
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+              }}>
+                {/* Mode selector */}
+                <select
+                  value={mode}
+                  onChange={e => setMode(e.target.value)}
+                  disabled={loading}
+                  style={{ width: 180, padding: '18px 12px', background: 'transparent', border: 'none', borderRight: '1px solid var(--border-light)', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0 }}
+                >
+                  {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+
+                {/* City autocomplete */}
+                <div ref={acRef} style={{ position: 'relative', flex: 1 }}>
+                  <input
+                    value={city}
+                    onChange={e => handleCityChange(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { setShowSuggestions(false); runSearch() } if (e.key === 'Escape') setShowSuggestions(false) }}
+                    onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                    placeholder="City"
+                    disabled={loading}
+                    autoComplete="off"
+                    style={{ width: '100%', padding: '18px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
+                  />
+                  {acLoading && (
+                    <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+                      <div style={{ width: 10, height: 10, border: '1px solid var(--border-light)', borderTopColor: 'var(--orange)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 8, lineHeight: 1.3 }}>
-                      {tip.headline}
+                  )}
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: -1, right: -1, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 300 }}>
+                      {suggestions.map((s, i) => (
+                        <div
+                          key={i}
+                          onMouseDown={() => selectSuggestion(s)}
+                          style={{ padding: '11px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div>
+                            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
+                            {s.county && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 1, marginLeft: 8 }}>{s.county} CO.</span>}
+                          </div>
+                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2, flexShrink: 0 }}>{s.state}</span>
+                        </div>
+                      ))}
                     </div>
-                    <div style={{ fontSize: 11, color: '#555', lineHeight: 1.7 }}>
-                      {tip.body}
+                  )}
+                </div>
+
+                {/* Search button */}
+                <button
+                  onClick={() => runSearch()}
+                  disabled={loading || !city.trim()}
+                  style={{ padding: '18px 36px', background: loading ? '#333' : 'var(--orange)', border: 'none', borderLeft: '1px solid var(--border-light)', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: 'var(--black)', transition: 'background 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}
+                >
+                  {loading ? 'SCANNING...' : 'SEARCH'}
+                </button>
+              </div>
+
+              {/* Operator tips (shown before first search only) */}
+              {!searched && !loading && (
+                <div style={{ marginTop: 32, marginBottom: 40 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 16 }}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
+                      Operator Intelligence
                     </div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
+                      — {mode === 'annuities' ? 'how to find FIA & MYGA producers hiding in plain sight' : 'how to get the most out of every search'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+                    {(mode === 'annuities' ? ANNUITY_TIPS : OPERATOR_TIPS).map((tip, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          background: 'var(--card)', border: '1px solid var(--border)',
+                          borderTop: `2px solid ${tip.color}`,
+                          padding: '20px 22px',
+                        }}
+                      >
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: tip.color, letterSpacing: 2, marginBottom: 10 }}>
+                          {tip.tag}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 8, lineHeight: 1.3 }}>
+                          {tip.headline}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#555', lineHeight: 1.7 }}>
+                          {tip.body}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Loading state */}
+          {loading && currentStep >= 0 && (
+            <div style={{ marginBottom: 40 }}>
+              <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 20 }}>
+                <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--orange)', animation: 'loadSlide 1s ease-in-out infinite' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {LOADING_STEPS.map((step, i) => (
+                  <div key={step} style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 10, color: i < currentStep ? 'var(--green)' : i === currentStep ? 'var(--orange)' : '#333', transition: 'color 0.3s' }}>
+                    <span style={{ fontSize: 8 }}>{i < currentStep ? '●' : i === currentStep ? '◐' : '○'}</span>
+                    {step}
                   </div>
                 ))}
               </div>
             </div>
           )}
+
+          {/* Error */}
+          {error && (
+            <div style={{ padding: '16px 20px', border: '1px solid var(--red)', background: 'rgba(255,23,68,0.05)', color: 'var(--red)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 1, marginBottom: 32 }}>
+              {error}
+            </div>
+          )}
+
+          {/* Results */}
+          {searched && !loading && (
+            <>
+              {/* Results header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
+                  {searchLabel} — {MODES.find(m => m.value === mode)?.label} Agents
+                </div>
+                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)' }}>◈ {hotCount} HOT</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--yellow)' }}>{warmCount} WARM</div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--orange)' }}>{agents.length} TOTAL</div>
+                </div>
+              </div>
+
+              {/* Signal badges */}
+              {agents.length > 0 && (
+                <div style={{ display: 'flex', gap: 2, marginBottom: 16 }}>
+                  <div style={{ flex: 1, padding: '8px 14px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)' }}>
+                    ◈ {agents.filter(a => a.hiring).length} ACTIVELY HIRING
+                  </div>
+                  <div style={{ flex: 1, padding: '8px 14px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#ff4444' }}>
+                    ▸ {agents.filter(a => a.youtube_channel).length} HAVE YOUTUBE
+                  </div>
+                  <div style={{ flex: 1, padding: '8px 14px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)' }}>
+                    ◎ {agents.filter(a => a.website).length} HAVE WEBSITE
+                  </div>
+                </div>
+              )}
+
+              {agents.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '80px 0', background: 'var(--card)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#222', marginBottom: 12 }}>NO AGENTS FOUND</div>
+                  <div style={{ fontSize: 14, color: 'var(--muted)' }}>Try a larger city or different search terms.</div>
+                </div>
+              ) : (
+                /* Two column: list + detail */
+                <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 0, alignItems: 'start' }}>
+                  {/* Left: Agent list */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, borderRight: '1px solid var(--border)' }}>
+                    {visibleAgents.map((agent, i) => (
+                      <CompactAgentCard
+                        key={i}
+                        agent={agent}
+                        index={i}
+                        isSelected={selectedIndex === i}
+                        onSelect={() => setSelectedIndex(i)}
+                      />
+                    ))}
+                    {coldCount > 0 && (
+                      <button
+                        onClick={() => setShowAll(v => !v)}
+                        style={{ margin: '4px 0', padding: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, cursor: 'pointer', textAlign: 'center' }}
+                      >
+                        {showAll ? `▲ HIDE ${coldCount} PASS` : `▼ SHOW ${coldCount} PASS`}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Right: Detail panel */}
+                  <div style={{ position: 'sticky', top: 16 }}>
+                    <DetailPanel agent={selectedAgent} />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
 
-      {/* ── Loading state ── */}
-      {loading && currentStep >= 0 && (
-        <div style={{ marginBottom: 40 }}>
-          <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 20 }}>
-            <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--orange)', animation: 'loadSlide 1s ease-in-out infinite' }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {LOADING_STEPS.map((step, i) => (
-              <div key={step} style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 10, color: i < currentStep ? 'var(--green)' : i === currentStep ? 'var(--orange)' : '#333', transition: 'color 0.3s' }}>
-                <span style={{ fontSize: 8 }}>{i < currentStep ? '●' : i === currentStep ? '◐' : '○'}</span>
-                {step}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ════════════════════════════════════════════════════════
+          AGENT LOOKUP UI
+          ════════════════════════════════════════════════════════ */}
+      {searchMode === 'lookup' && (
+        <div>
+          {/* Lookup form */}
+          <div style={{
+            display: 'flex', gap: 0,
+            border: `1px solid ${lookupLoading ? 'var(--orange)' : 'var(--border-light)'}`,
+            background: 'var(--card)', marginBottom: 2,
+            boxShadow: lookupLoading ? '0 0 0 1px var(--orange)' : 'none',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
+          }}>
+            {/* Vertical mode — shared with market sweep */}
+            <select
+              value={mode}
+              onChange={e => setMode(e.target.value)}
+              disabled={lookupLoading}
+              style={{ width: 180, padding: '18px 12px', background: 'transparent', border: 'none', borderRight: '1px solid var(--border-light)', outline: 'none', color: 'var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 11, cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0 }}
+            >
+              {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
 
-      {/* ── Error ── */}
-      {error && (
-        <div style={{ padding: '16px 20px', border: '1px solid var(--red)', background: 'rgba(255,23,68,0.05)', color: 'var(--red)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 1, marginBottom: 32 }}>
-          {error}
-        </div>
-      )}
+            {/* Agent name */}
+            <input
+              value={lookupName}
+              onChange={e => setLookupName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && runLookup()}
+              placeholder="Agent or agency name — e.g. John Smith Insurance"
+              disabled={lookupLoading}
+              autoComplete="off"
+              style={{ flex: 1, padding: '18px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }}
+            />
 
-      {/* ── Results ── */}
-      {searched && !loading && (
-        <>
-          {/* Results header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
-              {searchLabel} — {MODES.find(m => m.value === mode)?.label} Agents
+            <button
+              onClick={runLookup}
+              disabled={lookupLoading || !lookupName.trim()}
+              style={{ padding: '18px 36px', background: 'transparent', border: 'none', borderLeft: '1px solid var(--border-light)', cursor: lookupLoading || !lookupName.trim() ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 3, color: lookupLoading ? '#333' : 'var(--orange)', transition: 'color 0.15s', whiteSpace: 'nowrap' }}
+            >
+              {lookupLoading ? 'SCANNING...' : '⊕ LOOKUP'}
+            </button>
+          </div>
+
+          {/* Optional city + state row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 2, marginBottom: 2 }}>
+            <div ref={acRef} style={{ position: 'relative' }}>
+              <input
+                value={city}
+                onChange={e => handleCityChange(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { setShowSuggestions(false); runLookup() } if (e.key === 'Escape') setShowSuggestions(false) }}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                placeholder="City (optional — improves accuracy)"
+                disabled={lookupLoading}
+                autoComplete="off"
+                style={{ width: '100%', padding: '12px 16px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5, boxSizing: 'border-box' }}
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '1px solid var(--border-light)', borderTop: 'none', zIndex: 300 }}>
+                  {suggestions.map((s, i) => (
+                    <div key={i} onMouseDown={() => selectSuggestion(s)}
+                      style={{ padding: '10px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < suggestions.length - 1 ? '1px solid var(--border)' : 'none' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#1f1d19')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)' }}>{s.city}</span>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2 }}>{s.state}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--green)' }}>◈ {hotCount} HOT</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--yellow)' }}>{warmCount} WARM</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--orange)' }}>{agents.length} TOTAL</div>
-            </div>
+            <select
+              value={state}
+              onChange={e => setState(e.target.value)}
+              disabled={lookupLoading}
+              style={{ padding: '12px 8px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, appearance: 'none', textAlign: 'center' }}
+            >
+              {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
 
-          {/* Signal badges */}
-          {agents.length > 0 && (
-            <div style={{ display: 'flex', gap: 2, marginBottom: 16 }}>
-              <div style={{ flex: 1, padding: '8px 14px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)' }}>
-                ◈ {agents.filter(a => a.hiring).length} ACTIVELY HIRING
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#333', letterSpacing: 1, marginBottom: 24 }}>
+            SEARCHES THE OPEN WEB · WORKS WITHOUT A GOOGLE BUSINESS LISTING · CITY + STATE OPTIONAL BUT IMPROVE ACCURACY
+          </div>
+
+          {/* Lookup loading */}
+          {lookupLoading && lookupStep >= 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 20 }}>
+                <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--orange)', animation: 'loadSlide 1s ease-in-out infinite' }} />
               </div>
-              <div style={{ flex: 1, padding: '8px 14px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#ff4444' }}>
-                ▸ {agents.filter(a => a.youtube_channel).length} HAVE YOUTUBE
-              </div>
-              <div style={{ flex: 1, padding: '8px 14px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)' }}>
-                ◎ {agents.filter(a => a.website).length} HAVE WEBSITE
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {LOOKUP_STEPS.map((step, i) => (
+                  <div key={step} style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 10, color: i < lookupStep ? 'var(--green)' : i === lookupStep ? 'var(--orange)' : '#333', transition: 'color 0.3s' }}>
+                    <span style={{ fontSize: 8 }}>{i < lookupStep ? '●' : i === lookupStep ? '◐' : '○'}</span>
+                    {step}
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {agents.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '80px 0', background: 'var(--card)', border: '1px solid var(--border)' }}>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#222', marginBottom: 12 }}>NO AGENTS FOUND</div>
-              <div style={{ fontSize: 14, color: 'var(--muted)' }}>Try a larger city or different search terms.</div>
+          {/* Lookup error */}
+          {lookupError && (
+            <div style={{ padding: '16px 20px', border: '1px solid var(--red)', background: 'rgba(255,23,68,0.05)', color: 'var(--red)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 1, marginBottom: 24 }}>
+              {lookupError}
             </div>
-          ) : (
-            /* ── TWO COLUMN: list + detail ── */
-            <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 0, alignItems: 'start' }}>
+          )}
 
-              {/* LEFT: Agent list */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, borderRight: '1px solid var(--border)' }}>
-                {visibleAgents.map((agent, i) => (
-                  <CompactAgentCard
-                    key={i}
-                    agent={agent}
-                    index={i}
-                    isSelected={selectedIndex === i}
-                    onSelect={() => setSelectedIndex(i)}
-                  />
-                ))}
+          {/* Lookup result */}
+          {lookupResult && !lookupLoading && (
+            <div style={{ animation: 'slideIn 0.3s ease both' }}>
 
-                {/* Show COLD toggle */}
-                {coldCount > 0 && (
-                  <button
-                    onClick={() => setShowAll(v => !v)}
-                    style={{ margin: '4px 0', padding: '10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, cursor: 'pointer', textAlign: 'center' }}
-                  >
-                    {showAll ? `▲ HIDE ${coldCount} PASS` : `▼ SHOW ${coldCount} PASS`}
-                  </button>
+              {/* Confidence bar */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 16px', marginBottom: 2,
+                background: lookupResult.confidence === 'HIGH' ? 'rgba(0,230,118,0.04)' : lookupResult.confidence === 'MEDIUM' ? 'rgba(255,214,0,0.04)' : 'rgba(255,85,0,0.04)',
+                border: `1px solid ${lookupResult.confidence === 'HIGH' ? 'rgba(0,230,118,0.2)' : lookupResult.confidence === 'MEDIUM' ? 'rgba(255,214,0,0.2)' : 'rgba(255,85,0,0.2)'}`,
+              }}>
+                <span style={{
+                  fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2,
+                  color: lookupResult.confidence === 'HIGH' ? 'var(--green)' : lookupResult.confidence === 'MEDIUM' ? 'var(--yellow)' : 'var(--orange)',
+                }}>
+                  {lookupResult.confidence === 'HIGH' ? '● HIGH CONFIDENCE' : lookupResult.confidence === 'MEDIUM' ? '◐ MEDIUM CONFIDENCE' : '○ LOW CONFIDENCE'}
+                </span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 1 }}>
+                  {lookupResult.confidence_note}
+                </span>
+                {lookupResult.source_url && (
+                  <a href={lookupResult.source_url} target="_blank" rel="noopener noreferrer"
+                    style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1, textDecoration: 'none', marginLeft: 'auto' }}>
+                    SOURCE ↗
+                  </a>
                 )}
               </div>
 
-              {/* RIGHT: Detail panel */}
-              <div style={{ position: 'sticky', top: 16 }}>
-                <DetailPanel agent={selectedAgent} />
+              {/* Result card */}
+              <div style={{
+                background: 'var(--card)',
+                border: '1px solid var(--border-light)',
+                borderLeft: `3px solid ${lookupResult.flag === 'hot' ? 'var(--green)' : lookupResult.flag === 'warm' ? 'var(--yellow)' : 'var(--border)'}`,
+              }}>
+                {/* Header */}
+                <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'start' }}>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--white)', marginBottom: 4 }}>{lookupResult.name}</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>{lookupResult.type}</div>
+                    {lookupResult.about && (
+                      <p style={{ fontSize: 13, color: 'rgba(240,237,232,0.7)', lineHeight: 1.65, marginBottom: 12, margin: '0 0 12px 0' }}>{lookupResult.about}</p>
+                    )}
+                    {/* AI notes */}
+                    {lookupResult.notes && (
+                      <div style={{ padding: '12px 14px', background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 0.5, color: 'var(--white)', lineHeight: 1.7, marginBottom: 12 }}>
+                        {lookupResult.notes}
+                      </div>
+                    )}
+                    {/* Quick links */}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {lookupResult.website && (
+                        <a href={lookupResult.website} target="_blank" rel="noopener noreferrer"
+                          style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid var(--border-light)', color: 'var(--orange)', textDecoration: 'none', letterSpacing: 1 }}>
+                          WEBSITE ↗
+                        </a>
+                      )}
+                      {lookupResult.youtube_channel && (
+                        <a href={lookupResult.youtube_channel} target="_blank" rel="noopener noreferrer"
+                          style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid #ff4444', color: '#ff4444', textDecoration: 'none', letterSpacing: 1 }}>
+                          YOUTUBE ↗
+                        </a>
+                      )}
+                      {lookupResult.contact_email && (
+                        <a href={`mailto:${lookupResult.contact_email}`}
+                          style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', border: '1px solid var(--border)', color: '#666', textDecoration: 'none', letterSpacing: 1 }}>
+                          ✉ {lookupResult.contact_email}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <ScoreCircle score={lookupResult.score} size={64} />
+                    <RecruitBadge flag={lookupResult.flag} />
+                  </div>
+                </div>
+
+                {/* Carriers */}
+                {(lookupResult.carriers || []).length > 0 && lookupResult.carriers[0] !== 'Unknown' && (
+                  <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1, marginRight: 4 }}>CARRIERS</span>
+                    {lookupResult.carriers.map((c, i) => (
+                      <span key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '2px 8px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 0.5 }}>{c}</span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Anathema CTA */}
+                <div style={{ padding: '12px 24px', display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <a
+                    href={`/dashboard/anathema?name=${encodeURIComponent(lookupResult.name)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`}
+                    style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '6px 14px', border: '1px solid rgba(0,230,118,0.3)', color: 'var(--green)', textDecoration: 'none', letterSpacing: 2 }}
+                  >
+                    ◈ RUN ANATHEMA SCAN →
+                  </a>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
+                    Deep-scan for captive affiliation
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => { setLookupResult(null); setLookupName('') }}
+                style={{ marginTop: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '7px 14px', cursor: 'pointer' }}
+              >
+                CLEAR
+              </button>
+            </div>
+          )}
+
+          {/* Empty state tips for lookup */}
+          {!lookupResult && !lookupLoading && !lookupError && (
+            <div style={{ marginTop: 32 }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, marginBottom: 16 }}>HOW AGENT LOOKUP WORKS</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+                {[
+                  { n: '01', title: 'Open web search', body: 'Searches Google organic results for the agent\'s name — not just Google Business listings. Works even if they have no local listing.' },
+                  { n: '02', title: 'Website crawl', body: 'Finds their website from search results and crawls it for carrier signals, independent language, and contact info.' },
+                  { n: '03', title: 'AI scoring', body: 'Same scoring engine as Market Sweep. HOT, WARM, or COLD with a confidence rating based on how much data was found.' },
+                ].map(c => (
+                  <div key={c.n} style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '20px 22px' }}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 2, marginBottom: 10 }}>{c.n}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--white)', marginBottom: 8, lineHeight: 1.3 }}>{c.title}</div>
+                    <div style={{ fontSize: 11, color: '#555', lineHeight: 1.7 }}>{c.body}</div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )

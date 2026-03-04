@@ -1,0 +1,358 @@
+// app/api/search/lookup/route.ts
+// Agent Lookup — find and score a single named agent via web search.
+// Different from /api/search which uses google_local for market sweeps.
+// This uses google organic SERP to find the agent's website, then runs
+// the same enrichment + scoring pipeline used in market search.
+
+export const runtime = 'nodejs'
+
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
+import Anthropic from '@anthropic-ai/sdk'
+
+const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
+const BLOCKED_HOSTS   = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', '::1']
+
+// ─── TYPES ────────────────────────────────────────────────────────────────────
+
+type LookupResult = {
+  name: string
+  type: string
+  phone: string
+  address: string
+  website: string | null
+  score: number
+  flag: 'hot' | 'warm' | 'cold'
+  notes: string
+  about: string | null
+  carriers: string[]
+  captive: boolean
+  hiring: boolean
+  hiring_roles: string[]
+  youtube_channel: string | null
+  youtube_subscribers: string | null
+  contact_email: string | null
+  social_links: string[]
+  // Lookup-specific — where we found them
+  source_url: string | null
+  source_title: string | null
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW'
+  confidence_note: string
+}
+
+// ─── FIND AGENT VIA ORGANIC SERP ─────────────────────────────────────────────
+// Uses google organic (not google_local) so we find agents even without
+// a Google Business listing. Returns their website URL + basic info.
+
+async function findAgentWebsite(
+  name: string,
+  city: string,
+  state: string,
+  mode: string
+): Promise<{ url: string | null; title: string | null; snippet: string | null; confidence: 'HIGH' | 'MEDIUM' | 'LOW'; note: string }> {
+  const modeTerms: Record<string, string> = {
+    medicare:  'insurance agent',
+    life:      'insurance agent',
+    annuities: 'financial advisor',
+    financial: 'financial advisor',
+  }
+  const term = modeTerms[mode] || 'insurance agent'
+  const location = [city, state].filter(Boolean).join(', ')
+  const query = location
+    ? `"${name}" ${term} ${location}`
+    : `"${name}" ${term}`
+
+  try {
+    const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&gl=us&hl=en&num=5&api_key=${process.env.SERPAPI_KEY}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    if (!res.ok) return { url: null, title: null, snippet: null, confidence: 'LOW', note: 'SERP request failed' }
+
+    const data = await res.json()
+    const results = data.organic_results || []
+
+    if (!results.length) return { url: null, title: null, snippet: null, confidence: 'LOW', note: 'No web results found for this name' }
+
+    const nameLower = name.toLowerCase()
+    const nameParts = nameLower.split(/\s+/).filter(p => p.length > 1)
+
+    // Tier 1: result title contains the name AND location
+    const tier1 = results.find((r: any) => {
+      const t = (r.title || '').toLowerCase()
+      const s = (r.snippet || '').toLowerCase()
+      const nameMatch = nameParts.filter(p => t.includes(p) || s.includes(p)).length >= Math.ceil(nameParts.length * 0.6)
+      const locMatch = location ? (t.includes(city.toLowerCase()) || s.includes(city.toLowerCase()) || s.includes(state.toLowerCase())) : true
+      return nameMatch && locMatch
+    })
+    if (tier1) return { url: tier1.link, title: tier1.title, snippet: tier1.snippet, confidence: 'HIGH', note: 'Name + location matched in top result' }
+
+    // Tier 2: name match only
+    const tier2 = results.find((r: any) => {
+      const t = (r.title || '').toLowerCase()
+      const s = (r.snippet || '').toLowerCase()
+      return nameParts.filter(p => t.includes(p) || s.includes(p)).length >= Math.ceil(nameParts.length * 0.6)
+    })
+    if (tier2) return { url: tier2.link, title: tier2.title, snippet: tier2.snippet, confidence: 'MEDIUM', note: 'Name matched but location not confirmed' }
+
+    // Tier 3: take first result, flag as low confidence
+    const first = results[0]
+    return { url: first.link, title: first.title, snippet: first.snippet, confidence: 'LOW', note: 'Could not confirm name match — review result carefully' }
+  } catch {
+    return { url: null, title: null, snippet: null, confidence: 'LOW', note: 'Search failed' }
+  }
+}
+
+// ─── WEBSITE CRAWL (shared logic mirrored from /api/search) ──────────────────
+
+async function fetchPageText(rawUrl: string, maxChars = 3000): Promise<string> {
+  try {
+    const parsed = new URL(rawUrl)
+    if (!['http:', 'https:'].includes(parsed.protocol)) return ''
+    if (BLOCKED_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith('.local'))) return ''
+    const res = await fetch(rawUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruiterrr/1.0)' },
+      signal: AbortSignal.timeout(5000),
+      redirect: 'follow',
+    })
+    if (!res.ok) return ''
+    const reader = res.body?.getReader()
+    if (!reader) return ''
+    let html = ''; let bytes = 0
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      bytes += value.length
+      html += new TextDecoder().decode(value)
+      if (bytes > 400_000) { reader.cancel(); break }
+    }
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, maxChars)
+  } catch { return '' }
+}
+
+function extractEmails(text: string): string[] {
+  const matches = text.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || []
+  return [...new Set(matches)].filter(e =>
+    !e.includes('noreply') && !e.includes('no-reply') && !e.includes('@sentry') &&
+    !e.includes('@example') && !e.includes('@schema') && e.length < 60
+  ).slice(0, 2)
+}
+
+function extractSocialLinks(html: string): string[] {
+  const links: string[] = []
+  const patterns = [
+    /https?:\/\/(?:www\.)?facebook\.com\/[^"'\s>]+/g,
+    /https?:\/\/(?:www\.)?linkedin\.com\/(?:in|company)\/[^"'\s>]+/g,
+    /https?:\/\/(?:www\.)?instagram\.com\/[^"'\s>]+/g,
+  ]
+  for (const p of patterns) {
+    for (const m of html.match(p) || []) {
+      const clean = m.replace(/['">,.]+$/, '')
+      if (!links.includes(clean) && !clean.includes('sharer')) links.push(clean)
+    }
+  }
+  return links.slice(0, 3)
+}
+
+function extractYouTubeLink(html: string): string | null {
+  const pattern = /https?:\/\/(?:www\.)?youtube\.com\/(channel\/[A-Za-z0-9_-]+|@[A-Za-z0-9_.-]+|c\/[A-Za-z0-9_-]+|user\/[A-Za-z0-9_-]+)/g
+  for (const m of html.match(pattern) || []) {
+    const clean = m.replace(/['">,.]+$/, '')
+    if (!clean.includes('/embed') && !clean.includes('youtube.com/t/')) return clean
+  }
+  return null
+}
+
+async function fetchWebsiteIntel(rawUrl: string) {
+  const empty = { homeText: '', aboutText: '', fullText: '', email: null as string | null, socialLinks: [] as string[], youtubeLink: null as string | null }
+  try {
+    const parsed = new URL(rawUrl)
+    const base = `${parsed.protocol}//${parsed.hostname}`
+    const [homeHtml, aboutText] = await Promise.all([
+      (async () => {
+        try {
+          const res = await fetch(rawUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruiterrr/1.0)' }, signal: AbortSignal.timeout(5000), redirect: 'follow' })
+          if (!res.ok) return ''
+          const reader = res.body?.getReader(); if (!reader) return ''
+          let html = ''; let bytes = 0
+          while (true) {
+            const { done, value } = await reader.read(); if (done) break
+            bytes += value.length; html += new TextDecoder().decode(value)
+            if (bytes > 400_000) { reader.cancel(); break }
+          }
+          return html
+        } catch { return '' }
+      })(),
+      fetchPageText(`${base}/about`, 2000).then(t => t || fetchPageText(`${base}/about-us`, 2000)),
+    ])
+    const homeText = homeHtml.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000)
+    const allText = homeText + ' ' + aboutText
+    const emails = extractEmails(allText)
+    const fullText = [homeText ? `HOMEPAGE: ${homeText}` : '', aboutText ? `ABOUT PAGE: ${aboutText}` : ''].filter(Boolean).join('\n\n').slice(0, 5000)
+    return { homeText, aboutText, fullText, email: emails[0] || null, socialLinks: extractSocialLinks(homeHtml), youtubeLink: extractYouTubeLink(homeHtml) }
+  } catch { return empty }
+}
+
+// ─── SCORE SINGLE AGENT ───────────────────────────────────────────────────────
+// Reuses the same Claude scoring logic as /api/search but adapted for
+// web-sourced data (no Google rating/reviews available).
+
+async function scoreLookupAgent(
+  name: string,
+  websiteUrl: string | null,
+  intel: Awaited<ReturnType<typeof fetchWebsiteIntel>>,
+  serpTitle: string | null,
+  serpSnippet: string | null,
+  city: string,
+  state: string,
+  mode: string
+): Promise<Omit<LookupResult, 'source_url' | 'source_title' | 'confidence' | 'confidence_note'>> {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+  const modeContext: Record<string, { analyst: string; captive: string[]; coreAssumption: string; signals: string }> = {
+    medicare: {
+      analyst: 'Medicare/senior insurance',
+      captive: ['Bankers Life', 'State Farm', 'Farmers', 'Allstate', 'GEICO', 'New York Life', 'Northwestern'],
+      coreAssumption: 'Most agents are independent brokers. Only flag captive if an explicit captive brand name appears.',
+      signals: 'Medicare, Supplement, Advantage, Senior, Medigap specialty = strong independent signal.',
+    },
+    life: {
+      analyst: 'life and final expense insurance',
+      captive: ['New York Life', 'Northwestern', 'Mass Mutual', 'Bankers Life', 'Globe Life'],
+      coreAssumption: 'Independent life agents are common. Generic "life insurance agency" without a known captive brand = assume independent.',
+      signals: 'Final Expense, Burial, Life, Legacy, Family = strong positive.',
+    },
+    annuities: {
+      analyst: 'fixed index annuity (FIA) and MYGA',
+      captive: ['Edward Jones', 'Ameriprise', 'Raymond James', 'Merrill Lynch', 'Morgan Stanley', 'Wells Fargo Advisors', 'Northwestern Mutual'],
+      coreAssumption: 'Best FIA producers hide as "retirement planners". Assume recruitable unless you find wirehouse/fee-only/AUM signals.',
+      signals: 'Fixed Index Annuity, MYGA, Safe Money, Principal Protection, Guaranteed Income = strong FIA signals.',
+    },
+    financial: {
+      analyst: 'financial advisory',
+      captive: ['Edward Jones', 'Ameriprise', 'Raymond James', 'Merrill', 'Morgan Stanley'],
+      coreAssumption: 'Independent RIAs are highly recruitable. Generic "financial advisor" without wirehouse = assume independent.',
+      signals: 'Independent RIA, CFP, wealth management focus = positive.',
+    },
+  }
+  const ctx = modeContext[mode] || modeContext['medicare']
+
+  const prompt = `You are an expert ${ctx.analyst} industry analyst scoring a single agent for recruitability.
+
+AGENT: ${name}
+LOCATION: ${[city, state].filter(Boolean).join(', ') || 'Unknown'}
+WEBSITE: ${websiteUrl || 'None found'}
+SEARCH RESULT TITLE: ${serpTitle || 'N/A'}
+SEARCH SNIPPET: ${serpSnippet || 'N/A'}
+
+WEBSITE CONTENT:
+${intel.fullText || (websiteUrl ? 'Website found but content could not be extracted — score on name and snippet only.' : 'No website available — score on name and search snippet only.')}
+
+CORE ASSUMPTION: ${ctx.coreAssumption}
+KEY SIGNALS: ${ctx.signals}
+CAPTIVE BRANDS (only flag if explicitly present): ${ctx.captive.join(', ')}
+
+IMPORTANT — THIS IS A NAMED AGENT LOOKUP, NOT A MARKET SWEEP:
+- The recruiter specifically searched for this person. Score what you find, be honest about data quality.
+- If you have rich website content, score confidently.
+- If you only have a search snippet, say so in your notes and score conservatively.
+- Never hallucinate carriers or signals you didn't actually find.
+
+SCORING: HOT = 75+, WARM = 50-74, COLD = 0-49.
+Default WARM (55) when data is thin. Boost for: independent signals, multi-carrier, YouTube, hiring activity.
+
+Return ONLY valid JSON:
+{
+  "carriers": ["carriers identified — only what you actually found, not guesses"],
+  "captive": boolean,
+  "score": 0-100,
+  "flag": "hot"|"warm"|"cold",
+  "notes": "2-3 sentences. Be explicit about what data you scored on and what's missing.",
+  "about": "1-2 sentence plain-English summary. null if insufficient data.",
+  "contact_email": "primary contact email if found, else null",
+  "type": "business type inferred from content"
+}`
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 500,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    const text = response.content[0].type === 'text' ? response.content[0].text : ''
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('No JSON')
+    const parsed = JSON.parse(match[0])
+    return {
+      name,
+      type: parsed.type || 'Insurance Agent',
+      phone: '',
+      address: [city, state].filter(Boolean).join(', '),
+      website: websiteUrl,
+      score: Math.min(100, Math.max(0, parsed.score || 50)),
+      flag: parsed.flag || 'warm',
+      notes: parsed.notes || 'No analysis available.',
+      about: parsed.about || null,
+      carriers: parsed.carriers || [],
+      captive: parsed.captive || false,
+      hiring: false,
+      hiring_roles: [],
+      youtube_channel: intel.youtubeLink,
+      youtube_subscribers: null,
+      contact_email: parsed.contact_email || intel.email || null,
+      social_links: intel.socialLinks,
+    }
+  } catch {
+    return {
+      name, type: 'Insurance Agent', phone: '', address: [city, state].filter(Boolean).join(', '),
+      website: websiteUrl, score: 50, flag: 'warm',
+      notes: 'Could not complete scoring. Limited data available for this agent.',
+      about: null, carriers: [], captive: false, hiring: false, hiring_roles: [],
+      youtube_channel: intel.youtubeLink, youtube_subscribers: null,
+      contact_email: intel.email || null, social_links: intel.socialLinks,
+    }
+  }
+}
+
+// ─── ROUTE HANDLER ────────────────────────────────────────────────────────────
+
+export async function POST(req: NextRequest) {
+  const origin = req.headers.get('origin')
+  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    const { name, city = '', state = '', mode = 'medicare' } = await req.json()
+    if (!name?.trim()) return NextResponse.json({ error: 'Agent name required' }, { status: 400 })
+
+    // Step 1: find their website via organic SERP
+    const found = await findAgentWebsite(name.trim(), city.trim(), state.trim(), mode)
+
+    // Step 2: crawl the website if we found one
+    const intel = found.url ? await fetchWebsiteIntel(found.url) : { homeText: '', aboutText: '', fullText: '', email: null, socialLinks: [], youtubeLink: null }
+
+    // Step 3: score
+    const scored = await scoreLookupAgent(name.trim(), found.url, intel, found.title, found.snippet, city.trim(), state.trim(), mode)
+
+    const result: LookupResult = {
+      ...scored,
+      source_url: found.url,
+      source_title: found.title,
+      confidence: found.confidence,
+      confidence_note: found.note,
+    }
+
+    return NextResponse.json({ agent: result })
+  } catch (err) {
+    console.error('[/api/search/lookup] error:', err)
+    return NextResponse.json({ error: 'Lookup failed' }, { status: 500 })
+  }
+}
