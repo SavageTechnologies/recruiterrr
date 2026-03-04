@@ -454,12 +454,13 @@ Respond with ONLY valid JSON:
     }
   }
 
-  // ── Prometheus cross-reference ─────────────────────────────────────────────
-  // If we've already profiled an FMO/agency that appears in this agent's signals,
-  // pull that stored intel and inject it into the prediction context.
-  // This runs after all SERP + Apify passes so allSignals is fully populated.
+  // ── Prometheus cross-reference + contact graph traversal ──────────────────
+  // 1. Check if any Prometheus-profiled FMO appears in this agent's signals.
+  // 2. If found, pull all contacts Prometheus discovered at that FMO.
+  // 3. Run a SERP pass on each contact looking for tree signals — if any
+  //    contact surfaces Integrity/AmeriLife/SMS language, that's the upline.
+  // Runs after all SERP + Apify passes so allSignals is fully populated.
   try {
-    // Build a deduplicated list of entity names from signals to match against
     const signalText = allSignals.join(' ').toLowerCase()
 
     const { data: prometheusScans } = await supabase
@@ -473,34 +474,108 @@ Respond with ONLY valid JSON:
         const fmoName = (scan.domain || '').toLowerCase().trim()
         if (!fmoName || fmoName.length < 4) continue
 
-        // Check if this FMO name appears in agent's signal text
-        if (signalText.includes(fmoName)) {
-          const aj = scan.analysis_json as any
-          const tree = aj?.tree_affiliation || scan.vendor_tier || null
-          const recruiting = scan.actively_recruiting
-          const sentiment = aj?.agent_sentiment?.common_complaints?.join('; ') || null
-          const salesAngle = aj?.sales_angles?.recruiting_pain || null
-          const confidence = scan.score || 0
+        if (!signalText.includes(fmoName)) continue
 
-          let prometheusSignal = `Prometheus DB match: Agent co-mentioned with "${scan.domain}" (${scan.verdict || 'UNKNOWN'} agency`
-          if (tree && tree !== 'Independent') prometheusSignal += `, tree affiliation: ${tree}`
-          if (recruiting) prometheusSignal += `, actively recruiting`
-          if (sentiment) prometheusSignal += `. Agent complaints: ${sentiment.slice(0, 120)}`
-          if (salesAngle) prometheusSignal += `. Recruiting pain: ${salesAngle.slice(0, 120)}`
-          prometheusSignal += `. Confidence score: ${confidence})`
+        // ── FMO match found ───────────────────────────────────────────────
+        const aj = scan.analysis_json as any
+        const tree = aj?.tree_affiliation || scan.vendor_tier || null
+        const recruiting = scan.actively_recruiting
+        const sentiment = aj?.agent_sentiment?.common_complaints?.join('; ') || null
+        const salesAngle = aj?.sales_angles?.recruiting_pain || null
+        const confidence = scan.score || 0
 
-          allSignals.push(prometheusSignal)
+        let prometheusSignal = `Prometheus DB match: Agent co-mentioned with "${scan.domain}" (${scan.verdict || 'UNKNOWN'} agency`
+        if (tree && tree !== 'Independent') prometheusSignal += `, tree affiliation: ${tree}`
+        if (recruiting) prometheusSignal += `, actively recruiting`
+        if (sentiment) prometheusSignal += `. Agent complaints: ${sentiment.slice(0, 120)}`
+        if (salesAngle) prometheusSignal += `. Recruiting pain: ${salesAngle.slice(0, 120)}`
+        prometheusSignal += `. Confidence score: ${confidence})`
+        allSignals.push(prometheusSignal)
 
-          // If Prometheus confirmed a tree affiliation, boost that score directly
-          if (tree) {
-            const treeNorm = tree.toLowerCase()
-            if (treeNorm.includes('integrity')) integrityScore += 30
-            else if (treeNorm.includes('amerilife')) amerilifeScore += 30
-            else if (treeNorm.includes('sms') || treeNorm.includes('senior market')) smsScore += 30
+        // Score boost if Prometheus confirmed a named tree
+        if (tree) {
+          const treeNorm = tree.toLowerCase()
+          if (treeNorm.includes('integrity')) integrityScore += 30
+          else if (treeNorm.includes('amerilife')) amerilifeScore += 30
+          else if (treeNorm.includes('sms') || treeNorm.includes('senior market')) smsScore += 30
+        }
+
+        // ── Contact graph traversal ───────────────────────────────────────
+        // Prometheus found contacts at this FMO — SERP each one looking for
+        // tree brand language. Owner/president titles get priority.
+        const contacts: Array<{ name: string; title: string | null }> = aj?.contacts || []
+        if (contacts.length > 0 && serpKey) {
+          // Sort: owner/president/founder first, skip the target agent themselves
+          const agentNameLower = agent.name.toLowerCase()
+          const prioritized = [...contacts]
+            .filter(c => c.name && c.name.toLowerCase() !== agentNameLower)
+            .sort((a, b) => {
+              const priority = (t: string | null) => {
+                if (!t) return 0
+                const tl = t.toLowerCase()
+                if (tl.includes('owner') || tl.includes('founder') || tl.includes('president')) return 3
+                if (tl.includes('coo') || tl.includes('ceo') || tl.includes('director')) return 2
+                return 1
+              }
+              return priority(b.title) - priority(a.title)
+            })
+
+          const contactNetworkMatches: NetworkMatch[] = []
+
+          for (const contact of prioritized) {
+            try {
+              const cq = `"${contact.name}" insurance FMO IMO appointed contracted`
+              const cRes = await fetch(
+                `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(cq)}&num=6&api_key=${serpKey}`,
+                { signal: AbortSignal.timeout(10000) }
+              )
+              if (!cRes.ok) continue
+              const cData = await cRes.json()
+              const cResults = cData.organic_results || []
+
+              for (const r of cResults) {
+                const matches = scanResultAgainstNetwork(
+                  r.title || '', r.snippet || '', r.link || '',
+                  contact.name, networkSignals
+                )
+                contactNetworkMatches.push(...matches)
+                if (matches.length > 0) {
+                  allSignals.push(
+                    `Contact graph: "${contact.name}" (${contact.title || 'affiliated'} at ${scan.domain}) — ${matches.map(m => m.signal.tree + ' signal: ' + m.matchedPhrase).join(', ')}`
+                  )
+                }
+              }
+
+              // Also do a quick Facebook pass on the contact
+              const { result: contactFb } = await fetchFacebookProfile(contact.name, serpKey)
+              if (contactFb?.allText) {
+                const fbMatches = scanResultAgainstNetwork(
+                  '', contactFb.allText, contactFb.profileUrl,
+                  contact.name, networkSignals
+                )
+                contactNetworkMatches.push(...fbMatches)
+                if (fbMatches.length > 0) {
+                  allSignals.push(
+                    `Contact graph (FB): "${contact.name}" at ${scan.domain} — ${fbMatches.map(m => m.signal.tree + ' signal: ' + m.matchedPhrase).join(', ')}`
+                  )
+                }
+              }
+            } catch {
+              // Individual contact lookup failed — skip and continue
+            }
           }
 
-          break // Only use the first/strongest match
+          // Aggregate all contact graph matches into scores
+          if (contactNetworkMatches.length > 0) {
+            const contactAgg = aggregateMatches(contactNetworkMatches)
+            integrityScore += contactAgg.integrity
+            amerilifeScore += contactAgg.amerilife
+            smsScore += contactAgg.sms
+            allSignals.push(...contactAgg.signals.map(s => `Contact graph aggregate: ${s}`))
+          }
         }
+
+        break // Only traverse contacts for the first/strongest FMO match
       }
     }
   } catch {
