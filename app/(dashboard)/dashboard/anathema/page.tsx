@@ -245,6 +245,17 @@ function AnathemaDashboardInner() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const searchParams = useSearchParams()
 
+  // Pre-fill from agent lookup handoff (?name=&city=&state=)
+  useEffect(() => {
+    const name = searchParams.get('name')
+    if (!name) return
+    setAgencyName(decodeURIComponent(name))
+    const c = searchParams.get('city')
+    const s = searchParams.get('state')
+    if (c) setCity(decodeURIComponent(c))
+    if (s) setState(decodeURIComponent(s).toUpperCase().slice(0, 2))
+  }, [])
+
   useEffect(() => {
     const id = searchParams.get('id')
     if (!id) return
@@ -468,7 +479,6 @@ function AnathemaDashboardInner() {
         @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes loadSlide { 0% { left: -40%; } 100% { left: 100%; } }
         @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
-        @keyframes betaSweep { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(100%); } }
         @keyframes scanDown { 0% { top: 0; opacity: 0.8; } 100% { top: 100%; opacity: 0; } }
         .anathema-initial-scan {
           position: absolute; left: 0; width: 100%; height: 2px; z-index: 10;
@@ -483,31 +493,9 @@ function AnathemaDashboardInner() {
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#555', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>
             Pathogen Analysis System · Chemical A0-3959X.91–15
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16 }}>
-            <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>
-              ANATHEMA<span style={{ color: 'var(--green)' }}>.</span>
-            </h1>
-            <div style={{
-              fontFamily: "'DM Mono', monospace",
-              fontSize: 9,
-              letterSpacing: 3,
-              color: '#00e676',
-              border: '1px solid rgba(0,230,118,0.4)',
-              background: 'rgba(0,230,118,0.06)',
-              padding: '5px 10px',
-              marginBottom: 6,
-              position: 'relative',
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-            }}>
-              <span style={{
-                position: 'absolute', inset: 0,
-                background: 'linear-gradient(90deg, transparent, rgba(0,230,118,0.12), transparent)',
-                animation: 'betaSweep 3s ease-in-out infinite',
-              }} />
-              ◈ BETA
-            </div>
-          </div>
+          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>
+            ANATHEMA<span style={{ color: 'var(--green)' }}>.</span>
+          </h1>
         </div>
         <a
           href="/dashboard/anathema/map"
