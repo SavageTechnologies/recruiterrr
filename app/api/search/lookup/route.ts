@@ -9,6 +9,7 @@ export const runtime = 'nodejs'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { supabase } from '@/lib/supabase.server'
 
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 const BLOCKED_HOSTS   = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', '::1']
@@ -349,6 +350,47 @@ export async function POST(req: NextRequest) {
       confidence: found.confidence,
       confidence_note: found.note,
     }
+
+    // Persist to agent_profiles — same table as market sweep, fire and forget.
+    // On conflict (same clerk_id + name + city + state): update enrichment fields.
+    supabase
+      .from('agent_profiles')
+      .upsert({
+        clerk_id:            userId,
+        name:                scored.name,
+        agency_type:         scored.type,
+        city:                city.trim(),
+        state:               state.trim(),
+        address:             scored.address || null,
+        phone:               scored.phone   || null,
+        website:             scored.website || null,
+        contact_email:       scored.contact_email || null,
+        social_links:        scored.social_links?.length ? scored.social_links : null,
+        carriers:            scored.carriers?.length ? scored.carriers : null,
+        captive:             scored.captive || false,
+        prometheus_score:    scored.score,
+        prometheus_flag:     scored.flag,
+        prometheus_notes:    scored.notes,
+        prometheus_about:    scored.about || null,
+        hiring:              scored.hiring || false,
+        hiring_roles:        scored.hiring_roles?.length ? scored.hiring_roles : null,
+        youtube_channel:     scored.youtube_channel || null,
+        youtube_subscribers: scored.youtube_subscribers || null,
+        last_seen:           new Date().toISOString(),
+      }, {
+        onConflict: 'clerk_id,name,city,state',
+        ignoreDuplicates: false,
+      })
+      .then(() => {
+        void supabase.rpc('increment_agent_search_count', {
+          p_clerk_id: userId,
+          p_names: [scored.name],
+          p_city: city.trim(),
+          p_state: state.trim(),
+        })
+      }, (err: unknown) => {
+        console.error('[/api/search/lookup] upsert error:', err)
+      })
 
     return NextResponse.json({ agent: result })
   } catch (err) {
