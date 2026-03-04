@@ -1,26 +1,19 @@
 export const runtime = 'nodejs'
-export const maxDuration = 180  // ANATHEMA scan: SERP + Claude + conditional Apify wait (low-confidence path)
+export const maxDuration = 180
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 
-import { scoreSMSCarriers, scanResultAgainstNetwork, aggregateMatches, buildNetworkSignalIndex } from '@/lib/domain/anathema/signals'
-import type { NetworkMatch, NetworkSignal } from '@/lib/domain/anathema/signals'
-
+import { scoreSMSCarriers, buildNetworkSignalIndex } from '@/lib/domain/anathema/signals'
 import { enrichWithApify, apifyToSerpSnippets } from '@/lib/domain/anathema/apify'
-import { resolveChain } from '@/lib/domain/anathema/chain-resolver'
-import type { ChainResult } from '@/lib/domain/anathema/chain-resolver'
-import { huntUnresolvedUpline } from '@/lib/domain/anathema/upline-hunter'
-import { fetchFacebookProfile } from '@/lib/domain/anathema/facebook'
+import { gatherEvidence, analyzeEvidence, enrichFromDB, subimoConfidenceToNumber } from '@/lib/domain/anathema/analyzer'
 import { extractDavidFacts } from '@/lib/domain/anathema/david-facts'
 import type { DavidFactsInput } from '@/lib/domain/anathema/david-facts'
 import { saveObservation, checkExistingSpecimen, getSpecimen, getScan, saveDavidFacts } from '@/lib/db/anathema'
 import { isAdmin } from '@/lib/auth/access'
 import { supabase } from '@/lib/supabase.server'
-
 
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 
@@ -34,7 +27,7 @@ export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
-const specimen = await getSpecimen(userId, id)
+  const specimen = await getSpecimen(userId, id)
   if (specimen) {
     return NextResponse.json({
       scan: {
@@ -90,7 +83,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { action } = body
 
- // ─── SAVE OBSERVATION ─────────────────────────────────────────────────────
+  // ─── SAVE OBSERVATION ───────────────────────────────────────────────────────
   if (action === 'log_observation') {
     const saved = await saveObservation({
       userId,
@@ -118,578 +111,232 @@ export async function POST(req: NextRequest) {
       unresolved_upline: body.unresolved_upline,
       david_facts: body.david_facts,
     })
-    // If the user manually confirmed an "other" tree, write to discovered_fmos
+
+    // If recruiter manually confirmed an unknown tree, write to discovered_fmos
     if (body.confirmed_tree === 'other' && body.confirmed_tree_other?.trim()) {
-      void (async () => {
-        try {
-          await supabase.rpc('upsert_discovered_fmo', {
-            p_name:       body.confirmed_tree_other.trim(),
-            p_evidence:   {
-              quote:       `Manually confirmed by recruiter for agent ${body.agent_name}`,
-              source_url:  body.agent_website || '',
-              agent_name:  body.agent_name,
-              confidence:  'HIGH',
-              seen_at:     new Date().toISOString(),
-            },
-            p_state:      body.state || '',
-            p_confidence: 'HIGH',
-          })
-        } catch (err: unknown) {
-          console.warn('[discovered_fmos] manual upsert failed:', err)
-        }
-      })()
+      try {
+        await supabase.rpc('upsert_discovered_fmo', {
+          p_name: body.confirmed_tree_other.trim(),
+          p_evidence: {
+            quote: `Manually confirmed by recruiter for agent ${body.agent_name}`,
+            source_url: body.agent_website || '',
+            agent_name: body.agent_name,
+            confidence: 'HIGH',
+            seen_at: new Date().toISOString(),
+          },
+          p_state: body.state || '',
+          p_confidence: 'HIGH',
+        })
+      } catch (err) {
+        console.warn('[discovered_fmos] manual upsert failed:', err)
+      }
     }
 
     return NextResponse.json({ ok: true, id: saved.id })
   }
 
-    // ─── SAVE DAVID FACTS ─────────────────────────────────────────────────────
-    if (action === 'save_david_facts') {
-        if (body.david_facts) {
-          await saveDavidFacts(userId, body.agent_name, body.city, body.state, body.david_facts)
-        }
-        return NextResponse.json({ ok: true })
-      }
+  // ─── SAVE DAVID FACTS ───────────────────────────────────────────────────────
+  if (action === 'save_david_facts') {
+    if (body.david_facts) {
+      await saveDavidFacts(userId, body.agent_name, body.city, body.state, body.david_facts)
+    }
+    return NextResponse.json({ ok: true })
+  }
 
-      // ─── CHECK EXISTING ───────────────────────────────────────────────────────
-      if (action === 'check_existing') {
-        const specimen = await checkExistingSpecimen(userId, body.agent_name, body.city, body.state)
-        return NextResponse.json({ specimen })
-      }
+  // ─── CHECK EXISTING ─────────────────────────────────────────────────────────
+  if (action === 'check_existing') {
+    const specimen = await checkExistingSpecimen(userId, body.agent_name, body.city, body.state)
+    return NextResponse.json({ specimen })
+  }
 
-  // ─── RUN SCAN ─────────────────────────────────────────────────────────────
+  // ─── RUN SCAN ───────────────────────────────────────────────────────────────
   const { agent } = body
   if (!agent) return NextResponse.json({ error: 'Missing agent' }, { status: 400 })
 
-  // ── Build signal index from DB — fresh on every scan ──────────────────────
-  const networkSignals: NetworkSignal[] = await buildNetworkSignalIndex()
+  const serpKey = process.env.SERPAPI_KEY!
 
-  const serpKey = process.env.SERPAPI_KEY
-  let integrityScore = 0, amerilifeScore = 0, smsScore = 0
-  const allSignals: string[] = []
-  let facebookProfileUrl: string | null = null
-  let facebookAbout: string | null = null
-  let facebookPostText = ''
-  let autoDetectedSubImo: NetworkMatch | null = null
+  // ── Build network signal index — used as hints for the AI, not constraints ──
+  const networkSignals = await buildNetworkSignalIndex()
 
-  // Audit trail of every query + match — stored as jsonb for full traceability
-  const serpDebug: Array<{
-    query: string
-    source: string
-    results: Array<{ title: string; url: string; snippet: string; signals_matched: string[] }>
-  }> = []
+  // ── Pre-scored signals from carrier fingerprint + profile text ──────────────
+  const extraSignals: string[] = []
 
-  // ── SMS carrier check ───────────────────────────────────────────────────
   if (agent.carriers?.length > 0) {
     const smsCarriers = scoreSMSCarriers(agent.carriers)
-    smsScore += smsCarriers.sms
-    allSignals.push(...smsCarriers.signals)
+    if (smsCarriers.signals.length > 0) extraSignals.push(...smsCarriers.signals)
   }
 
-  // ── Profile text scan ───────────────────────────────────────────────────
-  const textBlob = [agent.notes || '', agent.about || ''].join(' ')
-  if (textBlob.trim()) {
-    const textMatches = scanResultAgainstNetwork('', textBlob, agent.website || '', undefined, networkSignals)
-    const agg = aggregateMatches(textMatches)
-    integrityScore += agg.integrity
-    amerilifeScore += agg.amerilife
-    smsScore += agg.sms
-    allSignals.push(...agg.signals.map(s => `Profile: ${s}`))
-    if (agg.topPartnerMatch && !autoDetectedSubImo) autoDetectedSubImo = agg.topPartnerMatch
-  }
+  const textBlob = [agent.notes || '', agent.about || ''].join(' ').trim()
+  if (textBlob) extraSignals.push(`Profile text: ${textBlob.slice(0, 300)}`)
 
-  // ── SERP Pass 1: broad agent search ────────────────────────────────────
-  const allNetworkMatches: NetworkMatch[] = []
-  try {
-    const q1 = `"${agent.name}" insurance ${agent.city || ''} ${agent.state || ''}`
-    const res1 = await fetch(
-      `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q1)}&num=8&api_key=${serpKey}`,
-      { signal: AbortSignal.timeout(12000) }
-    )
-    if (res1.ok) {
-      const data1 = await res1.json()
-      const results1 = data1.organic_results || []
-      const debugEntry: typeof serpDebug[0] = { query: q1, source: 'pass1_broad', results: [] }
-
-      for (const r of results1) {
-        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '', agent.name, networkSignals)
-        allNetworkMatches.push(...matches)
-        debugEntry.results.push({
-          title: r.title || '',
-          url: r.link || '',
-          snippet: (r.snippet || '').slice(0, 200),
-          signals_matched: matches.map(m => `"${m.matchedPhrase}" → ${m.signal.partner?.name || m.signal.tree}`),
-        })
-      }
-      serpDebug.push(debugEntry)
-    }
-  } catch {}
-
-  // ── SERP Pass 2: FMO/IMO context search ────────────────────────────────
-  try {
-    const q2 = `"${agent.name}" FMO OR IMO OR "insurance agent" OR "appointed" OR "contracted"`
-    const res2 = await fetch(
-      `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q2)}&num=8&api_key=${serpKey}`,
-      { signal: AbortSignal.timeout(12000) }
-    )
-    if (res2.ok) {
-      const data2 = await res2.json()
-      const results2 = data2.organic_results || []
-      const debugEntry: typeof serpDebug[0] = { query: q2, source: 'pass2_fmo', results: [] }
-
-      for (const r of results2) {
-        const matches = scanResultAgainstNetwork(r.title || '', r.snippet || '', r.link || '', agent.name, networkSignals)
-        allNetworkMatches.push(...matches)
-        debugEntry.results.push({
-          title: r.title || '',
-          url: r.link || '',
-          snippet: (r.snippet || '').slice(0, 200),
-          signals_matched: matches.map(m => `"${m.matchedPhrase}" → ${m.signal.partner?.name || m.signal.tree}`),
-        })
-      }
-      serpDebug.push(debugEntry)
-    }
-  } catch {}
-
-  // Aggregate all SERP matches
-  if (allNetworkMatches.length > 0) {
-    const agg = aggregateMatches(allNetworkMatches)
-    integrityScore += agg.integrity
-    amerilifeScore += agg.amerilife
-    smsScore += agg.sms
-    allSignals.push(...agg.signals.map(s => `Google: ${s}`))
-    if (agg.topPartnerMatch && !autoDetectedSubImo) autoDetectedSubImo = agg.topPartnerMatch
-  }
-
-  // Collect snippets for the unresolved upline hunter
-  const serpSnippetsForHunter: string[] = []
-  for (const entry of serpDebug) {
-    for (const r of entry.results) {
-      if (r.snippet) serpSnippetsForHunter.push(r.snippet)
-    }
-  }
-
-  // ── SERP Pass 3: Facebook ───────────────────────────────────────────────
-  // Check agent.social_links first — website crawl already found FB URL for
-  // many agents. Use it as a seed so Apify fires even when SerpAPI FB fails.
+  // ── Social FB URL from website crawl (higher confidence than SERP guess) ────
   const socialFbUrl = (agent.social_links || []).find((l: string) =>
     l.includes('facebook.com') &&
     !l.includes('facebook.com/sharer') &&
     !l.includes('facebook.com/share')
   ) || null
-  if (socialFbUrl) facebookProfileUrl = socialFbUrl
 
-  const { result: fbResult, searchResults: fbSearchResults } = await fetchFacebookProfile(agent.name, serpKey!)
+  // ─── STEP 1: Gather evidence — 4 parallel fetches ───────────────────────────
+  const {
+    evidenceBlob,
+    facebookProfileUrl,
+    facebookAbout,
+    facebookPostText,
+    serpDebug,
+  } = await gatherEvidence(
+    agent.name,
+    agent.state || '',
+    agent.city || '',
+    serpKey,
+    socialFbUrl,
+  )
 
-  serpDebug.push({
-    query: `"${agent.name}" site:facebook.com`,
-    source: 'facebook_search',
-    results: fbSearchResults.slice(0, 3).map((r: any) => ({
-      title: r.title || '',
-      url: r.link || '',
-      snippet: (r.snippet || '').slice(0, 200),
-      signals_matched: [],
-    })),
-  })
-
-  if (fbResult) {
-    // Only use the SERP-found URL if we didn't already find one directly on their site.
-    // The website-extracted URL is higher confidence than a SERP name-match guess.
-    if (!facebookProfileUrl) facebookProfileUrl = fbResult.profileUrl
-    facebookAbout = fbResult.about || fbResult.postText.slice(0, 500)
-    facebookPostText = fbResult.allText
-
-    const fbMatches = scanResultAgainstNetwork('', fbResult.allText, fbResult.profileUrl, agent.name, networkSignals)
-    const fbAgg = aggregateMatches(fbMatches)
-    integrityScore += fbAgg.integrity
-    amerilifeScore += fbAgg.amerilife
-    smsScore += fbAgg.sms
-
-    serpDebug.push({
-      query: `facebook_profile:${fbResult.handle}`,
-      source: 'facebook_profile',
-      results: [{
-        title: `Facebook profile — ${fbResult.handle}`,
-        url: fbResult.profileUrl,
-        snippet: fbResult.allText.slice(0, 200),
-        signals_matched: fbMatches.map(m => `"${m.matchedPhrase}" → ${m.signal.partner?.name || m.signal.tree}`),
-      }],
-    })
-
-    if (fbAgg.signals.length > 0) {
-      allSignals.push(...fbAgg.signals.map(s => `Facebook: ${s}`))
-      if (fbAgg.topPartnerMatch && !autoDetectedSubImo) autoDetectedSubImo = fbAgg.topPartnerMatch
-    } else {
-      allSignals.push('Facebook profile found — no network affiliation detected')
-    }
-  } else {
-    allSignals.push('Facebook: No profile located')
-  }
-
-  if (allSignals.length === 0) allSignals.push('No affiliation signals detected in available data')
-
-  // ── Confidence threshold for fast vs. thorough path ─────────────────────
-  // FAST PATH  (≥ 65): SERP signals were strong enough — skip Apify wait, predict now.
-  // THOROUGH PATH (< 65): Ambiguous. Wait for Apify before predicting so the
-  //   richer Facebook post content can feed the final call.
-  const APIFY_GATE_THRESHOLD = 65
-
-  // Helper — builds and runs the Haiku prediction from whatever signals we have
-  async function runPrediction(signals: string[], iScore: number, aScore: number, sScore: number) {
-    const prompt = `You are ANATHEMA, a pathogen analysis system for the US insurance distribution market. Predict which of three major consolidation trees an agent belongs to.
-
-THE THREE TREES:
-1. INTEGRITY MARKETING GROUP — Brand language: "Integrity Marketing Group", "Family First Life", "FFL agent", "IntegrityCONNECT", "MedicareCENTER". Do NOT classify based on the word "integrity" alone.
-2. AMERILIFE — Brand language: "AmeriLife", "USABG", "United Senior Benefits Group". Domain: amerilife.com.
-3. SENIOR MARKET SALES (SMS) — Brand language: "Senior Market Sales", "SMS partner", "Rethinking Retirement". Exclusive carriers: Mutual of Omaha + Medico together.
-
-AGENT: ${agent.name}
-Location: ${agent.city || ''}, ${agent.state || ''}
-Pre-scored signals: Integrity=${iScore}, AmeriLife=${aScore}, SMS=${sScore}
-
-RAW SIGNALS:
-${signals.map(s => `- ${s}`).join('\n')}
-
-Rules:
-- Only predict a tree if there is EXPLICIT brand language or the SMS carrier combo. Generic insurance language, location, or common carriers do NOT qualify.
-- If confidence < 40, use predicted_tree: "unknown"
-- signals_used: 2-4 most compelling signals
-- reasoning: 1-2 sentences
-
-Respond with ONLY valid JSON:
-{
-  "predicted_tree": "integrity" | "amerilife" | "sms" | "unknown",
-  "confidence": 0-100,
-  "signals_used": ["signal 1", "signal 2"],
-  "reasoning": "1-2 sentences"
-}`
-
-    const fallback = {
-      predicted_tree: 'unknown',
-      confidence: 0,
-      signals_used: signals.filter(s => !s.startsWith('Facebook: No') && !s.startsWith('No affiliation')).slice(0, 4),
-      reasoning: 'Insufficient signals to determine affiliation.',
-    }
-
-    try {
-      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-      const claudeRes = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 500,
-        messages: [{ role: 'user', content: prompt }],
-      })
-      return JSON.parse(((claudeRes.content[0] as any).text || '').replace(/```json|```/g, '').trim())
-    } catch {
-      return fallback
-    }
-  }
-
-  // ── Pre-flight confidence estimate (no Claude call yet) ──────────────────
-  // Rough score-based estimate to decide which path to take.
-  // We don't want to spend a Claude call just to find out we need Apify.
-  const topScore = Math.max(integrityScore, amerilifeScore, smsScore)
-  const hasApifyTargets = !!(facebookProfileUrl || agent.youtube_channel)
-  const apifyAvailable = !!(hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET)
-
-  // Track whether we used Apify in this scan (for debug/response)
-  let apifyUsedInPrediction = false
-  let apifyPostCount = 0
-  let apifyVideoCount = 0
-
-  // ── THOROUGH PATH: wait for Apify before predicting ─────────────────────
-  if (apifyAvailable && topScore < APIFY_GATE_THRESHOLD) {
-    // Run Apify now and wait — confidence was too low to trust SERP alone
-    const apifyEnrichment = await enrichWithApify({
-      facebookProfileUrl,
-      youtubeChannelUrl: agent.youtube_channel || null,
-    })
-
-    apifyPostCount = apifyEnrichment.facebookPosts.length
-    apifyVideoCount = apifyEnrichment.youtubeVideos.length
-
-    if (apifyPostCount > 0 || apifyVideoCount > 0) {
-      apifyUsedInPrediction = true
-
-      // Scan Apify content against the signal index — same scanner, richer text
-      const apifyMatches = scanResultAgainstNetwork(
-        '',
-        [apifyEnrichment.facebookText, apifyEnrichment.youtubeText].join('\n'),
-        facebookProfileUrl || '',
-        agent.name,
-        networkSignals,
-      )
-      const apifyAgg = aggregateMatches(apifyMatches)
-      integrityScore += apifyAgg.integrity
-      amerilifeScore += apifyAgg.amerilife
-      smsScore += apifyAgg.sms
-
-      if (apifyAgg.signals.length > 0) {
-        allSignals.push(...apifyAgg.signals.map(s => `Apify: ${s}`))
-        if (apifyAgg.topPartnerMatch && !autoDetectedSubImo) autoDetectedSubImo = apifyAgg.topPartnerMatch
-      }
-
-      // Add Apify snippets to serpDebug for full audit trail
-      const apifySnippets = apifyToSerpSnippets(apifyEnrichment)
-      serpDebug.push({
-        query: `apify_facebook:${facebookProfileUrl || 'n/a'}`,
-        source: 'apify_facebook_posts',
-        results: apifySnippets
-          .filter(s => s.title.startsWith('Facebook'))
-          .slice(0, 5)
-          .map(s => ({ title: s.title, url: s.url, snippet: s.snippet.slice(0, 200), signals_matched: [] })),
-      })
-      if (apifyVideoCount > 0) {
-        serpDebug.push({
-          query: `apify_youtube:${agent.youtube_channel || 'n/a'}`,
-          source: 'apify_youtube_videos',
-          results: apifySnippets
-            .filter(s => !s.title.startsWith('Facebook'))
-            .slice(0, 5)
-            .map(s => ({ title: s.title, url: s.url, snippet: s.snippet.slice(0, 200), signals_matched: [] })),
-        })
-      }
-
-      // Update serpSnippetsForHunter with Apify content too
-      serpSnippetsForHunter.push(...apifySnippets.map(s => s.snippet))
-    }
-  }
-
-  // ── Prometheus cross-reference + contact graph traversal ──────────────────
-  // 1. Check if any Prometheus-profiled FMO appears in this agent's signals.
-  // 2. If found, pull all contacts Prometheus discovered at that FMO.
-  // 3. Run a SERP pass on each contact looking for tree signals — if any
-  //    contact surfaces Integrity/AmeriLife/SMS language, that's the upline.
-  // Runs after all SERP + Apify passes so allSignals is fully populated.
+  // ── Prometheus cross-reference ───────────────────────────────────────────────
+  // Check if any Prometheus-profiled FMO appears in the evidence we just gathered.
+  // If found, inject intel as extra signals for the AI.
   try {
-    const signalText = allSignals.join(' ').toLowerCase()
-
+    const evidenceLower = evidenceBlob.toLowerCase()
     const { data: prometheusScans } = await supabase
       .from('prometheus_scans')
       .select('domain, verdict, vendor_tier, actively_recruiting, analysis_json, score')
       .order('created_at', { ascending: false })
       .limit(200)
 
-    if (prometheusScans && prometheusScans.length > 0) {
+    if (prometheusScans) {
       for (const scan of prometheusScans) {
         const fmoName = (scan.domain || '').toLowerCase().trim()
         if (!fmoName || fmoName.length < 4) continue
+        if (!evidenceLower.includes(fmoName)) continue
 
-        if (!signalText.includes(fmoName)) continue
-
-        // ── FMO match found ───────────────────────────────────────────────
         const aj = scan.analysis_json as any
         const tree = aj?.tree_affiliation || scan.vendor_tier || null
         const recruiting = scan.actively_recruiting
         const sentiment = aj?.agent_sentiment?.common_complaints?.join('; ') || null
         const salesAngle = aj?.sales_angles?.recruiting_pain || null
-        const confidence = scan.score || 0
 
-        let prometheusSignal = `Prometheus DB match: Agent co-mentioned with "${scan.domain}" (${scan.verdict || 'UNKNOWN'} agency`
-        if (tree && tree !== 'Independent') prometheusSignal += `, tree affiliation: ${tree}`
+        let prometheusSignal = `Prometheus DB match: "${scan.domain}" (${scan.verdict || 'UNKNOWN'} agency`
+        if (tree && tree !== 'Independent') prometheusSignal += `, tree: ${tree}`
         if (recruiting) prometheusSignal += `, actively recruiting`
-        if (sentiment) prometheusSignal += `. Agent complaints: ${sentiment.slice(0, 120)}`
-        if (salesAngle) prometheusSignal += `. Recruiting pain: ${salesAngle.slice(0, 120)}`
-        prometheusSignal += `. Confidence score: ${confidence})`
-        allSignals.push(prometheusSignal)
+        if (sentiment) prometheusSignal += `. Agent complaints: ${sentiment.slice(0, 100)}`
+        if (salesAngle) prometheusSignal += `. Recruiting pain: ${salesAngle.slice(0, 100)}`
+        prometheusSignal += `)`
+        extraSignals.push(prometheusSignal)
 
-        // Score boost if Prometheus confirmed a named tree
-        if (tree) {
-          const treeNorm = tree.toLowerCase()
-          if (treeNorm.includes('integrity')) integrityScore += 30
-          else if (treeNorm.includes('amerilife')) amerilifeScore += 30
-          else if (treeNorm.includes('sms') || treeNorm.includes('senior market')) smsScore += 30
-        }
-
-        // ── Contact graph traversal ───────────────────────────────────────
-        // Prometheus found contacts at this FMO — SERP each one looking for
-        // tree brand language. Owner/president titles get priority.
-        const contacts: Array<{ name: string; title: string | null }> = aj?.contacts || []
-        if (contacts.length > 0 && serpKey) {
-          // Sort: owner/president/founder first, skip the target agent themselves
-          const agentNameLower = agent.name.toLowerCase()
-          const prioritized = [...contacts]
-            .filter(c => c.name && c.name.toLowerCase() !== agentNameLower)
-            .sort((a, b) => {
-              const priority = (t: string | null) => {
-                if (!t) return 0
-                const tl = t.toLowerCase()
-                if (tl.includes('owner') || tl.includes('founder') || tl.includes('president')) return 3
-                if (tl.includes('coo') || tl.includes('ceo') || tl.includes('director')) return 2
-                return 1
-              }
-              return priority(b.title) - priority(a.title)
-            })
-
-          const contactNetworkMatches: NetworkMatch[] = []
-
-          for (const contact of prioritized) {
-            try {
-              const cq = `"${contact.name}" insurance FMO IMO appointed contracted`
-              const cRes = await fetch(
-                `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(cq)}&num=6&api_key=${serpKey}`,
-                { signal: AbortSignal.timeout(10000) }
-              )
-              if (!cRes.ok) continue
-              const cData = await cRes.json()
-              const cResults = cData.organic_results || []
-
-              for (const r of cResults) {
-                const matches = scanResultAgainstNetwork(
-                  r.title || '', r.snippet || '', r.link || '',
-                  contact.name, networkSignals
-                )
-                contactNetworkMatches.push(...matches)
-                if (matches.length > 0) {
-                  allSignals.push(
-                    `Contact graph: "${contact.name}" (${contact.title || 'affiliated'} at ${scan.domain}) — ${matches.map(m => m.signal.tree + ' signal: ' + m.matchedPhrase).join(', ')}`
-                  )
-                }
-              }
-
-              // Also do a quick Facebook pass on the contact
-              const { result: contactFb } = await fetchFacebookProfile(contact.name, serpKey)
-              if (contactFb?.allText) {
-                const fbMatches = scanResultAgainstNetwork(
-                  '', contactFb.allText, contactFb.profileUrl,
-                  contact.name, networkSignals
-                )
-                contactNetworkMatches.push(...fbMatches)
-                if (fbMatches.length > 0) {
-                  allSignals.push(
-                    `Contact graph (FB): "${contact.name}" at ${scan.domain} — ${fbMatches.map(m => m.signal.tree + ' signal: ' + m.matchedPhrase).join(', ')}`
-                  )
-                }
-              }
-            } catch {
-              // Individual contact lookup failed — skip and continue
-            }
-          }
-
-          // Aggregate all contact graph matches into scores
-          if (contactNetworkMatches.length > 0) {
-            const contactAgg = aggregateMatches(contactNetworkMatches)
-            integrityScore += contactAgg.integrity
-            amerilifeScore += contactAgg.amerilife
-            smsScore += contactAgg.sms
-            allSignals.push(...contactAgg.signals.map(s => `Contact graph aggregate: ${s}`))
-          }
-        }
-
-        break // Only traverse contacts for the first/strongest FMO match
+        break // First/strongest match only
       }
     }
   } catch {
-    // Prometheus lookup failed — continue without it, never block the scan
+    // Prometheus lookup failed — continue without it
   }
 
-  // ── Prediction — runs after Apify if we waited, or immediately if fast path
-  const prediction: { predicted_tree: string; confidence: number; signals_used: string[]; reasoning: string } =
-    await runPrediction(allSignals, integrityScore, amerilifeScore, smsScore)
+  // ── Apify enrichment — only if confidence will be low ────────────────────────
+  // We don't know confidence yet, so run a quick pre-check:
+  // If we have a FB URL and Apify is available, fire it now in parallel
+  // with the AI analysis call below. We'll merge the results after.
+  let apifyEvidenceExtra = ''
+  let apifyPostCount = 0
+  let apifyVideoCount = 0
+  let apifyUsed = false
 
-  // ── Chain resolver ──────────────────────────────────────────────────────
-  let chainResult: ChainResult = null
-  const treesToTry: Array<'integrity' | 'amerilife' | 'sms'> =
-    prediction.predicted_tree !== 'unknown'
-      ? [prediction.predicted_tree as 'integrity' | 'amerilife' | 'sms']
-      : ['integrity', 'amerilife', 'sms']
+  const hasApifyTargets = !!(facebookProfileUrl || agent.youtube_channel)
+  const apifyAvailable = !!(hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET)
 
-  if (agent.state && serpKey) {
-    for (const tree of treesToTry) {
-      const result = await resolveChain(agent.name, agent.state, tree, serpKey, networkSignals, serpSnippetsForHunter)
-      if (result && (result.resolved_partner_name || result.chain_signals.length > 0)) {
-        chainResult = result
-        break
-      }
-    }
-  }
-
-  // ── Synthesize final prediction ─────────────────────────────────────────
-  let finalTree = prediction.predicted_tree
-  let finalConfidence = prediction.confidence
-  let finalSignals = prediction.signals_used
-  let finalReasoning = prediction.reasoning
-  let predictionSource: 'brand_language' | 'chain_resolver' | 'both' | null = null
-
-  if (prediction.predicted_tree !== 'unknown') predictionSource = 'brand_language'
-
-  if (chainResult?.resolved_partner_name && chainResult.resolved_partner_tree) {
-    const chainTree = chainResult.resolved_partner_tree
-    if (finalTree === 'unknown') {
-      finalTree = chainTree
-      finalConfidence = chainResult.resolved_confidence ?? 50
-      finalSignals = [`${chainResult.resolved_partner_name} identified as ${chainTree === 'integrity' ? 'Integrity Marketing Group' : chainTree === 'amerilife' ? 'AmeriLife' : 'Senior Market Sales'} partner`]
-      finalReasoning = `${chainResult.resolved_partner_name} was found co-mentioned with this agent and is a known ${chainTree === 'integrity' ? 'Integrity Marketing Group' : chainTree === 'amerilife' ? 'AmeriLife' : 'Senior Market Sales'} partner.`
-      predictionSource = 'chain_resolver'
-    } else if (finalTree === chainTree) {
-      finalConfidence = Math.min(92, finalConfidence + 15)
-      finalSignals = [...finalSignals, `Chain: ${chainResult.resolved_partner_name} confirmed as ${chainTree} partner`]
-      predictionSource = 'both'
-    }
-  }
-
-  // ── Sub-IMO resolution ──────────────────────────────────────────────────
-  const subImoPartner = chainResult?.resolved_partner_name
-    ? {
-        name: chainResult.resolved_partner_name,
-        id: chainResult.resolved_partner_id,
-        confidence: chainResult.resolved_confidence,
-        signals: chainResult.chain_signals,
-        proofUrl: null,
-      }
-    : autoDetectedSubImo
-    ? {
-        name: autoDetectedSubImo.signal.partner!.name,
-        id: autoDetectedSubImo.signal.partner!.id,
-        confidence: Math.min(88, Math.round(autoDetectedSubImo.signal.weight * 2)),
-        signals: [{
-          tier: 'HIGH' as const,
-          type: 'name' as const,
-          entity: autoDetectedSubImo.signal.partner!.name,
-          text: `"${autoDetectedSubImo.matchedPhrase}" found in search results — direct partner identification`,
-          source: 'partner_query' as const,
-        }],
-        proofUrl: autoDetectedSubImo.proofUrl,
-      }
-    : null
-
-// ── Unresolved upline hunter ────────────────────────────────────────────
-  let unresolvedUpline = null
-  const shouldHunt = (
-    facebookPostText || serpSnippetsForHunter.length > 0
+  // ─── STEP 2: Analyze evidence — one Sonnet call ──────────────────────────────
+  // Run AI analysis. If result comes back low confidence AND Apify is available,
+  // we'll run Apify and do a second AI call with the enriched evidence.
+  let analysis = await analyzeEvidence(
+    agent.name,
+    agent.state || '',
+    evidenceBlob,
+    networkSignals,
+    extraSignals,
   )
 
-  if (shouldHunt) {
-    unresolvedUpline = await huntUnresolvedUpline(
-      agent.name,
-      facebookPostText,
-      facebookProfileUrl || '',
-      serpSnippetsForHunter,
-    )
-    if (unresolvedUpline) {
-      allSignals.push(`Unresolved upline detected: "${unresolvedUpline.name}" — "${unresolvedUpline.evidence}"`)
-      // Write to discovered_fmos — the learning loop (awaited so it completes before response)
-      try {
-        await supabase.rpc('upsert_discovered_fmo', {
-          p_name:       unresolvedUpline.name,
-          p_evidence:   {
-            quote:       unresolvedUpline.evidence,
-            source_url:  unresolvedUpline.sourceUrl || '',
-            agent_name:  agent.name,
-            confidence:  unresolvedUpline.confidence,
-            seen_at:     new Date().toISOString(),
-          },
-          p_state:      agent.state || 'XX',
-          p_confidence: unresolvedUpline.confidence,
+  // ── Apify enrichment on low confidence ──────────────────────────────────────
+  if (apifyAvailable && analysis.tree_confidence < 55) {
+    try {
+      const apifyEnrichment = await enrichWithApify({
+        facebookProfileUrl,
+        youtubeChannelUrl: agent.youtube_channel || null,
+      })
+
+      apifyPostCount = apifyEnrichment.facebookPosts.length
+      apifyVideoCount = apifyEnrichment.youtubeVideos.length
+
+      if (apifyPostCount > 0 || apifyVideoCount > 0) {
+        apifyUsed = true
+        apifyEvidenceExtra = [apifyEnrichment.facebookText, apifyEnrichment.youtubeText]
+          .filter(Boolean).join('\n')
+
+        // Add Apify snippets to debug trail
+        const apifySnippets = apifyToSerpSnippets(apifyEnrichment)
+        serpDebug.push({
+          query: `apify_facebook:${facebookProfileUrl || 'n/a'}`,
+          source: 'apify_facebook_posts',
+          results: apifySnippets.filter(s => s.title.startsWith('Facebook')).slice(0, 5).map(s => ({
+            title: s.title, url: s.url, snippet: s.snippet.slice(0, 200), signals_matched: [],
+          })),
         })
-      } catch (err: unknown) {
-        console.warn('[discovered_fmos] upsert failed:', err)
+
+        // Re-analyze with richer evidence
+        analysis = await analyzeEvidence(
+          agent.name,
+          agent.state || '',
+          [evidenceBlob, apifyEvidenceExtra].join('\n\n'),
+          networkSignals,
+          extraSignals,
+        )
       }
+    } catch {
+      // Apify failed — use first analysis result
     }
   }
 
-  // ── DAVID facts extraction ───────────────────────────────────────────────
-  // Always uses whatever content we have at this point — if we took the
-  // thorough path, Apify content is already in serpDebug and facebookPostText.
+  // ─── STEP 3: DB enrichment ───────────────────────────────────────────────────
+  let subimoPartnerId: string | null = null
+  let subimoIsNewDiscovery = false
+  let subimoNumericConfidence: number | null = null
+
+  if (analysis.subimo && analysis.subimo_confidence) {
+    const { id, isNewDiscovery } = await enrichFromDB(
+      analysis.subimo,
+      analysis.tree !== 'unknown' ? analysis.tree : 'integrity', // best guess tree for lookup
+      agent.name,
+      agent.state || '',
+      analysis.subimo_evidence || '',
+      analysis.subimo_confidence,
+    )
+    subimoPartnerId = id
+    subimoIsNewDiscovery = isNewDiscovery
+    subimoNumericConfidence = subimoConfidenceToNumber(
+      analysis.subimo_confidence,
+      analysis.subimo_evidence_type,
+      !isNewDiscovery,
+    )
+  }
+
+  // Build sub-IMO signals for the UI
+  const subimoSignals = analysis.subimo ? [{
+    tier: analysis.subimo_confidence === 'HIGH' ? 'HIGH' as const
+      : analysis.subimo_confidence === 'MED' ? 'MED' as const
+      : 'LOW' as const,
+    type: analysis.subimo_evidence_type === 'contracting_language' ? 'relationship' as const
+      : analysis.subimo_evidence_type === 'domain_signal' ? 'domain' as const
+      : analysis.subimo_evidence_type === 'association_event' ? 'association' as const
+      : 'comention' as const,
+    entity: analysis.subimo,
+    text: analysis.subimo_evidence || '',
+    source: 'ai_inference' as const,
+  }] : []
+
+  // Prediction source label
+  const predictionSource: 'brand_language' | 'chain_resolver' | 'both' | null = analysis.tree !== 'unknown'
+    ? (analysis.subimo ? 'both' : 'brand_language')
+    : analysis.subimo
+    ? 'chain_resolver'
+    : null
+
+  // ── DAVID facts extraction ───────────────────────────────────────────────────
   const davidFactsInput: DavidFactsInput = {
     agentName: agent.name,
     serpSnippets: serpDebug.flatMap(e => e.results.map(r => ({
@@ -697,9 +344,9 @@ Respond with ONLY valid JSON:
       url: r.url,
       snippet: r.snippet,
     }))),
-    facebookAbout: facebookAbout,
+    facebookAbout,
     facebookPostText: facebookPostText || null,
-    facebookProfileUrl: facebookProfileUrl,
+    facebookProfileUrl,
     agentWebsite: agent.website || null,
     agentNotes: agent.notes || null,
     agentAbout: agent.about || null,
@@ -709,29 +356,8 @@ Respond with ONLY valid JSON:
 
   const davidFacts = await extractDavidFacts(davidFactsInput)
 
-  // ── Apify fire-and-forget — FAST PATH ONLY ──────────────────────────────
-  // If we already waited for Apify above (thorough path), don't fire again.
-  // If we took the fast path (high confidence), fire now for David enrichment.
-  if (!apifyUsedInPrediction && hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET) {
-    const enrichPayload = {
-      userId,
-      agentName: agent.name,
-      agentCity: agent.city,
-      agentState: agent.state,
-      facebookProfileUrl: facebookProfileUrl || null,
-      youtubeChannelUrl: agent.youtube_channel || null,
-      serpSnippets: serpDebug.flatMap(e => e.results.map(r => ({
-        title: r.title,
-        url: r.url,
-        snippet: r.snippet,
-      }))),
-      facebookAbout: facebookAbout || null,
-      facebookPostText: facebookPostText || null,
-      agentWebsite: agent.website || null,
-      agentNotes: agent.notes || null,
-      agentAbout: agent.about || null,
-    }
-
+  // ── Apify fire-and-forget for David enrichment — fast path only ──────────────
+  if (!apifyUsed && hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET) {
     const baseUrl = `${req.nextUrl.protocol}//${req.nextUrl.host}`
     fetch(`${baseUrl}/api/david/enrich`, {
       method: 'POST',
@@ -739,29 +365,45 @@ Respond with ONLY valid JSON:
         'Content-Type': 'application/json',
         'x-enrichment-secret': process.env.ENRICHMENT_SECRET,
       },
-      body: JSON.stringify(enrichPayload),
-    }).catch(err => console.warn('[Apify enrich] fire-and-forget failed to dispatch:', err))
+      body: JSON.stringify({
+        userId,
+        agentName: agent.name,
+        agentCity: agent.city,
+        agentState: agent.state,
+        facebookProfileUrl: facebookProfileUrl || null,
+        youtubeChannelUrl: agent.youtube_channel || null,
+        serpSnippets: serpDebug.flatMap(e => e.results.map(r => ({
+          title: r.title, url: r.url, snippet: r.snippet,
+        }))),
+        facebookAbout: facebookAbout || null,
+        facebookPostText: facebookPostText || null,
+        agentWebsite: agent.website || null,
+        agentNotes: agent.notes || null,
+        agentAbout: agent.about || null,
+      }),
+    }).catch(err => console.warn('[Apify enrich] fire-and-forget failed:', err))
   }
 
-  // ── Return ──────────────────────────────────────────────────────────────
+  // ─── Return ──────────────────────────────────────────────────────────────────
   return NextResponse.json({
-    predicted_tree: finalTree,
-    confidence: finalConfidence,
-    signals_used: finalSignals,
-    reasoning: finalReasoning,
+    predicted_tree: analysis.tree,
+    confidence: analysis.tree_confidence,
+    signals_used: analysis.signals_used,
+    reasoning: analysis.reasoning,
     prediction_source: predictionSource,
     facebook_profile_url: facebookProfileUrl,
     facebook_about: facebookAbout,
-    predicted_sub_imo: subImoPartner?.name ?? null,
-    predicted_sub_imo_confidence: subImoPartner?.confidence ?? null,
-    predicted_sub_imo_signals: subImoPartner?.signals ?? [],
-    predicted_sub_imo_partner_id: subImoPartner?.id ?? null,
-    predicted_sub_imo_proof_url: subImoPartner?.proofUrl ?? null,
-    unresolved_upline: unresolvedUpline?.name ?? null,
-    unresolved_upline_evidence: unresolvedUpline?.evidence ?? null,
-    unresolved_upline_source_url: unresolvedUpline?.sourceUrl ?? null,
-    unresolved_upline_confidence: unresolvedUpline?.confidence ?? null,
-    apify_used_in_prediction: apifyUsedInPrediction,  // true = thorough path, false = fast path
+    predicted_sub_imo: analysis.subimo ?? null,
+    predicted_sub_imo_confidence: subimoNumericConfidence,
+    predicted_sub_imo_signals: subimoSignals,
+    predicted_sub_imo_partner_id: subimoPartnerId,
+    predicted_sub_imo_proof_url: null,
+    predicted_sub_imo_is_new_discovery: subimoIsNewDiscovery,
+    unresolved_upline: subimoIsNewDiscovery ? analysis.subimo : null,
+    unresolved_upline_evidence: subimoIsNewDiscovery ? analysis.subimo_evidence : null,
+    unresolved_upline_source_url: null,
+    unresolved_upline_confidence: subimoIsNewDiscovery ? analysis.subimo_confidence : null,
+    apify_used_in_prediction: apifyUsed,
     serp_debug: serpDebug,
     david_facts: davidFacts,
   })

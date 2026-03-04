@@ -6,7 +6,7 @@ export type ChainSignal = {
   type: 'domain' | 'name' | 'alias' | 'comention' | 'relationship' | 'association' | 'geographic'
   entity: string
   text: string
-  source: 'partner_query' | 'relationship_query' | 'geographic'
+  source: 'partner_query' | 'relationship_query' | 'geographic' | 'ai_inference'
 }
 
 export type SerpDebugResult = {
