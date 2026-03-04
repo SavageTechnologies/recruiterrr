@@ -37,7 +37,7 @@ const STEPS: TourStep[] = [
   },
   {
     id: 'dashboard',
-    target: 'a[href="/dashboard"]',
+    target: 'nav a[href="/dashboard"]',
     position: 'bottom',
     tag: 'STEP 01',
     tagColor: '#ff5500',
