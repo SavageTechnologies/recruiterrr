@@ -655,9 +655,8 @@ Respond with ONLY valid JSON:
   // ── Unresolved upline hunter ────────────────────────────────────────────
   let unresolvedUpline = null
   const shouldHunt = (
-    (finalTree === 'unknown' || finalConfidence < 50) &&
-    !subImoPartner &&
-    (facebookPostText || serpSnippetsForHunter.length > 0)
+  !subImoPartner &&  // hunt whenever we don't have a confirmed sub-IMO
+  (facebookPostText || serpSnippetsForHunter.length > 0)
   )
 
   if (shouldHunt) {
