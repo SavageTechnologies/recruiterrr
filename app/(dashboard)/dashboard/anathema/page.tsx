@@ -349,6 +349,7 @@ function AnathemaDashboardInner() {
             else if (data.predicted_sub_imo_signals?.length > 0) addLog(`[OK] Chain signals collected — no confident sub-IMO match`)
             if (data.prediction_source === 'chain_resolver') addLog(`[FOUND] Prediction sourced from chain — partner resolved in network map`)
             setResult(data)
+            setSaveState('idle') // Always reset — scan result is fresh, nothing saved yet
             setDavidFacts(data.david_facts || null)
             if (data.david_facts) {
               void fetch('/api/anathema', {
@@ -364,7 +365,7 @@ function AnathemaDashboardInner() {
               })
             }
             // Auto-populate sub-IMO field when detected
-            if (data.predicted_sub_imo && !subImo) setSubImo(data.predicted_sub_imo)
+            if (data.predicted_sub_imo) setSubImo(data.predicted_sub_imo)
           } catch (err: any) {
             if (timerRef.current) clearTimeout(timerRef.current)
             addLog(`[ALERT] Scan failed: ${err.message}`)
