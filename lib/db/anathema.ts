@@ -4,7 +4,7 @@
 
 import { supabase } from '@/lib/supabase.server'
 import { matchPartnerByName } from '@/lib/networks'
-import type { ChainSignal } from '@/lib/domain/anathema/chain-resolver'
+import type { ChainSignal } from '@/lib/anathema-types'
 import type { DavidFactsResult } from '@/lib/domain/anathema/david-facts'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
