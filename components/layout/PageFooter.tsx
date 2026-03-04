@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 const COLS = [
@@ -51,8 +52,124 @@ const SOCIALS = [
   { label: 'LINKEDIN',    handle: '@rrrSIGNAL', href: 'https://linkedin.com/company/rrrsignal' },
 ]
 
+function CookieBanner() {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const accepted = localStorage.getItem('recruiterrr_cookies_accepted')
+    if (!accepted) setVisible(true)
+  }, [])
+
+  const accept = () => {
+    localStorage.setItem('recruiterrr_cookies_accepted', 'true')
+    setVisible(false)
+  }
+
+  const decline = () => {
+    localStorage.setItem('recruiterrr_cookies_accepted', 'declined')
+    setVisible(false)
+  }
+
+  if (!visible) return null
+
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 999,
+      background: '#141210',
+      borderTop: '1px solid #2e2b27',
+      borderBottom: 'none',
+      padding: '16px 40px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 24,
+      flexWrap: 'wrap',
+    }}>
+      {/* Left accent line */}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: 40, height: 2, background: 'var(--orange)' }} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1 }}>
+        <div style={{
+          fontFamily: "'DM Mono', monospace",
+          fontSize: 8,
+          letterSpacing: 3,
+          color: 'var(--orange)',
+          border: '1px solid rgba(255,85,0,0.3)',
+          padding: '3px 8px',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+        }}>
+          COOKIES
+        </div>
+        <p style={{
+          fontFamily: "'DM Mono', monospace",
+          fontSize: 10,
+          color: '#555',
+          letterSpacing: 0.5,
+          lineHeight: 1.6,
+          margin: 0,
+        }}>
+          We use cookies for analytics and authentication (Clerk, Stripe).
+          See our{' '}
+          <Link href="/privacy" style={{ color: '#777', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            Privacy Policy
+          </Link>
+          .
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <button
+          onClick={decline}
+          style={{
+            background: 'none',
+            border: '1px solid #2e2b27',
+            color: '#3a3a3a',
+            fontFamily: "'DM Mono', monospace",
+            fontSize: 9,
+            letterSpacing: 2,
+            textTransform: 'uppercase',
+            padding: '8px 16px',
+            cursor: 'pointer',
+            transition: 'border-color 0.15s, color 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#555'; e.currentTarget.style.color = '#777' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#2e2b27'; e.currentTarget.style.color = '#3a3a3a' }}
+        >
+          DECLINE
+        </button>
+        <button
+          onClick={accept}
+          style={{
+            background: 'transparent',
+            border: '1px solid rgba(255,85,0,0.5)',
+            color: 'var(--orange)',
+            fontFamily: "'DM Mono', monospace",
+            fontSize: 9,
+            letterSpacing: 2,
+            textTransform: 'uppercase',
+            padding: '8px 20px',
+            cursor: 'pointer',
+            transition: 'background 0.15s, border-color 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,85,0,0.08)'; e.currentTarget.style.borderColor = 'var(--orange)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,85,0,0.5)' }}
+        >
+          ACCEPT →
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function PageFooter() {
   return (
+    <>
+      <CookieBanner />
     <footer style={{ borderTop: '1px solid #2e2b27' }}>
       <div style={{ height: 2, background: 'var(--orange)', width: 60 }} />
 
@@ -146,5 +263,6 @@ export default function PageFooter() {
 
       </div>
     </footer>
+    </>
   )
 }
