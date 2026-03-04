@@ -18,7 +18,7 @@ import { fetchFacebookProfile } from '@/lib/domain/anathema/facebook'
 import { extractDavidFacts } from '@/lib/domain/anathema/david-facts'
 import type { DavidFactsInput } from '@/lib/domain/anathema/david-facts'
 import { saveObservation, checkExistingSpecimen, getSpecimen, getScan, saveDavidFacts } from '@/lib/db/anathema'
-import { isAdmin, hasActiveSubscription } from '@/lib/auth/access'
+import { isAdmin } from '@/lib/auth/access'
 import { supabase } from '@/lib/supabase.server'
 
 
@@ -29,7 +29,7 @@ const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!await hasActiveSubscription(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isAdmin(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
@@ -454,7 +454,60 @@ Respond with ONLY valid JSON:
     }
   }
 
-  // ── Haiku prediction — runs after Apify if we waited, or immediately if fast path
+  // ── Prometheus cross-reference ─────────────────────────────────────────────
+  // If we've already profiled an FMO/agency that appears in this agent's signals,
+  // pull that stored intel and inject it into the prediction context.
+  // This runs after all SERP + Apify passes so allSignals is fully populated.
+  try {
+    // Build a deduplicated list of entity names from signals to match against
+    const signalText = allSignals.join(' ').toLowerCase()
+
+    const { data: prometheusScans } = await supabase
+      .from('prometheus_scans')
+      .select('domain, verdict, vendor_tier, actively_recruiting, analysis_json, score')
+      .order('created_at', { ascending: false })
+      .limit(200)
+
+    if (prometheusScans && prometheusScans.length > 0) {
+      for (const scan of prometheusScans) {
+        const fmoName = (scan.domain || '').toLowerCase().trim()
+        if (!fmoName || fmoName.length < 4) continue
+
+        // Check if this FMO name appears in agent's signal text
+        if (signalText.includes(fmoName)) {
+          const aj = scan.analysis_json as any
+          const tree = aj?.tree_affiliation || scan.vendor_tier || null
+          const recruiting = scan.actively_recruiting
+          const sentiment = aj?.agent_sentiment?.common_complaints?.join('; ') || null
+          const salesAngle = aj?.sales_angles?.recruiting_pain || null
+          const confidence = scan.score || 0
+
+          let prometheusSignal = `Prometheus DB match: Agent co-mentioned with "${scan.domain}" (${scan.verdict || 'UNKNOWN'} agency`
+          if (tree && tree !== 'Independent') prometheusSignal += `, tree affiliation: ${tree}`
+          if (recruiting) prometheusSignal += `, actively recruiting`
+          if (sentiment) prometheusSignal += `. Agent complaints: ${sentiment.slice(0, 120)}`
+          if (salesAngle) prometheusSignal += `. Recruiting pain: ${salesAngle.slice(0, 120)}`
+          prometheusSignal += `. Confidence score: ${confidence})`
+
+          allSignals.push(prometheusSignal)
+
+          // If Prometheus confirmed a tree affiliation, boost that score directly
+          if (tree) {
+            const treeNorm = tree.toLowerCase()
+            if (treeNorm.includes('integrity')) integrityScore += 30
+            else if (treeNorm.includes('amerilife')) amerilifeScore += 30
+            else if (treeNorm.includes('sms') || treeNorm.includes('senior market')) smsScore += 30
+          }
+
+          break // Only use the first/strongest match
+        }
+      }
+    }
+  } catch {
+    // Prometheus lookup failed — continue without it, never block the scan
+  }
+
+  // ── Prediction — runs after Apify if we waited, or immediately if fast path
   const prediction: { predicted_tree: string; confidence: number; signals_used: string[]; reasoning: string } =
     await runPrediction(allSignals, integrityScore, amerilifeScore, smsScore)
 
