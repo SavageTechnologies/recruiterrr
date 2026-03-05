@@ -1,10 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   RECRUITERRR â€” DESIGN TOKEN SYSTEM
+/* ═══════════════════════════════════════════════════════════════
+   RECRUITERRR — DESIGN TOKEN SYSTEM
    Single source of truth. Change here, changes everywhere.
 
-   SIGNAL COLORS (locked â€” never change semantics):
+   SIGNAL COLORS (locked — never change semantics):
      --sig-green  = HOT / independent / positive signal
      --sig-yellow = WARM / mixed signal / caution
      --sig-red    = CAPTIVE / danger / warning
@@ -16,9 +16,9 @@
      Light is default (no selector needed).
      Dark applied via [data-theme="dark"] on <html>.
      Toggle saves to localStorage key: "recruiterrr_theme"
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+═══════════════════════════════════════════════════════════════ */
 
-/* â”€â”€ SIGNAL COLORS â€” identical in both themes â”€â”€ */
+/* ── SIGNAL COLORS — identical in both themes ── */
 :root {
   --sig-green:         #1a9e5c;
   --sig-green-dim:     rgba(26, 158, 92, 0.10);
@@ -58,8 +58,35 @@
   --sidebar-width: 212px;
 }
 
-/* â”€â”€ LIGHT THEME (default) â”€â”€ */
+/* ── DARK THEME (default — marketing site is dark) ── */
 :root {
+  --bg:            #0f0f0f;
+  --bg-raised:     #181818;
+  --bg-card:       #1d1d1d;
+  --bg-hover:      #222222;
+  --border:        #2a2a2a;
+  --border-strong: #3a3a3a;
+  --text-1:        #f5f4f2;
+  --text-2:        #9a9590;
+  --text-3:        #55524e;
+  --text-4:        #302e2a;
+  --shadow-sm:     rgba(0, 0, 0, 0.3);
+  --shadow-md:     rgba(0, 0, 0, 0.5);
+  --shadow-lg:     rgba(0, 0, 0, 0.7);
+
+  /* Legacy aliases */
+  --black:  #0f0f0f;
+  --white:  #f5f4f2;
+  --dark:   #0f0f0f;
+  --card:   #1d1d1d;
+  --muted:  #9a9590;
+  --green:  #1a9e5c;
+  --yellow: #b07d00;
+  --red:    #cc2200;
+}
+
+/* ── LIGHT THEME — dashboard only, toggled via data-theme="light" ── */
+[data-theme="light"] {
   --bg:            #f4f3f0;
   --bg-raised:     #ffffff;
   --bg-card:       #ffffff;
@@ -74,7 +101,6 @@
   --shadow-md:     rgba(0, 0, 0, 0.09);
   --shadow-lg:     rgba(0, 0, 0, 0.14);
 
-  /* Legacy aliases â€” for components not yet migrated */
   --black:  #111110;
   --white:  #111110;
   --dark:   #f4f3f0;
@@ -85,7 +111,7 @@
   --red:    #cc2200;
 }
 
-/* â”€â”€ DARK THEME â”€â”€ */
+/* ── DARK THEME — explicit, for when user toggles to dark in dashboard ── */
 [data-theme="dark"] {
   --bg:            #0f0f0f;
   --bg-raised:     #181818;
@@ -101,7 +127,7 @@
   --shadow-md:     rgba(0, 0, 0, 0.5);
   --shadow-lg:     rgba(0, 0, 0, 0.7);
 
-  --black:  #f5f4f2;
+  --black:  #0f0f0f;
   --white:  #f5f4f2;
   --dark:   #0f0f0f;
   --card:   #1d1d1d;
@@ -111,9 +137,9 @@
   --red:    #cc2200;
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ══════════════════════════════════════════════════════════════
    BASE
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+══════════════════════════════════════════════════════════════ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -134,18 +160,18 @@ button { cursor: pointer; }
 ::selection { background: var(--orange); color: white; }
 select option { background: var(--bg-card); color: var(--text-1); }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ══════════════════════════════════════════════════════════════
    SCROLLBAR
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+══════════════════════════════════════════════════════════════ */
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ══════════════════════════════════════════════════════════════
    DASHBOARD SHELL
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+══════════════════════════════════════════════════════════════ */
 
 .dash-shell { display: flex; min-height: 100vh; background: var(--bg); }
 
@@ -268,9 +294,9 @@ select option { background: var(--bg-card); color: var(--text-1); }
 
 .dash-main { flex: 1; min-width: 0; min-height: 100vh; background: var(--bg); }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ══════════════════════════════════════════════════════════════
    COMMON PAGE PATTERNS
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+══════════════════════════════════════════════════════════════ */
 
 .page-wrap { padding: var(--space-8) var(--space-10); max-width: 1320px; }
 
@@ -330,9 +356,9 @@ select option { background: var(--bg-card); color: var(--text-1); }
 .btn-primary:hover { opacity: 0.88; }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ══════════════════════════════════════════════════════════════
    ANIMATIONS
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+══════════════════════════════════════════════════════════════ */
 
 @keyframes slideIn  { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
 @keyframes fadeUp   { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }

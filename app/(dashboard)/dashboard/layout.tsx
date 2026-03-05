@@ -34,6 +34,18 @@ export default async function DashboardLayout({
   }
 
   return (
+    <>
+      <script dangerouslySetInnerHTML={{ __html: `
+        (function() {
+          try {
+            var t = localStorage.getItem('recruiterrr_theme');
+            if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+            else document.documentElement.setAttribute('data-theme', 'light');
+          } catch(e) {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+        })();
+      `}} />
     <div className="dash-shell">
 
       {/* ── SIDEBAR ── */}
@@ -132,5 +144,6 @@ export default async function DashboardLayout({
         {children}
       </main>
     </div>
+    </>
   )
 }
