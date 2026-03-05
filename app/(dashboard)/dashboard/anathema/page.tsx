@@ -39,10 +39,10 @@ const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
   FACEBOOK:     { label: 'FB',     color: '#4267B2' },
   YOUTUBE:      { label: 'YT',     color: '#ff4444' },
   GOOGLE_REVIEW:{ label: 'REVIEW', color: 'var(--yellow)' },
-  SERP:         { label: 'WEB',    color: 'var(--muted)' },
+  SERP:         { label: 'WEB',    color: 'var(--text-2)' },
   WEBSITE:      { label: 'SITE',   color: 'var(--orange)' },
   LINKEDIN:     { label: 'LI',     color: '#0077B5' },
-  OTHER:        { label: 'OTHER',  color: '#555' },
+  OTHER:        { label: 'OTHER',  color: 'var(--text-2)' },
 }
 
 function DavidFactsPanel({ facts, agentName, deepScanStatus }: { facts: DavidFact[]; agentName: string; deepScanStatus?: 'idle' | 'polling' | 'complete' | 'timeout' }) {
@@ -56,7 +56,7 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: { facts: DavidFac
       <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,85,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 3, marginBottom: 2 }}>◈ DAVID · PERSONAL INTEL</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-2)', letterSpacing: 1 }}>
             {high.length} HIGH USABILITY · {med.length} MED · Use to personalize your opener
           </div>
           {deepScanStatus === 'polling' && (
@@ -73,26 +73,26 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: { facts: DavidFac
         </div>
         {med.length > 0 && (
           <button onClick={() => setShowMed(v => !v)}
-            style={{ background: 'transparent', border: '1px solid rgba(255,85,0,0.2)', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>
+            style={{ background: 'transparent', border: '1px solid rgba(255,85,0,0.2)', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>
             {showMed ? 'HIDE MED' : `+${med.length} MED`}
           </button>
         )}
       </div>
       <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {visible.length === 0 ? (
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444' }}>No high-usability facts found.{med.length > 0 ? ' Show MED to see supporting context.' : ''}</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)' }}>No high-usability facts found.{med.length > 0 ? ' Show MED to see supporting context.' : ''}</div>
         ) : visible.map((fact, i) => {
           const src = SOURCE_LABELS[fact.source] || SOURCE_LABELS.OTHER
           return (
-            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 14px', background: fact.usability === 'HIGH' ? 'rgba(255,85,0,0.06)' : 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${fact.usability === 'HIGH' ? 'var(--orange)' : '#2a2a2a'}`, animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 14px', background: fact.usability === 'HIGH' ? 'rgba(255,85,0,0.06)' : 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${fact.usability === 'HIGH' ? 'var(--orange)' : 'var(--border)'}`, animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0, alignItems: 'center', paddingTop: 1 }}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '1px 5px', border: `1px solid ${src.color}40`, color: src.color, letterSpacing: 1 }}>{src.label}</span>
                 {fact.recency === 'RECENT' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 6, color: 'var(--green)', letterSpacing: 1 }}>RECENT</span>}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: 'var(--white)', lineHeight: 1.6, marginBottom: fact.raw_quote ? 5 : 0 }}>{fact.fact}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-1)', lineHeight: 1.6, marginBottom: fact.raw_quote ? 5 : 0 }}>{fact.fact}</div>
                 {fact.raw_quote && (
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', lineHeight: 1.5, borderLeft: '1px solid #2a2a2a', paddingLeft: 8 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-2)', lineHeight: 1.5, borderLeft: '1px solid var(--border)', paddingLeft: 8 }}>
                     "{fact.raw_quote.slice(0, 140)}{fact.raw_quote.length > 140 ? '...' : ''}"
                   </div>
                 )}
@@ -102,7 +102,7 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: { facts: DavidFac
         })}
       </div>
       {high.length > 0 && (
-        <div style={{ padding: '8px 20px', borderTop: '1px solid rgba(255,85,0,0.1)', fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 1 }}>
+        <div style={{ padding: '8px 20px', borderTop: '1px solid rgba(255,85,0,0.1)', fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 1 }}>
           OPENER TIP — Lead with a HIGH fact as a bridge: "I was looking at your profile and noticed..."
         </div>
       )}
@@ -112,8 +112,8 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: { facts: DavidFac
 
 function TerminalLog({ lines }: { lines: string[] }) {
   return (
-    <div style={{ background: '#0a0a09', border: '1px solid rgba(0,230,118,0.15)', padding: '16px', height: 190, overflowY: 'auto', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, lineHeight: 2 }}>
-      <div style={{ color: '#333', marginBottom: 4, fontSize: 10 }}>anathema@pathogen-intel:~$ ./scan</div>
+    <div style={{ background: "var(--bg)", border: '1px solid rgba(0,230,118,0.15)', padding: '16px', height: 190, overflowY: 'auto', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, lineHeight: 2 }}>
+      <div style={{ color: 'var(--text-4)', marginBottom: 4, fontSize: 10 }}>anathema@pathogen-intel:~$ ./scan</div>
       {lines.map((line, i) => (
         <div key={i} style={{ color: line.startsWith('[OK]') ? 'var(--green)' : line.startsWith('[WARN]') ? 'var(--yellow)' : line.startsWith('[ALERT]') ? 'var(--red)' : line.startsWith('[FOUND]') ? 'rgba(0,230,118,0.6)' : '#444', animation: 'slideIn 0.2s ease both' }}>{line}</div>
       ))}
@@ -159,8 +159,8 @@ function ChainSection({ result }: { result: ScanResult }) {
   return (
     <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ fontSize: 9, color: '#555', letterSpacing: 3 }}>CHAIN INTELLIGENCE</div>
-        {visibleSignals.length > 0 && <button onClick={() => setExpanded(v => !v)} style={{ background: 'transparent', border: '1px solid #2a2a2a', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>{expanded ? 'COLLAPSE' : `SHOW ALL SIGNALS (${visibleSignals.length})`}</button>}
+        <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: 3 }}>CHAIN INTELLIGENCE</div>
+        {visibleSignals.length > 0 && <button onClick={() => setExpanded(v => !v)} style={{ background: 'transparent', border: '1px solid #2a2a2a', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>{expanded ? 'COLLAPSE' : `SHOW ALL SIGNALS (${visibleSignals.length})`}</button>}
       </div>
       {result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 && (
         <div style={{ marginBottom: visibleSignals.length > 0 ? 14 : 0, padding: '10px 16px', background: 'rgba(0,230,118,0.04)', border: `1px solid ${result.prediction_source === 'chain_resolver' ? 'rgba(0,230,118,0.4)' : 'rgba(0,230,118,0.2)'}` }}>
@@ -169,7 +169,7 @@ function ChainSection({ result }: { result: ScanResult }) {
           {partnerEvidence && <a href={partnerEvidence.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontSize: 10, color: 'rgba(0,230,118,0.65)', textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5, marginBottom: 8 }}>↗ {partnerEvidence.title.slice(0, 70)}</a>}
           {result.predicted_sub_imo_confidence != null && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 100, height: 3, background: '#1e1e1e', position: 'relative' }}><div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.predicted_sub_imo_confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.3), var(--green))', transition: 'width 0.8s ease' }} /></div>
+              <div style={{ width: 100, height: 3, background: 'var(--border)', position: 'relative' }}><div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.predicted_sub_imo_confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.3), var(--green))', transition: 'width 0.8s ease' }} /></div>
               <span style={{ fontSize: 11, color: 'var(--green)', letterSpacing: 1 }}>{result.predicted_sub_imo_confidence}%</span>
             </div>
           )}
@@ -179,10 +179,10 @@ function ChainSection({ result }: { result: ScanResult }) {
         <div style={{ marginBottom: visibleSignals.length > 0 ? 12 : 0, padding: '10px 16px', background: 'rgba(255,152,0,0.04)', border: '1px solid rgba(255,152,0,0.35)' }}>
           <div style={{ fontSize: 9, color: '#777', letterSpacing: 2, marginBottom: 4 }}>UNRESOLVED UPLINE · NOT IN NETWORK MAP</div>
           <div style={{ fontSize: 15, color: '#ff9800', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, marginBottom: 6 }}>{result.unresolved_upline}</div>
-          {result.unresolved_upline_evidence && <div style={{ fontSize: 11, color: '#666', fontFamily: "'DM Mono', monospace", marginBottom: 6, lineHeight: 1.6 }}>"{result.unresolved_upline_evidence}"</div>}
+          {result.unresolved_upline_evidence && <div style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", marginBottom: 6, lineHeight: 1.6 }}>"{result.unresolved_upline_evidence}"</div>}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {result.unresolved_upline_source_url && <a href={result.unresolved_upline_source_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: 'rgba(255,152,0,0.7)', textDecoration: 'none', fontFamily: "'DM Mono', monospace" }}>↗ View source</a>}
-            <span style={{ fontSize: 9, color: '#444', fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{result.unresolved_upline_confidence} CONFIDENCE</span>
+            <span style={{ fontSize: 9, color: 'var(--text-3)', fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{result.unresolved_upline_confidence} CONFIDENCE</span>
           </div>
         </div>
       )}
@@ -204,7 +204,7 @@ function ChainSection({ result }: { result: ScanResult }) {
 
 export default function AnathemaDashboardPage() {
   return (
-    <Suspense fallback={<div style={{ padding: '60px 40px', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2 }}>LOADING...</div>}>
+    <Suspense fallback={<div style={{ padding: '60px 40px', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2 }}>LOADING...</div>}>
       <AnathemaDashboardInner />
     </Suspense>
   )
@@ -451,13 +451,13 @@ function AnathemaDashboardInner() {
         @keyframes scanDown  { 0% { top: 0; opacity: 0.8; } 100% { top: 100%; opacity: 0; } }
         .anathema-initial-scan { position: absolute; left: 0; width: 100%; height: 2px; z-index: 10; background: linear-gradient(90deg, transparent, #00e676, transparent); animation: scanDown 1.2s ease-out 1 forwards; }
         .detail-scroll::-webkit-scrollbar { width: 3px; }
-        .detail-scroll::-webkit-scrollbar-thumb { background: var(--border-light); }
+        .detail-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); }
       `}</style>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#555', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>Pathogen Analysis System · Chemical A0-3959X.91–15</div>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--white)', lineHeight: 0.9 }}>ANATHEMA<span style={{ color: 'var(--green)' }}>.</span></h1>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-2)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>Pathogen Analysis System · Chemical A0-3959X.91–15</div>
+        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--text-1)', lineHeight: 0.9 }}>ANATHEMA<span style={{ color: 'var(--green)' }}>.</span></h1>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: showTwoCol ? '400px 1fr' : '1fr', gap: 0, alignItems: 'start' }}>
@@ -466,25 +466,25 @@ function AnathemaDashboardInner() {
         <div style={{ paddingRight: showTwoCol ? 24 : 0, borderRight: showTwoCol ? '1px solid var(--border)' : 'none', minWidth: 0, overflow: 'hidden' }}>
 
           {/* Input */}
-          <div style={{ display: 'flex', gap: 0, border: `1px solid ${scanning ? 'var(--green)' : 'var(--border-light)'}`, background: 'var(--card)', marginBottom: 2, transition: 'border-color 0.2s', boxShadow: scanning ? '0 0 0 1px rgba(0,230,118,0.3)' : 'none' }}>
+          <div style={{ display: 'flex', gap: 0, border: `1px solid ${scanning ? 'var(--green)' : 'var(--border-strong)'}`, background: 'var(--card)', marginBottom: 2, transition: 'border-color 0.2s', boxShadow: scanning ? '0 0 0 1px rgba(0,230,118,0.3)' : 'none' }}>
             <input value={agencyName} onChange={e => setAgencyName(e.target.value)} onKeyDown={e => e.key === 'Enter' && runScan()} placeholder="Agency or agent name" disabled={scanning}
-              style={{ flex: 1, padding: '16px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 13, letterSpacing: 1 }} />
+              style={{ flex: 1, padding: '16px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-1)', fontFamily: "'DM Mono', monospace", fontSize: 13, letterSpacing: 1 }} />
             <button onClick={runScan} disabled={scanning || !agencyName.trim()}
-              style={{ padding: '16px 24px', background: scanning ? '#111' : 'transparent', border: 'none', borderLeft: `1px solid ${scanning ? 'rgba(0,230,118,0.2)' : 'var(--border-light)'}`, cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 3, color: scanning ? '#333' : 'var(--green)', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+              style={{ padding: '16px 24px', background: scanning ? "var(--bg-raised)" : 'transparent', border: 'none', borderLeft: `1px solid ${scanning ? 'rgba(0,230,118,0.2)' : 'var(--border-strong)'}`, cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 3, color: scanning ? '#333' : 'var(--green)', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
               {scanning ? 'SCANNING...' : '◈ SCAN'}
             </button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 2, marginBottom: 2 }}>
             <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="Website (optional)" disabled={scanning}
-              style={{ padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5 }} />
+              style={{ padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5 }} />
             <input value={city} onChange={e => setCity(e.target.value)} placeholder="City" disabled={scanning}
-              style={{ padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5 }} />
+              style={{ padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5 }} />
             <input value={state} onChange={e => setState(e.target.value.toUpperCase().slice(0, 2))} placeholder="ST" disabled={scanning}
-              style={{ padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5 }} />
+              style={{ padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5 }} />
           </div>
 
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1, marginBottom: 24 }}>WEBSITE + LOCATION OPTIONAL BUT IMPROVE SIGNAL QUALITY</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 1, marginBottom: 24 }}>WEBSITE + LOCATION OPTIONAL BUT IMPROVE SIGNAL QUALITY</div>
 
           {/* Loading */}
           {scanning && currentStep >= 0 && (
@@ -511,7 +511,7 @@ function AnathemaDashboardInner() {
                 ↺ RESCAN
               </button>
               <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }}
-                style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px', cursor: 'pointer' }}>
+                style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px', cursor: 'pointer' }}>
                 NEW SCAN
               </button>
             </div>
@@ -523,8 +523,8 @@ function AnathemaDashboardInner() {
               {specimens.length > 0 && (
                 <div style={{ marginBottom: 40 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2 }}>RECENT SCANS</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', letterSpacing: 1 }}>{specimenPage * SPECIMENS_PER_PAGE + 1}–{Math.min((specimenPage + 1) * SPECIMENS_PER_PAGE, specimens.length)} OF {specimens.length}</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2 }}>RECENT SCANS</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', letterSpacing: 1 }}>{specimenPage * SPECIMENS_PER_PAGE + 1}–{Math.min((specimenPage + 1) * SPECIMENS_PER_PAGE, specimens.length)} OF {specimens.length}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {specimens.slice(specimenPage * SPECIMENS_PER_PAGE, (specimenPage + 1) * SPECIMENS_PER_PAGE).map((s: any) => {
@@ -532,29 +532,29 @@ function AnathemaDashboardInner() {
                       const treeColor = s.predicted_tree === 'integrity' ? 'var(--green)' : s.predicted_tree === 'amerilife' ? '#2196f3' : s.predicted_tree === 'sms' ? '#ff9800' : '#333'
                       return (
                         <button key={s.id} onClick={() => loadSpecimen(s)}
-                          style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, alignItems: 'center', padding: '12px 16px', background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.08)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,230,118,0.3)'; (e.currentTarget as HTMLButtonElement).style.background = '#111' }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,230,118,0.08)'; (e.currentTarget as HTMLButtonElement).style.background = '#0e0d0c' }}>
+                          style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, alignItems: 'center', padding: '12px 16px', background: "var(--bg-card)", border: '1px solid rgba(0,230,118,0.08)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,230,118,0.3)'; (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-raised)" }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,230,118,0.08)'; (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-card)" }}>
                           <div>
-                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--white)', letterSpacing: 0.5, marginBottom: 2 }}>{s.agent_name}</div>
-                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1 }}>{[s.city, s.state].filter(Boolean).join(', ')}{s.confirmed_sub_imo && <span style={{ color: '#555' }}> · {s.confirmed_sub_imo}</span>}</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-1)', letterSpacing: 0.5, marginBottom: 2 }}>{s.agent_name}</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1 }}>{[s.city, s.state].filter(Boolean).join(', ')}{s.confirmed_sub_imo && <span style={{ color: 'var(--text-2)' }}> · {s.confirmed_sub_imo}</span>}</div>
                           </div>
                           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: treeColor, letterSpacing: 2 }}>{tree}</div>
-                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9 }}>{s.confirmed_tree ? <span style={{ color: 'var(--green)', fontSize: 8 }}>✓</span> : s.predicted_confidence ? <span style={{ color: '#444' }}>{s.predicted_confidence}%</span> : <span style={{ color: '#333' }}>—</span>}</div>
-                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', whiteSpace: 'nowrap' }}>{new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9 }}>{s.confirmed_tree ? <span style={{ color: 'var(--green)', fontSize: 8 }}>✓</span> : s.predicted_confidence ? <span style={{ color: 'var(--text-3)' }}>{s.predicted_confidence}%</span> : <span style={{ color: 'var(--text-4)' }}>—</span>}</div>
+                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', whiteSpace: 'nowrap' }}>{new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                         </button>
                       )
                     })}
                   </div>
                   {specimens.length > SPECIMENS_PER_PAGE && (
                     <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
-                      <button onClick={() => setSpecimenPage(p => Math.max(0, p - 1))} disabled={specimenPage === 0} style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid #1e1e1e', color: specimenPage === 0 ? '#222' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, cursor: specimenPage === 0 ? 'default' : 'pointer' }}>← PREV</button>
-                      <button onClick={() => setSpecimenPage(p => Math.min(Math.ceil(specimens.length / SPECIMENS_PER_PAGE) - 1, p + 1))} disabled={(specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length} style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid #1e1e1e', color: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? '#222' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, cursor: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? 'default' : 'pointer' }}>NEXT →</button>
+                      <button onClick={() => setSpecimenPage(p => Math.max(0, p - 1))} disabled={specimenPage === 0} style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--border)', color: specimenPage === 0 ? '#222' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, cursor: specimenPage === 0 ? 'default' : 'pointer' }}>← PREV</button>
+                      <button onClick={() => setSpecimenPage(p => Math.min(Math.ceil(specimens.length / SPECIMENS_PER_PAGE) - 1, p + 1))} disabled={(specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length} style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--border)', color: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? '#222' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, cursor: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? 'default' : 'pointer' }}>NEXT →</button>
                     </div>
                   )}
                 </div>
               )}
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2, marginBottom: 12 }}>WHAT ANATHEMA DETECTS</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>WHAT ANATHEMA DETECTS</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
                 {[
                   { n: '01', title: 'Carrier Fingerprint',   tip: 'Every tree has its carriers. The carriers tell you more than the agent will.' },
@@ -564,12 +564,12 @@ function AnathemaDashboardInner() {
                   { n: '05', title: 'Infection Staging',     tip: 'STAGE I (trace) through STAGE IV (confirmed). Know how confident the signal is.' },
                   { n: '06', title: 'DAVID Personal Intel',  tip: 'Personal facts for your opener — family, hobbies, recent events, YouTube content.' },
                 ].map(c => (
-                  <div key={c.n} style={{ background: '#0e0d0c', border: '1px solid rgba(0,230,118,0.1)', padding: '16px 18px', transition: 'border-color 0.15s' }}
+                  <div key={c.n} style={{ background: "var(--bg-card)", border: '1px solid rgba(0,230,118,0.1)', padding: '16px 18px', transition: 'border-color 0.15s' }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.3)')}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.1)')}>
                     <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--green)', letterSpacing: 2, marginBottom: 8 }}>{c.n}</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--white)', marginBottom: 6 }}>{c.title}</div>
-                    <div style={{ fontSize: 11, color: '#555', lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" }}>{c.tip}</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-1)', marginBottom: 6 }}>{c.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" }}>{c.tip}</div>
                   </div>
                 ))}
               </div>
@@ -584,7 +584,7 @@ function AnathemaDashboardInner() {
             {scanning && !result && (
               <div style={{ paddingTop: 48, display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {/* Current step — big and readable */}
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 3, marginBottom: 20 }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 3, marginBottom: 20 }}>
                   SCANNING · {agencyName.slice(0, 32).toUpperCase()}
                 </div>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'rgba(0,230,118,0.7)', letterSpacing: 2, lineHeight: 1.1, marginBottom: 24, minHeight: 36 }}>
@@ -597,25 +597,25 @@ function AnathemaDashboardInner() {
 
             {result && !scanning && (
               <div style={{ animation: 'slideIn 0.3s ease both' }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#555', letterSpacing: 2, marginBottom: 10 }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-2)', letterSpacing: 2, marginBottom: 10 }}>
                   SPECIMEN: {agencyName.toUpperCase()}{city ? ` · ${city.toUpperCase()}, ${state.toUpperCase()}` : ''}
                 </div>
 
-                <div style={{ background: '#141210', border: '1px solid rgba(0,230,118,0.25)', fontFamily: "'DM Mono', monospace", position: 'relative', overflow: 'hidden', marginBottom: 2 }}>
+                <div style={{ background: "var(--bg-raised)", border: '1px solid rgba(0,230,118,0.25)', fontFamily: "'DM Mono', monospace", position: 'relative', overflow: 'hidden', marginBottom: 2 }}>
                   <div className="anathema-initial-scan" />
 
                   <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,230,118,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: 3 }}>◈ ANATHEMA · PATHOGEN ANALYSIS SYSTEM v1</div>
-                    <div style={{ fontSize: 9, color: '#333', letterSpacing: 1 }}>DIRECT SPECIMEN SCAN</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-4)', letterSpacing: 1 }}>DIRECT SPECIMEN SCAN</div>
                   </div>
 
                   <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 8 }}>STRAIN DETECTED</div>
+                      <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: 3, marginBottom: 8 }}>STRAIN DETECTED</div>
                       <div style={{ fontSize: result.predicted_tree !== 'unknown' ? 40 : 24, color: result.predicted_tree !== 'unknown' ? 'var(--green)' : '#444', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 3, marginBottom: 12, lineHeight: 1 }}>{treeLabel}</div>
                       {result.predicted_tree !== 'unknown' && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 180, height: 4, background: '#1e1e1e', position: 'relative' }}>
+                          <div style={{ width: 180, height: 4, background: 'var(--border)', position: 'relative' }}>
                             <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.4), #00e676)', transition: 'width 0.8s ease' }} />
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--green)', letterSpacing: 1 }}>{result.confidence}% CONFIDENCE</div>
@@ -623,27 +623,27 @@ function AnathemaDashboardInner() {
                       )}
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 6 }}>INFECTION STAGE</div>
+                      <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: 3, marginBottom: 6 }}>INFECTION STAGE</div>
                       <div style={{ fontSize: 56, color: result.predicted_tree !== 'unknown' ? 'var(--green)' : '#222', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, lineHeight: 1 }}>{stage?.roman || '—'}</div>
-                      <div style={{ fontSize: 9, color: '#555', letterSpacing: 2 }}>{stage?.label}</div>
+                      <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: 2 }}>{stage?.label}</div>
                     </div>
                   </div>
 
                   {result.reasoning && result.predicted_tree !== 'unknown' && (
-                    <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)', fontSize: 12, color: '#666', lineHeight: 1.7, letterSpacing: 0.3 }}>{result.reasoning}</div>
+                    <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)', fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, letterSpacing: 0.3 }}>{result.reasoning}</div>
                   )}
 
                   <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)' }}>
-                    <div style={{ fontSize: 9, color: '#555', letterSpacing: 3, marginBottom: 12 }}>PATHOGEN MARKERS</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: 3, marginBottom: 12 }}>PATHOGEN MARKERS</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {(result.signals_used || []).map((sig, i) => (
-                        <div key={i} style={{ fontSize: 11, color: '#888', display: 'flex', gap: 10, lineHeight: 1.5 }}>
+                        <div key={i} style={{ fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 10, lineHeight: 1.5 }}>
                           <span style={{ color: 'var(--green)', flexShrink: 0 }}>▸</span><span>{sig}</span>
                         </div>
                       ))}
                       {result.facebook_profile_url && (
-                        <div style={{ fontSize: 11, color: '#555', display: 'flex', gap: 10, marginTop: 2 }}>
-                          <span style={{ color: '#444', flexShrink: 0 }}>▸</span>
+                        <div style={{ fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 10, marginTop: 2 }}>
+                          <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>▸</span>
                           <a href={result.facebook_profile_url} target="_blank" rel="noopener noreferrer" style={{ color: '#4267B2', textDecoration: 'none', fontFamily: "'DM Mono', monospace" }}>◈ Facebook profile located ↗</a>
                         </div>
                       )}
@@ -655,7 +655,7 @@ function AnathemaDashboardInner() {
                   {/* Field observation — action zone */}
                   <div style={{ padding: '16px 24px', background: 'rgba(0,0,0,0.2)' }}>
                     <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: 3, marginBottom: 14 }}>FIELD OBSERVATION LOG</div>
-                    <div style={{ fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 8, fontFamily: "'DM Mono', monospace" }}>CONFIRM TREE — SELECT ALL THAT APPLY</div>
+                    <div style={{ fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8, fontFamily: "'DM Mono', monospace" }}>CONFIRM TREE — SELECT ALL THAT APPLY</div>
                     <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
                       {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => {
                         const active = confirmedTrees.includes(t)
@@ -669,14 +669,14 @@ function AnathemaDashboardInner() {
                     </div>
                     {confirmedTrees.includes('other') && (
                       <input value={confirmedOther} onChange={e => setConfirmedOther(e.target.value)} placeholder="FMO name..."
-                        style={{ display: 'block', width: '100%', background: '#0e0e0e', border: '1px solid #333', color: 'var(--white)', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '8px 12px', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
+                        style={{ display: 'block', width: '100%', background: "var(--bg)", border: '1px solid var(--border)', color: 'var(--text-1)', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '8px 12px', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
                     )}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
                       <input value={subImo} onChange={e => setSubImo(e.target.value)}
                         placeholder={result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 ? `Confirm: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate...'}
-                        style={{ padding: '8px 12px', background: '#0e0e0e', border: `1px solid ${result.predicted_sub_imo && !subImo ? 'rgba(0,230,118,0.2)' : '#222'}`, color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }} />
+                        style={{ padding: '8px 12px', background: "var(--bg)", border: `1px solid ${result.predicted_sub_imo && !subImo ? 'rgba(0,230,118,0.2)' : '#222'}`, color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }} />
                       <input value={recruiterNotes} onChange={e => setRecruiterNotes(e.target.value)} placeholder="Field notes..."
-                        style={{ padding: '8px 12px', background: '#0e0e0e', border: '1px solid #222', color: '#888', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }} />
+                        style={{ padding: '8px 12px', background: "var(--bg)", border: '1px solid var(--border)', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }} />
                     </div>
                     <button onClick={logObservation} disabled={saveState === 'saving'}
                       style={{ background: saveState === 'saved' ? 'rgba(0,230,118,0.08)' : 'transparent', border: `1px solid ${saveState === 'saved' ? 'var(--green)' : '#333'}`, color: saveState === 'saved' ? 'var(--green)' : '#666', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '9px 20px', cursor: saveState === 'saving' ? 'default' : 'pointer', transition: 'all 0.2s' }}>
@@ -696,7 +696,7 @@ function AnathemaDashboardInner() {
                         <span style={{ fontSize: 8, color: 'var(--orange)', letterSpacing: 2 }}>DEEPENING · PULLING FACEBOOK POSTS + YOUTUBE · STAY ON PAGE</span>
                       </div>
                     ) : (
-                      <div style={{ fontSize: 9, color: '#333', letterSpacing: 1 }}>○ No personal facts extracted from this scan</div>
+                      <div style={{ fontSize: 9, color: 'var(--text-4)', letterSpacing: 1 }}>○ No personal facts extracted from this scan</div>
                     )}
                   </div>
                 )}
