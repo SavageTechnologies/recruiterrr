@@ -154,12 +154,12 @@ export default function AdSpyPage() {
       {/* Recent Scans */}
       {(recentScans.length > 0 || recentLoading) && (
         <div style={{ marginBottom: 32 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2, marginBottom: 8 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8 }}>
             RECENT SCANS
           </div>
           <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             {recentLoading ? (
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444' }}>loading...</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)' }}>loading...</div>
             ) : recentScans.map(scan => (
               <button
                 key={scan.id}
@@ -196,7 +196,7 @@ export default function AdSpyPage() {
             }}
           >
             {KEYWORDS.map(k => (
-              <option key={k} value={k} style={{ background: '#1a1814' }}>{k}</option>
+              <option key={k} value={k} style={{ background: 'var(--bg)' }}>{k}</option>
             ))}
           </select>
         </div>
@@ -205,7 +205,7 @@ export default function AdSpyPage() {
           disabled={loading || !keyword.trim()}
           style={{
             padding: '0 40px',
-            background: loading ? '#333' : '#38bdf8',
+            background: loading ? 'var(--border-strong)' : '#38bdf8',
             border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2,
             color: 'var(--black)', whiteSpace: 'nowrap',
@@ -224,7 +224,7 @@ export default function AdSpyPage() {
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 1 }}>
             ◐ Firing Apify actor — scraping Facebook Ad Library for "{keyword}" across the US...
           </div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 1, marginTop: 6 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 1, marginTop: 6 }}>
             This takes 60–90 seconds. Apify is doing the heavy lifting.
           </div>
         </div>
@@ -249,7 +249,7 @@ export default function AdSpyPage() {
               { label: 'Keyword', value: `"${results.keyword}"`, color: 'var(--muted)' },
             ].map((s, i) => (
               <div key={i} style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '14px 18px' }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 6 }}>{s.label}</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 6 }}>{s.label}</div>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: s.color, lineHeight: 1 }}>{s.value}</div>
               </div>
             ))}
@@ -279,7 +279,7 @@ export default function AdSpyPage() {
           {/* Ad cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {filteredAds.length === 0 ? (
-              <div style={{ padding: '40px', background: 'var(--card)', border: '1px solid var(--border)', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#444' }}>
+              <div style={{ padding: '40px', background: 'var(--card)', border: '1px solid var(--border)', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-3)' }}>
                 No ads match this filter.
               </div>
             ) : filteredAds.map((ad, i) => (
@@ -287,7 +287,7 @@ export default function AdSpyPage() {
                 key={i}
                 style={{
                   background: 'var(--card)', border: '1px solid var(--border)',
-                  borderLeft: `3px solid ${ad.recruitable ? AD_TYPE_COLOR[ad.ad_type] : '#333'}`,
+                  borderLeft: `3px solid ${ad.recruitable ? AD_TYPE_COLOR[ad.ad_type] : 'var(--border-strong)'}`,
                   padding: '16px 20px',
                   opacity: ad.recruitable ? 1 : 0.5,
                 }}
@@ -312,7 +312,7 @@ export default function AdSpyPage() {
                         </div>
                       )}
                       {!ad.recruitable && (
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, letterSpacing: 2, padding: '2px 6px', border: '1px solid #333', color: '#444' }}>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, letterSpacing: 2, padding: '2px 6px', border: '1px solid var(--border)', color: 'var(--text-3)' }}>
                           CARRIER / NOT RECRUITABLE
                         </div>
                       )}
@@ -352,14 +352,14 @@ export default function AdSpyPage() {
                       }
                       if (contact.loading) {
                         return (
-                          <div style={{ marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1 }}>
+                          <div style={{ marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1 }}>
                             ◐ searching...
                           </div>
                         )
                       }
                       if (!contact.found) {
                         return (
-                          <div style={{ marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1 }}>
+                          <div style={{ marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1 }}>
                             ✕ no contact info found
                           </div>
                         )
@@ -395,12 +395,12 @@ export default function AdSpyPage() {
                       </div>
                     )}
                     {ad.start_date && (
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1 }}>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1 }}>
                         SINCE: {new Date(ad.start_date).toLocaleDateString()}
                       </div>
                     )}
                     {ad.platforms.length > 0 && (
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 1 }}>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 1 }}>
                         {ad.platforms.slice(0, 2).join(' · ')}
                       </div>
                     )}
@@ -421,7 +421,7 @@ export default function AdSpyPage() {
           </div>
 
           {/* Footer note */}
-          <div style={{ marginTop: 24, padding: '16px 20px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', lineHeight: 1.7 }}>
+          <div style={{ marginTop: 24, padding: '16px 20px', background: 'var(--card)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', lineHeight: 1.7 }}>
             ◎ This is experimental. Data is pulled live from the Facebook Ad Library via Apify — each run costs ~$0.50-1.00 in Apify credits. When this proves useful, replace Apify with direct Meta Ad Library API calls for free.
           </div>
         </>

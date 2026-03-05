@@ -40,7 +40,7 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
 
   return (
     <div onClick={onClick} style={{
-      background: selected ? "#1e1c1a" : "var(--card)",
+      background: selected ? "var(--bg-hover)" : "var(--card)",
       border: `1px solid ${selected ? col.border : "var(--border)"}`,
       borderLeft: `3px solid ${col.border}`,
       padding: "16px 18px",
