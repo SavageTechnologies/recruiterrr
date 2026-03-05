@@ -52,17 +52,17 @@ function DavidFactsPanel({ facts, agentName }: { facts: DavidFact[]; agentName: 
   const visible = showMed ? [...high, ...med] : high
   if (facts.length === 0) return null
   return (
-    <div style={{ marginTop: 2, background: 'rgba(255,85,0,0.03)', border: '1px solid rgba(255,85,0,0.2)', animation: 'slideIn 0.3s ease both' }}>
-      <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,85,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div style={{ marginTop: 2, background: 'rgba(149,76,233,0.03)', border: '1px solid rgba(149,76,233,0.2)', animation: 'slideIn 0.3s ease both' }}>
+      <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(149,76,233,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 3, marginBottom: 2 }}>◈ DAVID · PERSONAL INTEL</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#954CE9', letterSpacing: 3, marginBottom: 2 }}>◈ DAVID · PERSONAL INTEL</div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1 }}>
             {high.length} HIGH USABILITY · {med.length} MED · Use to personalize your opener
           </div>
         </div>
         {med.length > 0 && (
           <button onClick={() => setShowMed(v => !v)}
-            style={{ background: 'transparent', border: '1px solid rgba(255,85,0,0.2)', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>
+            style={{ background: 'transparent', border: '1px solid rgba(149,76,233,0.2)', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>
             {showMed ? 'HIDE MED' : `+${med.length} MED`}
           </button>
         )}
@@ -73,7 +73,7 @@ function DavidFactsPanel({ facts, agentName }: { facts: DavidFact[]; agentName: 
         ) : visible.map((fact, i) => {
           const src = SOURCE_LABELS[fact.source] || SOURCE_LABELS.OTHER
           return (
-            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 14px', background: fact.usability === 'HIGH' ? 'rgba(255,85,0,0.06)' : 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${fact.usability === 'HIGH' ? 'var(--orange)' : '#2a2a2a'}`, animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 14px', background: fact.usability === 'HIGH' ? 'rgba(149,76,233,0.06)' : 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${fact.usability === 'HIGH' ? '#954CE9' : '#2a2a2a'}`, animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0, alignItems: 'center', paddingTop: 1 }}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '1px 5px', border: `1px solid ${src.color}40`, color: src.color, letterSpacing: 1 }}>{src.label}</span>
                 {fact.recency === 'RECENT' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 6, color: 'var(--green)', letterSpacing: 1 }}>RECENT</span>}
@@ -91,7 +91,7 @@ function DavidFactsPanel({ facts, agentName }: { facts: DavidFact[]; agentName: 
         })}
       </div>
       {high.length > 0 && (
-        <div style={{ padding: '8px 20px', borderTop: '1px solid rgba(255,85,0,0.1)', fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 1 }}>
+        <div style={{ padding: '8px 20px', borderTop: '1px solid rgba(149,76,233,0.1)', fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 1 }}>
           OPENER TIP — Lead with a HIGH fact as a bridge: "I was looking at your profile and noticed..."
         </div>
       )}
@@ -382,7 +382,7 @@ function AnathemaDashboardInner() {
       <div style={{ display: 'grid', gridTemplateColumns: showTwoCol ? '400px 1fr' : '1fr', gap: 0, alignItems: 'start' }}>
 
         {/* LEFT: input + loading + empty state */}
-        <div style={{ paddingRight: showTwoCol ? 24 : 0, borderRight: showTwoCol ? '1px solid var(--border)' : 'none' }}>
+        <div style={{ paddingRight: showTwoCol ? 24 : 0, borderRight: showTwoCol ? '1px solid var(--border)' : 'none', minWidth: 0, overflow: 'hidden' }}>
 
           {/* Input */}
           <div style={{ display: 'flex', gap: 0, border: `1px solid ${scanning ? 'var(--green)' : 'var(--border-light)'}`, background: 'var(--card)', marginBottom: 2, transition: 'border-color 0.2s', boxShadow: scanning ? '0 0 0 1px rgba(0,230,118,0.3)' : 'none' }}>
@@ -411,14 +411,13 @@ function AnathemaDashboardInner() {
               <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 16 }}>
                 <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--green)', animation: 'loadSlide 1s ease-in-out infinite' }} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {LOADING_STEPS.map((step, i) => (
                   <div key={step} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8, color: i < currentStep ? 'var(--green)' : i === currentStep ? 'rgba(0,230,118,0.7)' : '#333', transition: 'color 0.3s' }}>
                     <span style={{ fontSize: 7 }}>{i < currentStep ? '●' : i === currentStep ? '◐' : '○'}</span>{step}
                   </div>
                 ))}
               </div>
-              <TerminalLog lines={logLines} />
             </div>
           )}
 
@@ -502,12 +501,15 @@ function AnathemaDashboardInner() {
           <div ref={resultRef} className="detail-scroll" style={{ paddingLeft: 24, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto', position: 'sticky', top: 16 }}>
 
             {scanning && !result && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, paddingTop: 40 }}>
-                <div style={{ border: '1px solid rgba(0,230,118,0.3)', padding: '12px 28px', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 3, color: 'var(--green)', position: 'relative', overflow: 'hidden' }}>
-                  <style>{`@keyframes scanline{0%{top:0}100%{top:100%}}.anathema-scanline{position:absolute;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,#00e676,transparent);animation:scanline 1.2s linear infinite}`}</style>
-                  SCANNING {agencyName.slice(0, 24).toUpperCase()}...
-                  <div className="anathema-scanline" />
+              <div style={{ paddingTop: 48, display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {/* Current step — big and readable */}
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 3, marginBottom: 20 }}>
+                  SCANNING · {agencyName.slice(0, 32).toUpperCase()}
                 </div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'rgba(0,230,118,0.7)', letterSpacing: 2, lineHeight: 1.1, marginBottom: 24, minHeight: 36 }}>
+                  {currentStep >= 0 ? LOADING_STEPS[currentStep] : ''}
+                </div>
+                {/* Terminal log — single instance, right side only */}
                 <TerminalLog lines={logLines} />
               </div>
             )}
@@ -605,7 +607,7 @@ function AnathemaDashboardInner() {
                 {/* DAVID facts */}
                 {davidFacts && davidFacts.length > 0 && <DavidFactsPanel facts={davidFacts} agentName={agencyName} />}
                 {davidFacts === null && result && (
-                  <div style={{ marginTop: 2, padding: '10px 16px', background: 'rgba(255,85,0,0.02)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
+                  <div style={{ marginTop: 2, padding: '10px 16px', background: 'rgba(149,76,233,0.02)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
                     ○ DAVID — No personal facts extracted from this scan
                   </div>
                 )}
