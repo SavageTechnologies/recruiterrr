@@ -336,14 +336,18 @@ function PrometheusPageInner() {
 
   const analysis = result?.analysis
 
+  const contactCount = (analysis?.contacts || []).length
+  const quoteCount   = (analysis?.agent_sentiment?.agent_quotes || []).length
+  const angleCount   = [analysis?.sales_angles?.tech_gap, analysis?.sales_angles?.retention_problem, analysis?.sales_angles?.recruiting_pain].filter(a => a && a !== 'Not found in scan').length
+
   const TABS = [
-    { key: 'intel',      label: 'INTEL BRIEF'       },
-    { key: 'contacts',   label: '◎ CONTACTS'        },
-    { key: 'recruiting', label: 'RECRUITING SIGNALS' },
-    { key: 'offer',      label: 'WHAT THEY OFFER'   },
-    { key: 'angles',     label: '⚡ SALES ANGLES'   },
-    { key: 'voice',      label: 'AGENT VOICE'       },
-    { key: 'sources',    label: '⬡ SOURCES'         },
+    { key: 'intel',      label: 'INTEL BRIEF'                                                     },
+    { key: 'angles',     label: `⚡ SALES ANGLES${angleCount > 0 ? ` (${angleCount})` : ''}` },
+    { key: 'contacts',   label: `◎ CONTACTS${contactCount > 0 ? ` (${contactCount})` : ''}`  },
+    { key: 'recruiting', label: 'RECRUITING'                                                       },
+    { key: 'offer',      label: 'WHAT THEY OFFER'                                                 },
+    { key: 'voice',      label: `AGENT VOICE${quoteCount > 0 ? ` (${quoteCount})` : ''}`          },
+    { key: 'sources',    label: '⬡ SOURCES'                                                   },
   ] as const
 
   return (
@@ -537,11 +541,11 @@ function PrometheusPageInner() {
                       <div>
                         <div style={{ fontSize: 14, color: 'var(--white)', fontWeight: 600, marginBottom: 4 }}>{c.name}</div>
                         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1, marginBottom: 8 }}>{c.title}</div>
-                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                          {c.email && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)' }}>✉ {c.email}</span>}
-                          {c.phone && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)' }}>☎ {c.phone}</span>}
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                          {c.email && <a href={`mailto:${c.email}`} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', textDecoration: 'none', padding: '3px 8px', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>✉ {c.email}</a>}
+                          {c.phone && <a href={`tel:${c.phone}`} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--white)', textDecoration: 'none', padding: '3px 8px', border: '1px solid var(--border-light)', background: 'rgba(255,255,255,0.03)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>📞 {c.phone}</a>}
                           {c.linkedin && (
-                            <a href={c.linkedin} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', textDecoration: 'none' }}>in LinkedIn ↗</a>
+                            <a href={c.linkedin} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', textDecoration: 'none', padding: '3px 8px', border: '1px solid rgba(255,85,0,0.3)' }}>in LinkedIn ↗</a>
                           )}
                         </div>
                       </div>
