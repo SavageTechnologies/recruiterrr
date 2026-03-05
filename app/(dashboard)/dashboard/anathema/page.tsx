@@ -45,24 +45,35 @@ const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
   OTHER:        { label: 'OTHER',  color: '#555' },
 }
 
-function DavidFactsPanel({ facts, agentName }: { facts: DavidFact[]; agentName: string }) {
+function DavidFactsPanel({ facts, agentName, deepScanStatus }: { facts: DavidFact[]; agentName: string; deepScanStatus?: 'idle' | 'polling' | 'complete' | 'timeout' }) {
   const [showMed, setShowMed] = useState(false)
   const high = facts.filter(f => f.usability === 'HIGH')
   const med  = facts.filter(f => f.usability === 'MED')
   const visible = showMed ? [...high, ...med] : high
   if (facts.length === 0) return null
   return (
-    <div style={{ marginTop: 2, background: 'rgba(149,76,233,0.03)', border: '1px solid rgba(149,76,233,0.2)', animation: 'slideIn 0.3s ease both' }}>
-      <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(149,76,233,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div style={{ marginTop: 2, background: 'rgba(255,85,0,0.03)', border: '1px solid rgba(255,85,0,0.2)', animation: 'slideIn 0.3s ease both' }}>
+      <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,85,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#954CE9', letterSpacing: 3, marginBottom: 2 }}>◈ DAVID · PERSONAL INTEL</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 3, marginBottom: 2 }}>◈ DAVID · PERSONAL INTEL</div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 1 }}>
             {high.length} HIGH USABILITY · {med.length} MED · Use to personalize your opener
           </div>
+          {deepScanStatus === 'polling' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite' }} />
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--orange)', letterSpacing: 2 }}>DEEPENING · PULLING FACEBOOK POSTS + YOUTUBE · STAY ON PAGE</span>
+            </div>
+          )}
+          {deepScanStatus === 'complete' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--green)', letterSpacing: 2 }}>● DEEP SCAN COMPLETE · FACTS UPDATED</span>
+            </div>
+          )}
         </div>
         {med.length > 0 && (
           <button onClick={() => setShowMed(v => !v)}
-            style={{ background: 'transparent', border: '1px solid rgba(149,76,233,0.2)', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>
+            style={{ background: 'transparent', border: '1px solid rgba(255,85,0,0.2)', color: '#555', fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>
             {showMed ? 'HIDE MED' : `+${med.length} MED`}
           </button>
         )}
@@ -73,7 +84,7 @@ function DavidFactsPanel({ facts, agentName }: { facts: DavidFact[]; agentName: 
         ) : visible.map((fact, i) => {
           const src = SOURCE_LABELS[fact.source] || SOURCE_LABELS.OTHER
           return (
-            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 14px', background: fact.usability === 'HIGH' ? 'rgba(149,76,233,0.06)' : 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${fact.usability === 'HIGH' ? '#954CE9' : '#2a2a2a'}`, animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 14px', background: fact.usability === 'HIGH' ? 'rgba(255,85,0,0.06)' : 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${fact.usability === 'HIGH' ? 'var(--orange)' : '#2a2a2a'}`, animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0, alignItems: 'center', paddingTop: 1 }}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '1px 5px', border: `1px solid ${src.color}40`, color: src.color, letterSpacing: 1 }}>{src.label}</span>
                 {fact.recency === 'RECENT' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 6, color: 'var(--green)', letterSpacing: 1 }}>RECENT</span>}
@@ -91,7 +102,7 @@ function DavidFactsPanel({ facts, agentName }: { facts: DavidFact[]; agentName: 
         })}
       </div>
       {high.length > 0 && (
-        <div style={{ padding: '8px 20px', borderTop: '1px solid rgba(149,76,233,0.1)', fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 1 }}>
+        <div style={{ padding: '8px 20px', borderTop: '1px solid rgba(255,85,0,0.1)', fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 1 }}>
           OPENER TIP — Lead with a HIGH fact as a bridge: "I was looking at your profile and noticed..."
         </div>
       )}
@@ -215,11 +226,14 @@ function AnathemaDashboardInner() {
   const [recruiterNotes, setRecruiterNotes] = useState('')
   const [saveState, setSaveState]           = useState<'idle' | 'saving' | 'saved'>('idle')
   const [davidFacts, setDavidFacts]         = useState<DavidFact[] | null>(null)
+  const [deepScanStatus, setDeepScanStatus] = useState<'idle' | 'polling' | 'complete' | 'timeout'>('idle')
+  const [specimenId, setSpecimenId]         = useState<string | null>(null)
   const [specimens, setSpecimens]           = useState<any[]>([])
   const [specimenPage, setSpecimenPage]     = useState(0)
   const SPECIMENS_PER_PAGE = 5
 
   const timerRef  = useRef<NodeJS.Timeout | null>(null)
+  const pollRef   = useRef<NodeJS.Timeout | null>(null)
   const resultRef = useRef<HTMLDivElement>(null)
   const searchParams = useSearchParams()
 
@@ -263,9 +277,37 @@ function AnathemaDashboardInner() {
 
   function addLog(line: string) { setLogLines(prev => [...prev.slice(-40), line]) }
 
+  function startDeepPolling(id: string) {
+    if (pollRef.current) clearInterval(pollRef.current)
+    setDeepScanStatus('polling')
+    const INTERVAL = 5000
+    const TIMEOUT  = 3 * 60 * 1000
+    const started  = Date.now()
+    pollRef.current = setInterval(async () => {
+      if (Date.now() - started > TIMEOUT) {
+        clearInterval(pollRef.current!)
+        setDeepScanStatus('timeout')
+        return
+      }
+      try {
+        const res  = await fetch(`/api/anathema?id=${id}`)
+        const data = await res.json()
+        const facts = data.scan?.david_facts?.facts ?? null
+        const sources: string[] = data.scan?.david_facts?.scan_sources_used || []
+        const isDeep = sources.some((s: string) => s.startsWith('APIFY_'))
+        if (isDeep && facts) {
+          clearInterval(pollRef.current!)
+          setDeepScanStatus('complete')
+          setDavidFacts(facts)
+        }
+      } catch {}
+    }, INTERVAL)
+  }
+
   async function runScan() {
     if (!agencyName.trim() || scanning) return
-    setScanning(true); setResult(null); setError(''); setLogLines([]); setCurrentStep(0); setDavidFacts(null)
+    setScanning(true); setResult(null); setError(''); setLogLines([]); setCurrentStep(0); setDavidFacts(null); setDeepScanStatus('idle'); setSpecimenId(null)
+    if (pollRef.current) clearInterval(pollRef.current)
     if (saveState !== 'saved') { setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes('') }
     setSaveState('idle')
     let si = 0, li = 0
@@ -299,7 +341,42 @@ function AnathemaDashboardInner() {
       if (data.predicted_sub_imo) setSubImo(data.predicted_sub_imo)
       if (davidFactsList.length > 0) {
         setDavidFacts(davidFactsList)
-        void fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save_david_facts', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase(), david_facts: data.david_facts }) })
+        // Save initial facts, then poll for Apify-enriched facts
+        const savedRes = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save_david_facts', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase(), david_facts: data.david_facts }) })
+        const savedData = await savedRes.json().catch(() => ({}))
+        // If we got a specimen ID back, start polling for Apify enrichment
+        if (savedData.id) {
+          setSpecimenId(savedData.id)
+          startDeepPolling(savedData.id)
+        } else {
+          // Fall back: poll by name lookup after a short delay
+          setDeepScanStatus('polling')
+          setTimeout(async () => {
+            try {
+              const checkRes = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'check_existing', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() }) })
+              const checkData = await checkRes.json()
+              if (checkData.specimen?.id) {
+                setSpecimenId(checkData.specimen.id)
+                startDeepPolling(checkData.specimen.id)
+              }
+            } catch {}
+          }, 3000)
+        }
+      } else {
+        // No initial facts but Apify might still find some — poll anyway if FB/YT targets exist
+        if (data.facebook_profile_url) {
+          setDeepScanStatus('polling')
+          setTimeout(async () => {
+            try {
+              const checkRes = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'check_existing', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() }) })
+              const checkData = await checkRes.json()
+              if (checkData.specimen?.id) {
+                setSpecimenId(checkData.specimen.id)
+                startDeepPolling(checkData.specimen.id)
+              }
+            } catch {}
+          }, 3000)
+        }
       }
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err: any) {
@@ -609,10 +686,18 @@ function AnathemaDashboardInner() {
                 </div>
 
                 {/* DAVID facts */}
-                {davidFacts && davidFacts.length > 0 && <DavidFactsPanel facts={davidFacts} agentName={agencyName} />}
+                {davidFacts && davidFacts.length > 0 && <DavidFactsPanel facts={davidFacts} agentName={agencyName} deepScanStatus={deepScanStatus} />}
                 {davidFacts === null && result && (
-                  <div style={{ marginTop: 2, padding: '10px 16px', background: 'rgba(149,76,233,0.02)', border: '1px solid var(--border)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
-                    ○ DAVID — No personal facts extracted from this scan
+                  <div style={{ marginTop: 2, padding: '14px 20px', background: 'rgba(255,85,0,0.02)', border: '1px solid rgba(255,85,0,0.15)', fontFamily: "'DM Mono', monospace" }}>
+                    <div style={{ fontSize: 9, color: 'var(--orange)', letterSpacing: 3, marginBottom: 4 }}>◈ DAVID · PERSONAL INTEL</div>
+                    {deepScanStatus === 'polling' ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite', flexShrink: 0 }} />
+                        <span style={{ fontSize: 8, color: 'var(--orange)', letterSpacing: 2 }}>DEEPENING · PULLING FACEBOOK POSTS + YOUTUBE · STAY ON PAGE</span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 9, color: '#333', letterSpacing: 1 }}>○ No personal facts extracted from this scan</div>
+                    )}
                   </div>
                 )}
               </div>
