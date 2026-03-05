@@ -50,10 +50,8 @@ export default async function DashboardPage() {
               padding: '16px 36px', background: 'var(--orange)',
               borderRadius: 'var(--radius)', textDecoration: 'none',
               boxShadow: '0 2px 12px var(--orange-mid)',
-              transition: 'opacity 0.15s',
+              opacity: 1,
             }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
           >
             <span style={{
               fontFamily: "'Bebas Neue', sans-serif",

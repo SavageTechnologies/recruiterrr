@@ -39,10 +39,7 @@ export default function SearchesTable({ searches }: { searches: Search[] }) {
           color: 'var(--orange)', fontFamily: "'DM Mono', monospace",
           fontSize: 11, letterSpacing: 2, textTransform: 'uppercase',
           textDecoration: 'none', display: 'inline-block',
-          transition: 'background 0.15s',
         }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--orange-dim)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           Search Now →
         </Link>
