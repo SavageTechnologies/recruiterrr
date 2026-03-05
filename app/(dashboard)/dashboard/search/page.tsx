@@ -293,7 +293,7 @@ function MarketSummary({ agents, searchLabel, mode }: { agents: Agent[]; searchL
 }
 
 // ── Full Detail Panel ─────────────────────────────────────────────────────────
-function DetailPanel({ agent }: { agent: Agent | null }) {
+function DetailPanel({ agent, city, state }: { agent: Agent | null; city: string; state: string }) {
   if (!agent) return null
 
   const flagColor = agent.flag === 'hot' ? 'var(--green)' : agent.flag === 'warm' ? 'var(--yellow)' : 'var(--border)'
@@ -471,7 +471,7 @@ function DetailPanel({ agent }: { agent: Agent | null }) {
       {/* ── ANATHEMA CTA ── */}
       <div style={{ padding: '16px 24px', marginTop: 'auto' }}>
         <a
-          href={`/dashboard/anathema?name=${encodeURIComponent(agent.name)}&city=&state=`}
+          href={`/dashboard/anathema?name=${encodeURIComponent(agent.name)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}${agent.website ? `&url=${encodeURIComponent(agent.website)}` : ''}`}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '12px 16px', background: 'rgba(0,230,118,0.05)', border: '1px solid rgba(0,230,118,0.2)',
@@ -837,7 +837,7 @@ function SearchPageInner() {
                     borderLeft: 'none',
                   }}>
                     {selectedAgent
-                      ? <DetailPanel agent={selectedAgent} />
+                      ? <DetailPanel agent={selectedAgent} city={city} state={state} />
                       : <MarketSummary agents={agents} searchLabel={searchLabel} mode={mode} />
                     }
                   </div>
@@ -972,7 +972,7 @@ function SearchPageInner() {
                 )}
 
                 <div style={{ padding: '12px 24px', display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <a href={`/dashboard/anathema?name=${encodeURIComponent(lookupResult.name)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`}
+                  <a href={`/dashboard/anathema?name=${encodeURIComponent(lookupResult.name)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}${lookupResult.website ? `&url=${encodeURIComponent(lookupResult.website)}` : ''}`}
                     style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '6px 14px', border: '1px solid rgba(0,230,118,0.3)', color: 'var(--green)', textDecoration: 'none', letterSpacing: 2 }}>
                     ◈ RUN ANATHEMA SCAN →
                   </a>
