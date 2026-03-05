@@ -99,21 +99,21 @@ function KPI({ label, value, sub, color, accent }: {
 }) {
   return (
     <div style={{
-      padding: '20px 24px', background: '#0c0b09',
-      border: '1px solid #1c1a16',
+      padding: '20px 24px', background: 'var(--bg-card)',
+      border: '1px solid var(--border)',
       borderTop: `2px solid ${accent || color || '#333'}`,
     }}>
       <div style={{
         fontFamily: "'Bebas Neue', sans-serif", fontSize: 36,
-        color: color || '#f0ede8', lineHeight: 1, marginBottom: 6,
+        color: color || 'var(--text-1)', lineHeight: 1, marginBottom: 6,
       }}>
         {value}
       </div>
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, textTransform: 'uppercase' }}>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, textTransform: 'uppercase' }}>
         {label}
       </div>
       {sub && (
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', letterSpacing: 1, marginTop: 4 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', letterSpacing: 1, marginTop: 4 }}>
           {sub}
         </div>
       )}
@@ -124,7 +124,7 @@ function KPI({ label, value, sub, color, accent }: {
 function CostBar({ searches, anathema, prometheus }: { searches: number; anathema: number; prometheus: number }) {
   const total = searches + anathema + prometheus
   if (total === 0) return (
-    <div style={{ height: 4, background: '#111', width: '100%' }} />
+    <div style={{ height: 4, background: 'var(--bg)', width: '100%' }} />
   )
   return (
     <div style={{ display: 'flex', height: 4, width: '100%', overflow: 'hidden', gap: 1 }}>
@@ -157,10 +157,10 @@ export default function AdminPage() {
   }, [])
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#2a2a2a', letterSpacing: 3 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-4)', letterSpacing: 3 }}>
       <div>
         <div style={{ marginBottom: 12 }}>LOADING INTEL...</div>
-        <div style={{ height: 1, background: '#111', width: 200, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ height: 1, background: 'var(--bg)', width: 200, position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: '#ff5500', animation: 'slide 1s ease-in-out infinite' }} />
         </div>
       </div>
@@ -171,8 +171,8 @@ export default function AdminPage() {
   if (error === 'FORBIDDEN') return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', textAlign: 'center' }}>
       <div>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 64, color: '#1a1a1a', letterSpacing: 6 }}>DENIED</div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#2a2a2a', letterSpacing: 3, marginTop: 8 }}>ADMIN CLEARANCE REQUIRED</div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 64, color: 'var(--text-4)', letterSpacing: 6 }}>DENIED</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 3, marginTop: 8 }}>ADMIN CLEARANCE REQUIRED</div>
       </div>
     </div>
   )
@@ -232,12 +232,12 @@ export default function AdminPage() {
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#ff5500', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 6 }}>
             Admin · Command Center
           </div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, letterSpacing: 3, color: '#f0ede8', lineHeight: 1 }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, letterSpacing: 3, color: 'var(--text-1)', lineHeight: 1 }}>
             RECRUITERRR INTEL
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 4 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 4 }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
@@ -251,7 +251,7 @@ export default function AdminPage() {
       <div style={{ display: 'flex', gap: 2, marginBottom: 28, flexWrap: 'wrap' }}>
         {TOOL_NAV.map(t => (
           <a key={t.label} href={t.href} style={{
-            padding: '10px 18px', background: '#0c0b09',
+            padding: '10px 18px', background: 'var(--bg-card)',
             border: `1px solid #1c1a16`, borderBottom: `2px solid ${t.color}`,
             textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: 3,
             transition: 'border-color 0.15s',
@@ -260,7 +260,7 @@ export default function AdminPage() {
             onMouseLeave={e => (e.currentTarget.style.borderBottom = `2px solid ${t.color}`)}
           >
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 2, color: t.color }}>{t.label} →</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', letterSpacing: 1 }}>{t.stats}</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', letterSpacing: 1 }}>{t.stats}</div>
           </a>
         ))}
       </div>
@@ -285,30 +285,30 @@ export default function AdminPage() {
 
       {/* ── BREAKEVEN CALLOUTS ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, marginBottom: 28 }}>
-        <div style={{ padding: '16px 20px', background: '#0c0b09', border: '1px solid #1c1a16' }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 8 }}>BREAKEVEN — ANATHEMA</div>
+        <div style={{ padding: '16px 20px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8 }}>BREAKEVEN — ANATHEMA</div>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: '#00e676' }}>{breakEvenScansAnathema} scans</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 4 }}>per user per month to fully consume {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', marginTop: 4 }}>per user per month to fully consume {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}</div>
         </div>
-        <div style={{ padding: '16px 20px', background: '#0c0b09', border: '1px solid #1c1a16' }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 8 }}>BREAKEVEN — PROMETHEUS</div>
+        <div style={{ padding: '16px 20px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8 }}>BREAKEVEN — PROMETHEUS</div>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: '#ff5500' }}>{breakEvenScanPrometheus} scans</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 4 }}>per user per month to fully consume {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', marginTop: 4 }}>per user per month to fully consume {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}</div>
         </div>
-        <div style={{ padding: '16px 20px', background: '#0c0b09', border: '1px solid #1c1a16' }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 8 }}>AVG USAGE PER USER</div>
+        <div style={{ padding: '16px 20px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8 }}>AVG USAGE PER USER</div>
           <div style={{ display: 'flex', gap: 20, marginTop: 4 }}>
             <div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: '#4fc3f7' }}>{avgSearchesPerUser.toFixed(0)}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 1 }}>SEARCHES</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 1 }}>SEARCHES</div>
             </div>
             <div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: '#00e676' }}>{avgAnathemaPerUser.toFixed(0)}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 1 }}>ANATHEMA</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 1 }}>ANATHEMA</div>
             </div>
             <div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: '#ff5500' }}>{avgPrometheusPerUser.toFixed(0)}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 1 }}>PROMETHEUS</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 1 }}>PROMETHEUS</div>
             </div>
           </div>
         </div>
@@ -322,8 +322,8 @@ export default function AdminPage() {
             className="tab-btn"
             onClick={() => setTab(t)}
             style={{
-              padding: '8px 20px', border: '1px solid #1c1a16',
-              background: tab === t ? '#ff5500' : '#0c0b09',
+              padding: '8px 20px', border: '1px solid var(--border)',
+              background: tab === t ? '#ff5500' : 'var(--bg-card)',
               color: tab === t ? '#000' : '#444',
               fontFamily: "'DM Mono', monospace", fontSize: 9,
               letterSpacing: 2, textTransform: 'uppercase', cursor: 'pointer',
@@ -339,14 +339,14 @@ export default function AdminPage() {
         <div>
           {/* Sort controls */}
           <div style={{ display: 'flex', gap: 2, marginBottom: 8, alignItems: 'center' }}>
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', letterSpacing: 2, marginRight: 6 }}>SORT:</span>
+            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', letterSpacing: 2, marginRight: 6 }}>SORT:</span>
             {(['activity', 'cost', 'margin', 'searches', 'anathema', 'prometheus'] as const).map(s => (
               <button
                 key={s}
                 className="sort-btn"
                 onClick={() => setSortBy(s)}
                 style={{
-                  padding: '4px 10px', border: `1px solid ${sortBy === s ? '#ff5500' : '#1c1a16'}`,
+                  padding: '4px 10px', border: `1px solid ${sortBy === s ? '#ff5500' : 'var(--border)'}`,
                   background: sortBy === s ? 'rgba(255,85,0,0.1)' : 'transparent',
                   color: sortBy === s ? '#ff5500' : '#333',
                   fontFamily: "'DM Mono', monospace", fontSize: 8,
@@ -363,8 +363,8 @@ export default function AdminPage() {
             display: 'grid',
             gridTemplateColumns: '2fr 80px 80px 80px 90px 90px 100px',
             gap: 8, padding: '8px 16px',
-            borderBottom: '1px solid #1a1814',
-            fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 2,
+            borderBottom: '1px solid var(--border)',
+            fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 2,
           }}>
             <div>USER</div>
             <div>SEARCHES</div>
@@ -385,7 +385,7 @@ export default function AdminPage() {
             const isActive = u.last_active && (Date.now() - new Date(u.last_active).getTime()) < 3600000
 
             return (
-              <div key={u.clerk_id} style={{ borderBottom: '1px solid #111' }}>
+              <div key={u.clerk_id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <div
                   className="user-row"
                   onClick={() => setExpandedUser(isExpanded ? null : u.clerk_id)}
@@ -401,11 +401,11 @@ export default function AdminPage() {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                       {isActive && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#00e676', flexShrink: 0 }} />}
-                      <span style={{ fontSize: 13, color: '#f0ede8', fontWeight: 500 }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>
                         {u.name || u.email.split('@')[0]}
                       </span>
                     </div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 0.5 }}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 0.5 }}>
                       {u.email} · {timeAgo(u.last_active)}
                     </div>
                   </div>
@@ -439,10 +439,10 @@ export default function AdminPage() {
 
                   {/* API Cost */}
                   <div>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: cost > 400 ? '#ff1744' : cost > 100 ? '#ff5500' : '#f0ede8', lineHeight: 1 }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: cost > 400 ? '#ff1744' : cost > 100 ? '#ff5500' : 'var(--text-1)', lineHeight: 1 }}>
                       {fmt$(cost)}
                     </div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 1 }}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 1 }}>
                       of {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}
                     </div>
                   </div>
@@ -452,7 +452,7 @@ export default function AdminPage() {
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: marginColor(margin), lineHeight: 1 }}>
                       {fmtPct(margin)}
                     </div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 1 }}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 1 }}>
                       {fmt$(COSTS.revenue - cost)} net
                     </div>
                   </div>
@@ -460,7 +460,7 @@ export default function AdminPage() {
                   {/* Cost bar */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <CostBar searches={searchCost} anathema={anathemaCost} prometheus={prometheusCost} />
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 0.5 }}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 0.5 }}>
                       S:{fmt$(searchCost)} A:{fmt$(anathemaCost)} P:{fmt$(prometheusCost)}
                     </div>
                   </div>
@@ -468,12 +468,12 @@ export default function AdminPage() {
 
                 {/* Expanded */}
                 {isExpanded && (
-                  <div style={{ padding: '12px 16px 20px', background: '#080806', borderTop: '1px solid #111' }}>
+                  <div style={{ padding: '12px 16px 20px', background: 'var(--bg)', borderTop: '1px solid #111' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
 
                       {/* Cost breakdown */}
                       <div>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 2, marginBottom: 10 }}>COST BREAKDOWN</div>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 2, marginBottom: 10 }}>COST BREAKDOWN</div>
                         {[
                           { label: 'Search', count: u.searches_total, rate: COSTS.search, cost: searchCost, color: '#4fc3f7' },
                           { label: 'Anathema', count: u.anathema_total, rate: COSTS.anathema, cost: anathemaCost, color: '#00e676' },
@@ -482,35 +482,35 @@ export default function AdminPage() {
                           <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <div style={{ width: 4, height: 4, background: r.color }} />
-                              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555' }}>{r.label}</span>
-                              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333' }}>×{r.count} @ {fmt$(r.rate)}</span>
+                              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-2)' }}>{r.label}</span>
+                              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)' }}>×{r.count} @ {fmt$(r.rate)}</span>
                             </div>
                             <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: r.color }}>{fmt$(r.cost)}</span>
                           </div>
                         ))}
-                        <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: 8, marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444' }}>TOTAL COST</span>
-                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#f0ede8' }}>{fmt$(cost)}</span>
+                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)' }}>TOTAL COST</span>
+                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-1)' }}>{fmt$(cost)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444' }}>NET (after API)</span>
+                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)' }}>NET (after API)</span>
                           <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: marginColor(margin) }}>{fmt$(COSTS.revenue - cost)}</span>
                         </div>
                       </div>
 
                       {/* Profitability signal */}
                       <div>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 2, marginBottom: 10 }}>PROFITABILITY SIGNAL</div>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 2, marginBottom: 10 }}>PROFITABILITY SIGNAL</div>
                         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: marginColor(margin), lineHeight: 1, marginBottom: 4 }}>
                           {fmtPct(margin)}
                         </div>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', lineHeight: 1.6 }}>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', lineHeight: 1.6 }}>
                           {margin >= 70 && '✦ Healthy — well within safe zone'}
                           {margin >= 40 && margin < 70 && '◈ Watch — usage is climbing'}
                           {margin < 40 && margin >= 0 && '⚠ Warning — approaching breakeven'}
                           {margin < 0 && '✕ Unprofitable — costing you money'}
                         </div>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', marginTop: 8, lineHeight: 1.7 }}>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', marginTop: 8, lineHeight: 1.7 }}>
                           Breakeven at {Math.floor(COSTS.revenue / COSTS.anathema)} anathema scans<br />
                           or {Math.floor(COSTS.revenue / COSTS.prometheus)} prometheus runs/mo
                         </div>
@@ -518,15 +518,15 @@ export default function AdminPage() {
 
                       {/* Recent searches */}
                       <div>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 2, marginBottom: 10 }}>RECENT SEARCHES</div>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 2, marginBottom: 10 }}>RECENT SEARCHES</div>
                         {u.recent_searches.length === 0 ? (
-                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#222' }}>No searches yet</div>
+                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)' }}>No searches yet</div>
                         ) : u.recent_searches.map((s, i) => (
                           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555' }}>
+                            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-2)' }}>
                               {s.city}, {s.state} — {s.results} agents
                             </span>
-                            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333' }}>
+                            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)' }}>
                               {new Date(s.at).toLocaleDateString()}
                             </span>
                           </div>
@@ -541,7 +541,7 @@ export default function AdminPage() {
           })}
 
           {users.length === 0 && (
-            <div style={{ padding: '60px 16px', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#1a1a1a', letterSpacing: 3 }}>
+            <div style={{ padding: '60px 16px', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-4)', letterSpacing: 3 }}>
               NO USERS YET
             </div>
           )}
@@ -554,26 +554,26 @@ export default function AdminPage() {
 
           {/* Revenue vs cost summary */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
-            <div style={{ padding: '28px 28px', background: '#0c0b09', border: '1px solid #1c1a16', borderTop: '2px solid #00e676' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 12 }}>MONTHLY REVENUE</div>
+            <div style={{ padding: '28px 28px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: '2px solid #00e676' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>MONTHLY REVENUE</div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, color: '#00e676', lineHeight: 1 }}>{fmt$(totalRevenue)}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 6 }}>{users.length} users × {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', marginTop: 6 }}>{users.length} users × {process.env.NEXT_PUBLIC_PRO_PRICE_DISPLAY || '499.95'}</div>
             </div>
-            <div style={{ padding: '28px 28px', background: '#0c0b09', border: '1px solid #1c1a16', borderTop: '2px solid #ff5500' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 12 }}>TOTAL API COST</div>
+            <div style={{ padding: '28px 28px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: '2px solid #ff5500' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>TOTAL API COST</div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, color: '#ff5500', lineHeight: 1 }}>{fmt$(totalApiCost)}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 6 }}>cumulative across all users</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', marginTop: 6 }}>cumulative across all users</div>
             </div>
-            <div style={{ padding: '28px 28px', background: '#0c0b09', border: '1px solid #1c1a16', borderTop: `2px solid ${marginColor(overallMargin)}` }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 12 }}>NET (API MARGIN ONLY)</div>
+            <div style={{ padding: '28px 28px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: `2px solid ${marginColor(overallMargin)}` }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>NET (API MARGIN ONLY)</div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, color: marginColor(overallMargin), lineHeight: 1 }}>{fmt$(totalRevenue - totalApiCost)}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', marginTop: 6 }}>{fmtPct(overallMargin)} margin</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', marginTop: 6 }}>{fmtPct(overallMargin)} margin</div>
             </div>
           </div>
 
           {/* Cost by product */}
-          <div style={{ padding: '24px 28px', background: '#0c0b09', border: '1px solid #1c1a16' }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 16 }}>COST BREAKDOWN BY PRODUCT</div>
+          <div style={{ padding: '24px 28px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 16 }}>COST BREAKDOWN BY PRODUCT</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
               {[
                 { label: 'SEARCH', total: totalSearchCost, count: g.total_searches, rate: COSTS.search, color: '#4fc3f7' },
@@ -585,12 +585,12 @@ export default function AdminPage() {
                   <div key={p.label}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: p.color, letterSpacing: 2 }}>{p.label}</div>
-                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: '#f0ede8' }}>{fmt$(p.total)}</div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--text-1)' }}>{fmt$(p.total)}</div>
                     </div>
-                    <div style={{ height: 3, background: '#111', marginBottom: 8 }}>
+                    <div style={{ height: 3, background: 'var(--bg)', marginBottom: 8 }}>
                       <div style={{ height: '100%', background: p.color, width: `${pct}%`, transition: 'width 0.5s' }} />
                     </div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', letterSpacing: 1 }}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', letterSpacing: 1 }}>
                       {p.count} runs × {fmt$(p.rate)} · {fmtPct(pct)} of total cost
                     </div>
                   </div>
@@ -600,8 +600,8 @@ export default function AdminPage() {
           </div>
 
           {/* Per-user profitability ranking */}
-          <div style={{ padding: '24px 28px', background: '#0c0b09', border: '1px solid #1c1a16' }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 16 }}>
+          <div style={{ padding: '24px 28px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 16 }}>
               PER-USER PROFITABILITY RANKING
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -612,7 +612,7 @@ export default function AdminPage() {
                 return (
                   <div key={u.clerk_id}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#666' }}>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-2)' }}>
                         {u.email}
                       </span>
                       <div style={{ display: 'flex', gap: 16 }}>
@@ -620,21 +620,21 @@ export default function AdminPage() {
                         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: marginColor(margin), minWidth: 50, textAlign: 'right' }}>{fmtPct(margin)}</span>
                       </div>
                     </div>
-                    <div style={{ height: 3, background: '#111' }}>
+                    <div style={{ height: 3, background: 'var(--bg)' }}>
                       <div style={{ height: '100%', background: marginColor(margin), width: `${barWidth}%`, transition: 'width 0.5s' }} />
                     </div>
                   </div>
                 )
               })}
               {users.length === 0 && (
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#222' }}>No users yet</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)' }}>No users yet</div>
               )}
             </div>
           </div>
 
           {/* Scenario modeler */}
-          <div style={{ padding: '24px 28px', background: '#0c0b09', border: '1px solid #1c1a16' }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, marginBottom: 16 }}>
+          <div style={{ padding: '24px 28px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 16 }}>
               SCALE PROJECTIONS — WHAT IF YOU HAD MORE USERS?
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 2 }}>
@@ -644,20 +644,20 @@ export default function AdminPage() {
                 const net = rev - cost
                 const margin = rev > 0 ? (net / rev) * 100 : 0
                 return (
-                  <div key={n} style={{ padding: '16px', background: '#08080a', border: '1px solid #111' }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: '#f0ede8', lineHeight: 1, marginBottom: 4 }}>{n}</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 1, marginBottom: 10 }}>USERS</div>
+                  <div key={n} style={{ padding: '16px', background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'var(--text-1)', lineHeight: 1, marginBottom: 4 }}>{n}</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 1, marginBottom: 10 }}>USERS</div>
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: '#00e676' }}>{fmt$(rev)}</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 1, marginBottom: 4 }}>REVENUE</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 1, marginBottom: 4 }}>REVENUE</div>
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: '#ff5500' }}>{fmt$(cost)}</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 1, marginBottom: 4 }}>API COST</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 1, marginBottom: 4 }}>API COST</div>
                     <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: marginColor(margin) }}>{fmt$(net)}</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#333', letterSpacing: 1 }}>NET · {fmtPct(margin)}</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--text-4)', letterSpacing: 1 }}>NET · {fmtPct(margin)}</div>
                   </div>
                 )
               })}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#333', letterSpacing: 1, marginTop: 10 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', letterSpacing: 1, marginTop: 10 }}>
               ◎ Projections use current avg cost per user ({fmt$(avgCostPerUser)}). Actual costs will vary with usage patterns.
             </div>
           </div>
@@ -667,25 +667,25 @@ export default function AdminPage() {
 
       {/* ── ACTIVITY TAB ── */}
       {tab === 'activity' && (
-        <div style={{ border: '1px solid #1a1814' }}>
+        <div style={{ border: '1px solid var(--border)' }}>
           {recent_activity.map((a, i) => {
             const colors: Record<string, string> = { SEARCH: '#4fc3f7', ANATHEMA: '#00e676', PROMETHEUS: '#ff5500' }
             const color = colors[a.type] || '#444'
             return (
-              <div key={i} style={{ padding: '12px 16px', borderBottom: '1px solid #111', display: 'grid', gridTemplateColumns: '80px 1fr 140px', gap: 16, alignItems: 'center' }}>
+              <div key={i} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '80px 1fr 140px', gap: 16, alignItems: 'center' }}>
                 <Pill label={a.type} color={color} />
                 <div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#555', marginBottom: 2 }}>{a.user_email}</div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333' }}>{a.detail}</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-2)', marginBottom: 2 }}>{a.user_email}</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)' }}>{a.detail}</div>
                 </div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1, textAlign: 'right' }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 1, textAlign: 'right' }}>
                   {new Date(a.at).toLocaleDateString()} {new Date(a.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
             )
           })}
           {recent_activity.length === 0 && (
-            <div style={{ padding: '60px 16px', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#1a1a1a', letterSpacing: 3 }}>
+            <div style={{ padding: '60px 16px', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-4)', letterSpacing: 3 }}>
               NO ACTIVITY YET
             </div>
           )}

@@ -40,7 +40,7 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
 
   return (
     <div onClick={onClick} style={{
-      background: selected ? "var(--bg-hover)" : "var(--card)",
+      background: selected ? "var(--bg-hover)" : "var(--bg-card)",
       border: `1px solid ${selected ? col.border : "var(--border)"}`,
       borderLeft: `3px solid ${col.border}`,
       padding: "16px 18px",
@@ -52,10 +52,10 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: bebas, fontSize: 18, color: "var(--white)", letterSpacing: 1.5, lineHeight: 1.1, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontFamily: bebas, fontSize: 18, color: "var(--text-1)", letterSpacing: 1.5, lineHeight: 1.1, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {node.name}
           </div>
-          <div style={{ fontFamily: mono, fontSize: 8, color: "var(--muted)", letterSpacing: 2 }}>
+          <div style={{ fontFamily: mono, fontSize: 8, color: "var(--text-2)", letterSpacing: 2 }}>
             {node.city}, {node.state}
           </div>
         </div>
@@ -64,7 +64,7 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
             <span style={{ fontFamily: mono, fontSize: 7, color: "var(--green)", border: "1px solid rgba(0,200,100,0.25)", padding: "1px 5px", letterSpacing: 1 }}>DEEP</span>
           )}
           {node.facts > 0 && (
-            <span style={{ fontFamily: mono, fontSize: 7, color: "var(--muted)", letterSpacing: 1 }}>
+            <span style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 1 }}>
               {node.facts} facts{node.highFacts > 0 ? ` · ${node.highFacts}↑` : ""}
             </span>
           )}
@@ -75,7 +75,7 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
           <span style={{ fontFamily: mono, fontSize: 8, color: col.label, letterSpacing: 2 }}>{node.tree}</span>
-          {node.confidence > 0 && <span style={{ fontFamily: mono, fontSize: 8, color: "var(--muted)" }}>{node.confidence}%</span>}
+          {node.confidence > 0 && <span style={{ fontFamily: mono, fontSize: 8, color: "var(--text-2)" }}>{node.confidence}%</span>}
         </div>
         <div style={{ height: 2, background: "var(--border)" }}>
           {node.confidence > 0 && <div style={{ height: "100%", width: `${node.confidence}%`, background: col.bar }} />}
@@ -84,18 +84,18 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
 
       {/* Upline */}
       {node.upline && (
-        <div style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)", letterSpacing: 0.5, borderLeft: "2px solid var(--border)", paddingLeft: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 0.5, borderLeft: "2px solid var(--border)", paddingLeft: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {node.upline}
         </div>
       )}
 
       {/* Top fact preview */}
       {topFact ? (
-        <div style={{ fontFamily: mono, fontSize: 9, color: "var(--white)", lineHeight: 1.5, borderLeft: "2px solid rgba(0,200,100,0.3)", paddingLeft: 8, opacity: 0.8 }}>
+        <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-1)", lineHeight: 1.5, borderLeft: "2px solid rgba(0,200,100,0.3)", paddingLeft: 8, opacity: 0.8 }}>
           {topFact.fact.length > 90 ? topFact.fact.slice(0, 90) + "…" : topFact.fact}
         </div>
       ) : node.facts === 0 ? (
-        <div style={{ fontFamily: mono, fontSize: 7, color: "var(--muted)", letterSpacing: 1, opacity: 0.5 }}>NO FACTS YET</div>
+        <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 1, opacity: 0.5 }}>NO FACTS YET</div>
       ) : null}
     </div>
   )
@@ -114,17 +114,17 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
   }
 
   return (
-    <div style={{ background: "var(--card)", borderLeft: "1px solid var(--border)", width: 360, flexShrink: 0, overflowY: "auto", height: "100%" }}>
+    <div style={{ background: "var(--bg-card)", borderLeft: "1px solid var(--border)", width: 360, flexShrink: 0, overflowY: "auto", height: "100%" }}>
       <div style={{ padding: "24px 24px 40px" }}>
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
           <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
             <div style={{ fontFamily: mono, fontSize: 8, color: col.label, letterSpacing: 3, marginBottom: 6, textTransform: "uppercase" }}>{node.tree}</div>
-            <div style={{ fontFamily: bebas, fontSize: 26, color: "var(--white)", letterSpacing: 2, lineHeight: 1.1, marginBottom: 5 }}>{node.name}</div>
-            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)", letterSpacing: 2 }}>{node.city}, {node.state}</div>
+            <div style={{ fontFamily: bebas, fontSize: 26, color: "var(--text-1)", letterSpacing: 2, lineHeight: 1.1, marginBottom: 5 }}>{node.name}</div>
+            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 2 }}>{node.city}, {node.state}</div>
           </div>
-          <button onClick={onClose} style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", flexShrink: 0, paddingTop: 2 }}>
+          <button onClick={onClose} style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", background: "none", border: "none", cursor: "pointer", flexShrink: 0, paddingTop: 2 }}>
             × CLOSE
           </button>
         </div>
@@ -132,14 +132,14 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
         {/* Badges */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
           {node.apifyEnriched && <span style={{ fontFamily: mono, fontSize: 7, color: "var(--green)", border: "1px solid rgba(0,200,100,0.25)", padding: "2px 8px", letterSpacing: 1 }}>DEEP SCAN</span>}
-          {node.hasFacebook   && <span style={{ fontFamily: mono, fontSize: 7, color: "var(--muted)", border: "1px solid var(--border)", padding: "2px 8px", letterSpacing: 1 }}>FACEBOOK</span>}
+          {node.hasFacebook   && <span style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", border: "1px solid var(--border)", padding: "2px 8px", letterSpacing: 1 }}>FACEBOOK</span>}
         </div>
 
         {/* Confidence bar */}
         {node.confidence > 0 && (
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ fontFamily: mono, fontSize: 7, color: "var(--muted)", letterSpacing: 3 }}>TREE CONFIDENCE</span>
+              <span style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 3 }}>TREE CONFIDENCE</span>
               <span style={{ fontFamily: mono, fontSize: 8, color: col.label }}>{node.confidence}%</span>
             </div>
             <div style={{ height: 2, background: "var(--border)" }}>
@@ -151,25 +151,25 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
         {/* Upline */}
         {node.upline && (
           <div style={{ marginBottom: 20, padding: "12px 14px", background: col.bg, borderLeft: `3px solid ${col.border}` }}>
-            <div style={{ fontFamily: mono, fontSize: 7, color: "var(--muted)", letterSpacing: 3, marginBottom: 5 }}>PREDICTED UPLINE</div>
+            <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 3, marginBottom: 5 }}>PREDICTED UPLINE</div>
             <div style={{ fontFamily: mono, fontSize: 12, color: col.label }}>{node.upline}</div>
           </div>
         )}
 
         {/* Facts */}
         {node.factsList.length === 0 ? (
-          <div style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)", letterSpacing: 1, padding: "16px 0", opacity: 0.5 }}>NO FACTS COLLECTED YET</div>
+          <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 1, padding: "16px 0", opacity: 0.5 }}>NO FACTS COLLECTED YET</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
             {highFacts.length > 0 && (
               <div>
-                <div style={{ fontFamily: mono, fontSize: 7, color: "var(--muted)", letterSpacing: 3, marginBottom: 8 }}>HIGH VALUE</div>
+                <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 3, marginBottom: 8 }}>HIGH VALUE</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {highFacts.map((f, i) => (
                     <div key={i} style={{ padding: "10px 12px", background: "rgba(0,200,100,0.05)", borderLeft: "2px solid rgba(0,200,100,0.35)" }}>
-                      <div style={{ fontFamily: mono, fontSize: 10, color: "var(--white)", lineHeight: 1.6 }}>{f.fact}</div>
-                      {f.source && <div style={{ fontFamily: mono, fontSize: 7, color: "var(--muted)", letterSpacing: 1, marginTop: 3, opacity: 0.5 }}>{f.source}</div>}
+                      <div style={{ fontFamily: mono, fontSize: 10, color: "var(--text-1)", lineHeight: 1.6 }}>{f.fact}</div>
+                      {f.source && <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 1, marginTop: 3, opacity: 0.5 }}>{f.source}</div>}
                     </div>
                   ))}
                 </div>
@@ -178,11 +178,11 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
 
             {medFacts.length > 0 && (
               <div>
-                <div style={{ fontFamily: mono, fontSize: 7, color: "var(--muted)", letterSpacing: 3, marginBottom: 8, opacity: 0.7 }}>CONTEXT</div>
+                <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 3, marginBottom: 8, opacity: 0.7 }}>CONTEXT</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {medFacts.map((f, i) => (
-                    <div key={i} style={{ padding: "9px 12px", background: "var(--black)", borderLeft: "2px solid var(--border)" }}>
-                      <div style={{ fontFamily: mono, fontSize: 10, color: "var(--white)", lineHeight: 1.6, opacity: 0.7 }}>{f.fact}</div>
+                    <div key={i} style={{ padding: "9px 12px", background: "var(--bg)", borderLeft: "2px solid var(--border)" }}>
+                      <div style={{ fontFamily: mono, fontSize: 10, color: "var(--text-1)", lineHeight: 1.6, opacity: 0.7 }}>{f.fact}</div>
                     </div>
                   ))}
                 </div>
@@ -191,11 +191,11 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
 
             {lowFacts.length > 0 && (
               <div>
-                <div style={{ fontFamily: mono, fontSize: 7, color: "var(--muted)", letterSpacing: 3, marginBottom: 8, opacity: 0.4 }}>LOGGED</div>
+                <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 3, marginBottom: 8, opacity: 0.4 }}>LOGGED</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                   {lowFacts.map((f, i) => (
                     <div key={i} style={{ padding: "8px 12px", borderLeft: "2px solid var(--border)" }}>
-                      <div style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)", lineHeight: 1.6, opacity: 0.6 }}>{f.fact}</div>
+                      <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", lineHeight: 1.6, opacity: 0.6 }}>{f.fact}</div>
                     </div>
                   ))}
                 </div>
@@ -205,7 +205,7 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
         )}
 
         {node.factsList.length > 0 && (
-          <button onClick={copyBrief} style={{ marginTop: 24, width: "100%", fontFamily: mono, fontSize: 9, letterSpacing: 2, padding: "12px 16px", background: "transparent", border: "1px solid var(--border)", color: "var(--muted)", cursor: "pointer", textAlign: "left" }}>
+          <button onClick={copyBrief} style={{ marginTop: 24, width: "100%", fontFamily: mono, fontSize: 9, letterSpacing: 2, padding: "12px 16px", background: "transparent", border: "1px solid var(--border)", color: "var(--text-2)", cursor: "pointer", textAlign: "left" }}>
             COPY OUTREACH BRIEF
           </button>
         )}
@@ -252,18 +252,18 @@ export default function DavidPage() {
   const highCount     = nodes.reduce((s, n) => s + n.highFacts, 0)
 
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 57px)", background: "var(--black)", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "calc(100vh - 57px)", background: "var(--bg)", overflow: "hidden" }}>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* Top bar */}
         <div style={{ padding: "20px 32px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)", letterSpacing: 4, marginBottom: 6, textTransform: "uppercase" }}>David · Contact Intelligence</div>
+            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 4, marginBottom: 6, textTransform: "uppercase" }}>David · Contact Intelligence</div>
             <div style={{ display: "flex", gap: 24 }}>
-              <span style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)" }}>{nodes.length} specimens</span>
-              <span style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)" }}>{totalFacts} facts</span>
-              <span style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)" }}>{highCount} high value</span>
+              <span style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)" }}>{nodes.length} specimens</span>
+              <span style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)" }}>{totalFacts} facts</span>
+              <span style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)" }}>{highCount} high value</span>
               {enrichedCount > 0 && <span style={{ fontFamily: mono, fontSize: 9, color: "var(--green)", opacity: 0.7 }}>{enrichedCount} deep enriched</span>}
             </div>
           </div>
@@ -271,11 +271,11 @@ export default function DavidPage() {
           {/* Controls */}
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="search agents..."
-              style={{ fontFamily: mono, fontSize: 9, background: "var(--card)", border: "1px solid var(--border)", color: "var(--white)", padding: "6px 12px", letterSpacing: 1, outline: "none", width: 200 }} />
+              style={{ fontFamily: mono, fontSize: 9, background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)", padding: "6px 12px", letterSpacing: 1, outline: "none", width: 200 }} />
 
             <div style={{ display: "flex", gap: 2 }}>
               {trees.map(t => (
-                <button key={t} onClick={() => setFilter(t)} style={{ fontFamily: mono, fontSize: 8, letterSpacing: 1, padding: "5px 10px", background: filter === t ? "var(--card)" : "transparent", border: `1px solid ${filter === t ? "var(--border-light)" : "var(--border)"}`, color: filter === t ? "var(--white)" : "var(--muted)", cursor: "pointer" }}>
+                <button key={t} onClick={() => setFilter(t)} style={{ fontFamily: mono, fontSize: 8, letterSpacing: 1, padding: "5px 10px", background: filter === t ? "var(--bg-card)" : "transparent", border: `1px solid ${filter === t ? "var(--border-strong)" : "var(--border)"}`, color: filter === t ? "var(--text-1)" : "var(--text-2)", cursor: "pointer" }}>
                   {t}
                 </button>
               ))}
@@ -283,7 +283,7 @@ export default function DavidPage() {
 
             <div style={{ display: "flex", gap: 2, marginLeft: "auto" }}>
               {([ ["deep","DEEP FIRST"], ["facts","MOST FACTS"], ["confidence","CONFIDENCE"], ["recent","RECENT"] ] as [SortKey, string][]).map(([key, label]) => (
-                <button key={key} onClick={() => setSort(key)} style={{ fontFamily: mono, fontSize: 8, letterSpacing: 1, padding: "5px 10px", background: sort === key ? "var(--card)" : "transparent", border: `1px solid ${sort === key ? "var(--border-light)" : "var(--border)"}`, color: sort === key ? "var(--white)" : "var(--muted)", cursor: "pointer" }}>
+                <button key={key} onClick={() => setSort(key)} style={{ fontFamily: mono, fontSize: 8, letterSpacing: 1, padding: "5px 10px", background: sort === key ? "var(--bg-card)" : "transparent", border: `1px solid ${sort === key ? "var(--border-strong)" : "var(--border)"}`, color: sort === key ? "var(--text-1)" : "var(--text-2)", cursor: "pointer" }}>
                   {label}
                 </button>
               ))}
@@ -294,9 +294,9 @@ export default function DavidPage() {
         {/* Grid + pagination */}
         <div style={{ flex: 1, overflowY: "auto", padding: "24px 32px 16px" }}>
           {loading ? (
-            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)", letterSpacing: 4, padding: "60px 0", textAlign: "center" }}>LOADING...</div>
+            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 4, padding: "60px 0", textAlign: "center" }}>LOADING...</div>
           ) : filtered.length === 0 ? (
-            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--muted)", letterSpacing: 3, padding: "60px 0", textAlign: "center", opacity: 0.4 }}>
+            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 3, padding: "60px 0", textAlign: "center", opacity: 0.4 }}>
               {nodes.length === 0 ? "NO SPECIMENS YET — RUN ANATHEMA SCANS TO POPULATE" : "NO RESULTS"}
             </div>
           ) : (
@@ -311,14 +311,14 @@ export default function DavidPage() {
               {totalPages > 1 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 24 }}>
                   <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                    style={{ fontFamily: mono, fontSize: 9, letterSpacing: 1, padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", color: page === 1 ? "var(--border)" : "var(--muted)", cursor: page === 1 ? "default" : "pointer" }}>
+                    style={{ fontFamily: mono, fontSize: 9, letterSpacing: 1, padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", color: page === 1 ? "var(--text-4)" : "var(--text-2)", cursor: page === 1 ? "default" : "pointer" }}>
                     ← PREV
                   </button>
-                  <div style={{ fontFamily: mono, fontSize: 8, color: "var(--muted)", letterSpacing: 2 }}>
+                  <div style={{ fontFamily: mono, fontSize: 8, color: "var(--text-2)", letterSpacing: 2 }}>
                     {page} / {totalPages} · {filtered.length} agents
                   </div>
                   <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                    style={{ fontFamily: mono, fontSize: 9, letterSpacing: 1, padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", color: page === totalPages ? "var(--border)" : "var(--muted)", cursor: page === totalPages ? "default" : "pointer" }}>
+                    style={{ fontFamily: mono, fontSize: 9, letterSpacing: 1, padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", color: page === totalPages ? "var(--text-4)" : "var(--text-2)", cursor: page === totalPages ? "default" : "pointer" }}>
                     NEXT →
                   </button>
                 </div>
