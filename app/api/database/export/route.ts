@@ -15,7 +15,21 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 })
 
-  const rows = agents || []
+  // Deduplicate: same phone = same agent regardless of name spelling.
+  // No phone → fall back to normalized name + state.
+  // When duplicates exist, keep the row with the highest score (most enriched).
+  const raw = agents || []
+  const seen = new Map<string, typeof raw[0]>()
+  for (const a of raw) {
+    const key = a.phone
+      ? `phone:${a.phone.replace(/\D/g, '')}`
+      : `name:${(a.name || '').toLowerCase().trim().replace(/\s+/g, ' ')}:${(a.state || '').toUpperCase()}`
+    const existing = seen.get(key)
+    if (!existing || (a.prometheus_score ?? 0) > (existing.prometheus_score ?? 0)) {
+      seen.set(key, a)
+    }
+  }
+  const rows = Array.from(seen.values())
 
   const headers = [
     'Name', 'Agency Type', 'City', 'State', 'Address',

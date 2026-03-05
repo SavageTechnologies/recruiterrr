@@ -221,7 +221,7 @@ export default function AdminPage() {
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 24px' }}>
       <style>{`
         @keyframes slide { 0%{left:-40%} 100%{left:100%} }
-        .user-row:hover { background: #0a0a08 !important; }
+        .user-row:hover { background: var(--bg-hover) !important; }
         .sort-btn:hover { color: #f0ede8 !important; }
         .tab-btn { transition: all 0.15s; }
       `}</style>
