@@ -18,31 +18,33 @@ export default function SearchRow({ s }: { s: Search }) {
     <Link
       href={`/dashboard/search?id=${s.id}`}
       style={{
-        display: 'grid', gridTemplateColumns: '1fr 80px 60px 60px 60px 120px',
-        gap: 16, padding: '14px 16px',
+        display: 'grid',
+        gridTemplateColumns: '1fr 80px 60px 60px 60px 120px',
+        gap: 16, padding: '13px 14px',
         borderTop: '1px solid var(--border)',
         textDecoration: 'none',
-        transition: 'background 0.15s',
+        borderRadius: 'var(--radius)',
+        transition: 'background 0.12s',
       }}
-      onMouseEnter={e => (e.currentTarget.style.background = '#1a1814')}
+      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--white)' }}>
+      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
         {s.city}, {s.state}
       </div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--white)' }}>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--text-1)', lineHeight: 1.2 }}>
         {s.results_count}
       </div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--green)' }}>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--sig-green)', lineHeight: 1.2 }}>
         {s.hot_count}
       </div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--yellow)' }}>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--sig-yellow)', lineHeight: 1.2 }}>
         {s.warm_count}
       </div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: '#555' }}>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--text-3)', lineHeight: 1.2 }}>
         {s.cold_count}
       </div>
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)' }}>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-3)', alignSelf: 'center' }}>
         {new Date(s.created_at).toLocaleDateString()}
       </div>
     </Link>

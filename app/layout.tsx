@@ -23,6 +23,18 @@ export default function RootLayout({
       afterSignUpUrl="/dashboard"
     >
       <html lang="en">
+        <head>
+          {/* Reads localStorage before paint — prevents flash of wrong theme.
+              Default is light; only sets dark if user previously chose it. */}
+          <script dangerouslySetInnerHTML={{ __html: `
+            (function() {
+              try {
+                var t = localStorage.getItem('recruiterrr_theme');
+                if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+              } catch(e) {}
+            })();
+          `}} />
+        </head>
         <body>{children}</body>
       </html>
     </ClerkProvider>

@@ -22,59 +22,105 @@ export default async function DashboardPage() {
 
   return (
     <DashboardClient>
-      <div style={{ padding: '60px 40px', maxWidth: 1200 }}>
+      <div style={{ padding: '36px 40px', maxWidth: 1200 }}>
 
         {/* GREETING */}
-        <div style={{ marginBottom: 48 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12 }}>
+        <div style={{ marginBottom: 36 }}>
+          <div style={{
+            fontFamily: "'DM Mono', monospace", fontSize: 'var(--text-xs)',
+            color: 'var(--text-3)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10,
+          }}>
             Welcome back
           </div>
-          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(48px, 6vw, 80px)', letterSpacing: 2, lineHeight: 0.9, color: 'var(--white)' }}>
+          <h1 style={{
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 'clamp(48px, 6vw, 72px)',
+            letterSpacing: 2, lineHeight: 0.9, color: 'var(--text-1)',
+          }}>
             {firstName.toUpperCase()}<span style={{ color: 'var(--orange)' }}>.</span>
           </h1>
         </div>
 
-        {/* SINGLE CTA */}
-        <div style={{ marginBottom: 48 }}>
+        {/* PRIMARY CTA */}
+        <div style={{ marginBottom: 40 }}>
           <Link
             href="/dashboard/search"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 16, padding: '20px 40px', background: 'var(--orange)', textDecoration: 'none' }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 16,
+              padding: '16px 36px', background: 'var(--orange)',
+              borderRadius: 'var(--radius)', textDecoration: 'none',
+              boxShadow: '0 2px 12px var(--orange-mid)',
+              transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
           >
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: 'var(--black)' }}>
+            <span style={{
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: 22, letterSpacing: 2, color: 'white',
+            }}>
               SEARCH A MARKET
             </span>
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 16, color: 'var(--black)', opacity: 0.6 }}>→</span>
+            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 16, color: 'rgba(255,255,255,0.7)' }}>→</span>
           </Link>
         </div>
 
         {/* STATS GRID */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, marginBottom: 48 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 40 }}>
           {[
             { label: 'Searches Run',   value: totalSearches, sub: 'total' },
             { label: 'Agents Scored',  value: totalAgents,   sub: 'total' },
-            { label: 'Hot Leads',      value: totalHot,      sub: 'identified' },
+            { label: 'Hot Leads',      value: totalHot,      sub: 'identified', accent: true },
             { label: 'States Covered', value: uniqueStates,  sub: 'unique' },
           ].map(s => (
-            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '28px 24px' }}>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: 'var(--white)', letterSpacing: 1, lineHeight: 1, marginBottom: 4 }}>
+            <div key={s.label} style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              padding: '24px 22px',
+              boxShadow: '0 1px 4px var(--shadow-sm)',
+            }}>
+              <div style={{
+                fontFamily: "'Bebas Neue', sans-serif", fontSize: 48,
+                color: s.accent ? 'var(--sig-green)' : 'var(--text-1)',
+                letterSpacing: 1, lineHeight: 1, marginBottom: 5,
+              }}>
                 {s.value}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--white)', fontWeight: 500, marginBottom: 2 }}>{s.label}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>{s.sub}</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', fontWeight: 500, marginBottom: 2 }}>
+                {s.label}
+              </div>
+              <div style={{
+                fontFamily: "'DM Mono', monospace", fontSize: 10,
+                color: 'var(--text-3)', letterSpacing: 1,
+              }}>{s.sub}</div>
             </div>
           ))}
         </div>
 
         {/* RECENT SEARCHES */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
+        <div style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: '28px 28px',
+          boxShadow: '0 1px 4px var(--shadow-sm)',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginBottom: 20,
+          }}>
+            <div style={{
+              fontFamily: "'DM Mono', monospace", fontSize: 'var(--text-xs)',
+              color: 'var(--text-3)', letterSpacing: 2, textTransform: 'uppercase',
+            }}>
               Recent Searches
             </div>
-            <Link
-              href="/dashboard/search"
-              style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 2, textTransform: 'uppercase', textDecoration: 'none' }}
-            >
+            <Link href="/dashboard/search" style={{
+              fontFamily: "'DM Mono', monospace", fontSize: 10,
+              color: 'var(--orange)', letterSpacing: 2, textTransform: 'uppercase',
+              textDecoration: 'none',
+            }}>
               NEW SEARCH →
             </Link>
           </div>
