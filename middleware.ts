@@ -5,9 +5,14 @@ import { hasFullAccess, isAdmin } from '@/lib/auth/access'
 const isProtectedRoute  = createRouteMatcher(['/dashboard(.*)'])
 
 // David stays admin-only — not launched yet
+// /api/david/enrich is exempt — internal server-to-server call, protected by ENRICHMENT_SECRET
 const isAdminRoute = createRouteMatcher([
   '/dashboard/david(.*)',
-  '/api/david(.*)',
+  '/api/david/network(.*)',
+])
+
+const isInternalRoute = createRouteMatcher([
+  '/api/david/enrich(.*)',
 ])
 
 // Anathema and Prometheus open to all paying subscribers
@@ -23,6 +28,9 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Must be logged in
   const { userId } = await auth.protect()
+
+  // Internal server-to-server routes — protected by secret header, not Clerk
+  if (isInternalRoute(req)) return NextResponse.next()
 
   // David — admin only, hard block for everyone else
   if (isAdminRoute(req)) {
