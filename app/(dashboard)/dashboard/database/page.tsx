@@ -37,17 +37,31 @@ type Stats = {
 }
 
 const FLAG_COLORS: Record<string, string> = {
-  hot:  'var(--green)',
-  warm: 'var(--yellow)',
-  cold: '#333',
+  hot:  'var(--sig-green)',
+  warm: 'var(--sig-yellow)',
+  cold: 'var(--text-3)',
+}
+
+const FLAG_DIM: Record<string, string> = {
+  hot:  'var(--sig-green-dim)',
+  warm: 'var(--sig-yellow-dim)',
+  cold: 'transparent',
+}
+
+const FLAG_BORDER: Record<string, string> = {
+  hot:  'var(--sig-green-border)',
+  warm: 'var(--sig-yellow-border)',
+  cold: 'var(--border)',
 }
 
 function ScoreCircle({ score, flag }: { score: number | null; flag: string | null }) {
-  const color = flag === 'hot' ? 'var(--green)' : flag === 'warm' ? 'var(--yellow)' : '#333'
+  const color  = flag ? FLAG_COLORS[flag]  : 'var(--text-3)'
+  const dim    = flag ? FLAG_DIM[flag]     : 'transparent'
+  const border = flag ? FLAG_BORDER[flag]  : 'var(--border)'
   return (
     <div style={{
       width: 40, height: 40, borderRadius: '50%',
-      border: `2px solid ${color}`, background: `${color}0d`,
+      border: `2px solid ${border}`, background: dim,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexShrink: 0,
     }}>
@@ -60,11 +74,19 @@ function ScoreCircle({ score, flag }: { score: number | null; flag: string | nul
 
 function FlagBadge({ flag }: { flag: string | null }) {
   if (!flag) return null
-  const map = { hot: { color: 'var(--green)', label: '◈ HOT' }, warm: { color: 'var(--yellow)', label: 'WARM' }, cold: { color: '#444', label: 'PASS' } }
-  const { color, label } = map[flag as keyof typeof map] || { color: '#444', label: flag.toUpperCase() }
+  const map = {
+    hot:  { color: 'var(--sig-green)',  border: 'var(--sig-green-border)',  bg: 'var(--sig-green-dim)',  label: '◈ HOT' },
+    warm: { color: 'var(--sig-yellow)', border: 'var(--sig-yellow-border)', bg: 'var(--sig-yellow-dim)', label: 'WARM' },
+    cold: { color: 'var(--text-3)',     border: 'var(--border)',             bg: 'transparent',           label: 'PASS' },
+  }
+  const s = map[flag as keyof typeof map] || map.cold
   return (
-    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 2, padding: '2px 6px', border: `1px solid ${color}`, color }}>
-      {label}
+    <span style={{
+      fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 2,
+      padding: '2px 6px', border: `1px solid ${s.border}`,
+      color: s.color, background: s.bg, borderRadius: 3,
+    }}>
+      {s.label}
     </span>
   )
 }
@@ -80,39 +102,39 @@ function ProfileRow({ agent, onClick }: { agent: AgentProfile; onClick: () => vo
         borderBottom: '1px solid var(--border)',
         cursor: 'pointer', transition: 'background 0.1s', alignItems: 'center',
       }}
-      onMouseEnter={e => (e.currentTarget.style.background = '#111')}
+      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
       <ScoreCircle score={agent.prometheus_score} flag={agent.prometheus_flag} />
 
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--white)' }}>{agent.name}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{agent.name}</span>
           <FlagBadge flag={agent.prometheus_flag} />
           {agent.hiring && (
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--green)', letterSpacing: 1 }}>▸ HIRING</span>
+            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--sig-green)', letterSpacing: 1 }}>▸ HIRING</span>
           )}
           {agent.youtube_channel && (
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#ff4444', letterSpacing: 1 }}>▸ YT</span>
+            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--sig-red)', letterSpacing: 1 }}>▸ YT</span>
           )}
         </div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-2)', letterSpacing: 1 }}>
           {agent.city}, {agent.state}
           {agent.phone ? ` · ${agent.phone}` : ''}
           {agent.rating ? ` · ★ ${agent.rating} (${agent.reviews})` : ''}
         </div>
         {agent.prometheus_notes && (
-          <div style={{ fontSize: 11, color: '#666', marginTop: 4, lineHeight: 1.4 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 4, lineHeight: 1.4 }}>
             {agent.prometheus_notes.slice(0, 100)}{agent.prometheus_notes.length > 100 ? '…' : ''}
           </div>
         )}
       </div>
 
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 1, marginBottom: 4 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1, marginBottom: 4 }}>
           {daysSince === 0 ? 'TODAY' : daysSince === 1 ? '1D AGO' : `${daysSince}D AGO`}
         </div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 1 }}>
           ×{agent.search_count}
         </div>
       </div>
@@ -121,39 +143,42 @@ function ProfileRow({ agent, onClick }: { agent: AgentProfile; onClick: () => vo
 }
 
 function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => void }) {
-  const flagColor = agent.prometheus_flag ? FLAG_COLORS[agent.prometheus_flag] : '#333'
+  const flagColor  = agent.prometheus_flag ? FLAG_COLORS[agent.prometheus_flag]  : 'var(--text-3)'
+  const flagDim    = agent.prometheus_flag ? FLAG_DIM[agent.prometheus_flag]     : 'transparent'
+  const flagBorder = agent.prometheus_flag ? FLAG_BORDER[agent.prometheus_flag]  : 'var(--border)'
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end' }}
       onClick={onClose}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 480, height: '100vh', overflowY: 'auto',
-          background: '#0a0a0a', borderLeft: '1px solid var(--border)',
+          background: 'var(--bg-raised)', borderLeft: '1px solid var(--border)',
           padding: '32px 28px', animation: 'slideInRight 0.2s ease',
+          boxShadow: '-4px 0 24px var(--shadow-lg)',
         }}
       >
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: 'var(--white)', marginBottom: 4 }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: 'var(--text-1)', marginBottom: 4 }}>
               {agent.name}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 2, textTransform: 'uppercase' }}>
               {agent.agency_type || 'Health Insurance Agency'}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
         </div>
 
         {/* Score + flag */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
           <div style={{
             width: 56, height: 56, borderRadius: '50%',
-            border: `2px solid ${flagColor}`, background: `${flagColor}0d`,
+            border: `2px solid ${flagBorder}`, background: flagDim,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: flagColor }}>
@@ -161,14 +186,14 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
             </span>
           </div>
           <div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 2, marginBottom: 2 }}>RECRUIT SCORE</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 4 }}>RECRUIT SCORE</div>
             <FlagBadge flag={agent.prometheus_flag} />
           </div>
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 1 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1 }}>
               SEEN ×{agent.search_count}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#333', letterSpacing: 1, marginTop: 2 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 1, marginTop: 2 }}>
               FIRST {new Date(agent.first_seen).toLocaleDateString()}
             </div>
           </div>
@@ -176,28 +201,28 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
 
         {/* Analyst notes */}
         {agent.prometheus_notes && (
-          <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)', lineHeight: 1.7, letterSpacing: 0.5 }}>
+          <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--text-1)', lineHeight: 1.7, letterSpacing: 0.5 }}>
             {agent.prometheus_notes}
           </div>
         )}
 
         {/* Contact */}
-        <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--card)', border: '1px solid var(--border)' }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 2, marginBottom: 10 }}>CONTACT</div>
+        <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 10 }}>CONTACT</div>
           {agent.phone && (
-            <a href={`tel:${agent.phone}`} style={{ display: 'block', fontSize: 14, color: 'var(--white)', fontFamily: "'DM Mono', monospace", textDecoration: 'none', marginBottom: 6 }}>
+            <a href={`tel:${agent.phone}`} style={{ display: 'block', fontSize: 14, color: 'var(--text-1)', fontFamily: "'DM Mono', monospace", textDecoration: 'none', marginBottom: 6 }}>
               {agent.phone}
             </a>
           )}
-          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: agent.address ? 6 : 0 }}>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: agent.address ? 6 : 0 }}>
             ◎ {agent.city}, {agent.state}{agent.address ? ` — ${agent.address}` : ''}
           </div>
           {agent.rating && (
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 6 }}>★ {agent.rating} ({agent.reviews} reviews)</div>
+            <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 6 }}>★ {agent.rating} ({agent.reviews} reviews)</div>
           )}
           {agent.contact_email && (
             <a href={`mailto:${agent.contact_email}`}
-              style={{ display: 'block', marginTop: 8, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, textDecoration: 'none' }}>
+              style={{ display: 'block', marginTop: 8, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-2)', letterSpacing: 1, textDecoration: 'none' }}>
               @ {agent.contact_email}
             </a>
           )}
@@ -212,10 +237,10 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
         {/* Carriers */}
         {agent.carriers && agent.carriers.length > 0 && agent.carriers[0] !== 'Unknown' && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#555', letterSpacing: 2, marginBottom: 8 }}>CARRIERS</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8 }}>CARRIERS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {agent.carriers.map(c => (
-                <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', border: '1px solid var(--border-light)', color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>
+                <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', border: '1px solid var(--border)', color: 'var(--text-2)', letterSpacing: 1, textTransform: 'uppercase', borderRadius: 3 }}>
                   {c}
                 </span>
               ))}
@@ -226,13 +251,13 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
         {/* Signals */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
           {agent.hiring && (
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', background: 'rgba(0,230,118,0.06)', border: '1px solid var(--green)', color: 'var(--green)', letterSpacing: 1 }}>
+            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', background: 'var(--sig-green-dim)', border: '1px solid var(--sig-green-border)', color: 'var(--sig-green)', letterSpacing: 1, borderRadius: 3 }}>
               ▸ ACTIVELY HIRING{agent.hiring_roles?.length ? ` — ${agent.hiring_roles[0]}` : ''}
             </span>
           )}
           {agent.youtube_channel && (
             <a href={agent.youtube_channel} target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', background: 'rgba(255,68,68,0.06)', border: '1px solid #ff4444', color: '#ff4444', letterSpacing: 1, textDecoration: 'none' }}>
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '4px 10px', background: 'var(--sig-red-dim)', border: '1px solid var(--sig-red-border)', color: 'var(--sig-red)', letterSpacing: 1, textDecoration: 'none', borderRadius: 3 }}>
               ▸ YOUTUBE{agent.youtube_subscribers ? ` — ${agent.youtube_subscribers}` : ''}
             </a>
           )}
@@ -265,7 +290,6 @@ export default function DatabasePage() {
   const [selected, setSelected]   = useState<AgentProfile | null>(null)
   const [exporting, setExporting] = useState(false)
 
-  // ── Filters — default to HOT + recent ──────────────────────────────────────
   const [filterFlag,  setFilterFlag]  = useState('hot')
   const [filterState, setFilterState] = useState('all')
   const [filterCity,  setFilterCity]  = useState('all')
@@ -276,18 +300,10 @@ export default function DatabasePage() {
   const [perPage,     setPerPage]     = useState(50)
   const [pagination,  setPagination]  = useState<{ total: number; total_pages: number } | null>(null)
 
-  // ── State + city lists from API (not derived from current page) ─────────────
   const [allStates, setAllStates] = useState<string[]>([])
   const [allCities, setAllCities] = useState<string[]>([])
 
-  // Filter cities shown based on selected state
-  const visibleCities = filterState === 'all'
-    ? allCities
-    : allCities.filter(c => {
-        // We can't easily filter cities by state client-side without storing state per city.
-        // Show all cities when a state is selected — API will handle the actual filtering.
-        return true
-      })
+  const visibleCities = filterState === 'all' ? allCities : allCities
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -304,7 +320,6 @@ export default function DatabasePage() {
       setAgents(data.agents || [])
       setStats(data.stats || null)
       setPagination(data.pagination || null)
-      // Always update state/city lists from full DB — not derived from current page
       if (data.allStates) setAllStates(data.allStates)
       if (data.allCities) setAllCities(data.allCities)
     } catch {
@@ -316,8 +331,6 @@ export default function DatabasePage() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { setPage(1) }, [filterFlag, filterState, filterCity, filterPhone, search, sortBy, perPage])
-
-  // Reset city when state changes
   useEffect(() => { setFilterCity('all') }, [filterState])
 
   async function handleExport() {
@@ -326,10 +339,10 @@ export default function DatabasePage() {
     setExporting(false)
   }
 
-  const selectStyle = {
+  const selectStyle: React.CSSProperties = {
     fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1,
-    padding: '7px 12px', background: 'var(--card)', border: '1px solid var(--border)',
-    color: 'var(--muted)', cursor: 'pointer', outline: 'none',
+    padding: '7px 12px', background: 'var(--bg-card)', border: '1px solid var(--border)',
+    color: 'var(--text-2)', cursor: 'pointer', outline: 'none', borderRadius: 'var(--radius)',
   }
 
   return (
@@ -338,10 +351,10 @@ export default function DatabasePage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32 }}>
         <div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 4, color: 'var(--white)', marginBottom: 6 }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 4, color: 'var(--text-1)', marginBottom: 6 }}>
             AGENT DATABASE
           </div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-2)', letterSpacing: 2 }}>
             Every agent surfaced by your searches and lookups — scored and stored.
           </div>
         </div>
@@ -350,14 +363,15 @@ export default function DatabasePage() {
           disabled={exporting || !stats?.total}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            padding: '12px 20px', background: exporting ? '#333' : 'transparent',
-            border: '1px solid var(--border-light)',
-            color: exporting ? '#555' : 'var(--white)',
+            padding: '10px 18px', background: 'transparent',
+            border: '1px solid var(--border-strong)',
+            color: exporting ? 'var(--text-3)' : 'var(--text-2)',
             fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2,
             cursor: exporting ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
+            borderRadius: 'var(--radius)',
           }}
-          onMouseEnter={e => { if (!exporting) { (e.currentTarget.style.borderColor = 'var(--orange)'); (e.currentTarget.style.color = 'var(--orange)') } }}
-          onMouseLeave={e => { (e.currentTarget.style.borderColor = 'var(--border-light)'); (e.currentTarget.style.color = 'var(--white)') }}
+          onMouseEnter={e => { if (!exporting) { e.currentTarget.style.borderColor = 'var(--orange)'; e.currentTarget.style.color = 'var(--orange)' } }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-2)' }}
         >
           {exporting ? '↓ EXPORTING...' : '↓ EXPORT CSV'}
         </button>
@@ -365,83 +379,76 @@ export default function DatabasePage() {
 
       {/* Stats */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 2, marginBottom: 28 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 28 }}>
           {[
-            { label: 'TOTAL AGENTS',  value: stats.total,      color: 'var(--white)' },
-            { label: '◈ HOT LEADS',   value: stats.hot,        color: 'var(--green)' },
-            { label: 'HAVE PHONE',    value: stats.with_phone,  color: 'var(--orange)' },
-            { label: '▸ HIRING',      value: stats.hiring,     color: 'var(--yellow)' },
-            { label: 'STATES',        value: stats.states,     color: 'var(--muted)' },
+            { label: 'TOTAL AGENTS', value: stats.total,      color: 'var(--text-1)' },
+            { label: '◈ HOT LEADS',  value: stats.hot,        color: 'var(--sig-green)' },
+            { label: 'HAVE PHONE',   value: stats.with_phone, color: 'var(--orange)' },
+            { label: '▸ HIRING',     value: stats.hiring,     color: 'var(--sig-yellow)' },
+            { label: 'STATES',       value: stats.states,     color: 'var(--text-2)' },
           ].map(s => (
-            <div key={s.label} style={{ padding: '14px 16px', background: 'var(--card)', border: '1px solid var(--border)' }}>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: s.color, lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#555', letterSpacing: 2 }}>{s.label}</div>
+            <div key={s.label} style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: '0 1px 3px var(--shadow-sm)' }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: s.color, lineHeight: 1, marginBottom: 5 }}>{s.value}</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2 }}>{s.label}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* ── Filters row ── */}
+      {/* Filters */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-
-        {/* Search */}
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search agents..."
           style={{
             fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1,
-            padding: '8px 14px', background: 'var(--card)', border: '1px solid var(--border)',
-            color: 'var(--white)', outline: 'none', width: 200,
+            padding: '8px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)',
+            color: 'var(--text-1)', outline: 'none', width: 200, borderRadius: 'var(--radius)',
           }}
         />
 
-        {/* Flag filters */}
-        {(['all', 'hot', 'warm', 'cold'] as const).map(f => (
-          <button key={f} onClick={() => setFilterFlag(f)} style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px',
-            background: filterFlag === f
-              ? f === 'all' ? 'var(--border)' : FLAG_COLORS[f]
-              : 'transparent',
-            border: `1px solid ${filterFlag === f
-              ? f === 'all' ? 'var(--border)' : FLAG_COLORS[f]
-              : 'var(--border)'}`,
-            color: filterFlag === f
-              ? f === 'cold' || f === 'all' ? 'var(--white)' : 'var(--black)'
-              : 'var(--muted)',
-            cursor: 'pointer', textTransform: 'uppercase',
-          }}>
-            {f === 'all' ? 'ALL' : f.toUpperCase()}
-          </button>
-        ))}
+        {(['all', 'hot', 'warm', 'cold'] as const).map(f => {
+          const active = filterFlag === f
+          const color  = f === 'hot' ? 'var(--sig-green)' : f === 'warm' ? 'var(--sig-yellow)' : f === 'cold' ? 'var(--text-3)' : 'var(--text-2)'
+          const activeBg = f === 'hot' ? 'var(--sig-green-dim)' : f === 'warm' ? 'var(--sig-yellow-dim)' : 'var(--bg-hover)'
+          return (
+            <button key={f} onClick={() => setFilterFlag(f)} style={{
+              fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px',
+              background: active ? activeBg : 'transparent',
+              border: `1px solid ${active ? color : 'var(--border)'}`,
+              color: active ? color : 'var(--text-2)',
+              cursor: 'pointer', textTransform: 'uppercase', borderRadius: 'var(--radius)',
+              transition: 'all 0.12s',
+            }}>
+              {f.toUpperCase()}
+            </button>
+          )
+        })}
 
-        {/* Has Phone toggle */}
         <button
           onClick={() => setFilterPhone(v => !v)}
           style={{
             fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px',
-            background: filterPhone ? 'var(--orange)' : 'transparent',
+            background: filterPhone ? 'var(--orange-dim)' : 'transparent',
             border: `1px solid ${filterPhone ? 'var(--orange)' : 'var(--border)'}`,
-            color: filterPhone ? 'var(--black)' : 'var(--muted)',
-            cursor: 'pointer',
+            color: filterPhone ? 'var(--orange)' : 'var(--text-2)',
+            cursor: 'pointer', borderRadius: 'var(--radius)', transition: 'all 0.12s',
           }}
         >
           HAS PHONE
         </button>
 
-        {/* State dropdown — populated from full DB */}
         <select value={filterState} onChange={e => setFilterState(e.target.value)} style={selectStyle}>
           <option value="all">ALL STATES</option>
           {allStates.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
-        {/* City dropdown — populated from full DB */}
         <select value={filterCity} onChange={e => setFilterCity(e.target.value)} style={selectStyle}>
           <option value="all">ALL CITIES</option>
           {visibleCities.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
 
-        {/* Sort + per page pushed right */}
         <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} style={{ ...selectStyle, marginLeft: 'auto' }}>
           <option value="last_seen">RECENT FIRST</option>
           <option value="score">HIGHEST SCORE</option>
@@ -456,12 +463,12 @@ export default function DatabasePage() {
       </div>
 
       {/* Active filter summary */}
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 2, marginBottom: 8, display: 'flex', gap: 16, alignItems: 'center' }}>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8, display: 'flex', gap: 16, alignItems: 'center' }}>
         <span>{loading ? 'LOADING...' : `${pagination?.total ?? agents.length} PROFILES${filterFlag !== 'all' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search ? ' (FILTERED)' : ''}`}</span>
         {(filterFlag !== 'hot' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search) && (
           <button
             onClick={() => { setFilterFlag('hot'); setFilterState('all'); setFilterCity('all'); setFilterPhone(false); setSearch('') }}
-            style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 2, padding: '3px 10px', background: 'transparent', border: '1px solid #333', color: '#555', cursor: 'pointer' }}
+            style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 2, padding: '3px 10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-3)', cursor: 'pointer', borderRadius: 'var(--radius)' }}
           >
             RESET FILTERS
           </button>
@@ -471,24 +478,22 @@ export default function DatabasePage() {
       {/* Table header */}
       <div style={{ display: 'grid', gridTemplateColumns: '48px 1fr auto', gap: 16, padding: '8px 20px', borderBottom: '1px solid var(--border)' }}>
         <div />
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2 }}>AGENT</div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: '#444', letterSpacing: 2, textAlign: 'right' }}>LAST SEEN</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2 }}>AGENT</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, textAlign: 'right' }}>LAST SEEN</div>
       </div>
 
       {/* Rows */}
-      <div style={{ border: '1px solid var(--border)', borderTop: 'none' }}>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 var(--radius) var(--radius)' }}>
         {loading ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#333', letterSpacing: 3 }}>
+          <div style={{ padding: '60px 0', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-3)', letterSpacing: 3 }}>
             QUERYING DATABASE...
           </div>
         ) : agents.length === 0 ? (
           <div style={{ padding: '80px 0', textAlign: 'center' }}>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: '#1a1a1a', marginBottom: 12, letterSpacing: 4 }}>
-              {filterFlag !== 'all' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search
-                ? 'NO MATCHES'
-                : 'NO PROFILES YET'}
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: 'var(--text-4)', marginBottom: 12, letterSpacing: 4 }}>
+              {filterFlag !== 'all' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search ? 'NO MATCHES' : 'NO PROFILES YET'}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#333', letterSpacing: 2 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-3)', letterSpacing: 2 }}>
               {filterFlag !== 'all' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search
                 ? 'Try adjusting your filters.'
                 : 'Run searches to start building your database.'}
@@ -502,20 +507,20 @@ export default function DatabasePage() {
       {/* Pagination */}
       {pagination && pagination.total_pages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2 }}>
             PAGE {page} OF {pagination.total_pages} · {pagination.total} TOTAL
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
             {[
-              { label: '«', action: () => setPage(1), disabled: page === 1 },
-              { label: 'PREV', action: () => setPage(p => Math.max(1, p - 1)), disabled: page === 1 },
-              { label: 'NEXT', action: () => setPage(p => Math.min(pagination.total_pages, p + 1)), disabled: page === pagination.total_pages },
-              { label: '»', action: () => setPage(pagination.total_pages), disabled: page === pagination.total_pages },
+              { label: '«',    action: () => setPage(1),                                              disabled: page === 1 },
+              { label: 'PREV', action: () => setPage(p => Math.max(1, p - 1)),                        disabled: page === 1 },
+              { label: 'NEXT', action: () => setPage(p => Math.min(pagination.total_pages, p + 1)),   disabled: page === pagination.total_pages },
+              { label: '»',    action: () => setPage(pagination.total_pages),                         disabled: page === pagination.total_pages },
             ].map(b => (
               <button key={b.label} onClick={b.action} disabled={b.disabled} style={{
                 fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 14px',
-                background: 'transparent', border: '1px solid var(--border)',
-                color: b.disabled ? '#333' : 'var(--muted)', cursor: b.disabled ? 'default' : 'pointer',
+                background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                color: b.disabled ? 'var(--text-4)' : 'var(--text-2)', cursor: b.disabled ? 'default' : 'pointer',
               }}>{b.label}</button>
             ))}
           </div>
@@ -523,9 +528,6 @@ export default function DatabasePage() {
       )}
 
       {selected && <DetailPanel agent={selected} onClose={() => setSelected(null)} />}
-
-      <style>{`select option { background: #111; }`}</style>
     </div>
   )
 }
-
