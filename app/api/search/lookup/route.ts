@@ -9,6 +9,8 @@ export const runtime = 'nodejs'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 
 const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
@@ -361,6 +363,10 @@ export async function POST(req: NextRequest) {
 
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(30, '1 h'), analytics: true })
+  const { success } = await ratelimit.limit(userId)
+  if (!success) return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
 
   try {
     const { name, city = '', state = '', mode = 'medicare' } = await req.json()
