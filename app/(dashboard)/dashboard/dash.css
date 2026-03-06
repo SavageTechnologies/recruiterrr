@@ -305,3 +305,223 @@
 
 /* ── SELECT OPTIONS ── */
 .dash-shell select option { background: var(--bg-card); color: var(--text-1); }
+
+/* ── INPUT ── */
+/* Standard text/search input used across all tool pages */
+.dash-input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-1);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  padding: 7px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.dash-input:focus        { border-color: var(--border-strong); }
+.dash-input::placeholder { color: var(--text-3); }
+
+/* ── STAT CARD ── */
+/* The number + label + sub-label block used in dashboard home and search summary */
+.dash-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 22px;
+  box-shadow: 0 1px 4px var(--shadow-sm);
+}
+
+.dash-stat-value {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  letter-spacing: 1px;
+  line-height: 1;
+  margin-bottom: 5px;
+  color: var(--text-1);
+}
+.dash-stat-value-accent { color: var(--sig-green); }
+
+.dash-stat-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-1);
+  margin-bottom: 2px;
+}
+
+.dash-stat-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 1px;
+}
+
+/* ── TOPBAR ── */
+/* Sticky filter/control bar at the top of tool pages (search, david, database) */
+.dash-topbar {
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.dash-topbar-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  color: var(--text-3);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.dash-topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── FILTER BAR ── */
+/* Borderless row of filter/sort pills — sits inside a topbar or card header */
+.dash-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dash-filter-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  white-space: nowrap;
+}
+.dash-filter-btn:hover          { border-color: var(--border-strong); color: var(--text-1); }
+.dash-filter-btn.active         { background: var(--bg-card); border-color: var(--border-strong); color: var(--text-1); }
+.dash-filter-btn.active-orange  { background: var(--bg-card); border-color: var(--orange); color: var(--orange); }
+
+/* ── EMPTY STATE ── */
+/* Centered message shown when a list/table has no results */
+.dash-empty-state {
+  padding: 60px 0;
+  text-align: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-3);
+  opacity: 0.7;
+}
+
+/* ── PAGINATION ── */
+/* Prev / counter / next row used by tables and paginated grids */
+.dash-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0;
+}
+
+.dash-pagination-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.dash-pagination-btn:hover            { border-color: var(--border-strong); color: var(--text-1); }
+.dash-pagination-btn:disabled         { color: var(--text-4); cursor: default; border-color: var(--border); }
+.dash-pagination-btn:disabled:hover   { border-color: var(--border); color: var(--text-4); }
+
+.dash-pagination-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  color: var(--text-3);
+  letter-spacing: 1px;
+}
+
+/* ── DETAIL PANEL ── */
+/* Slide-in right panel for agent/item detail (search, david) */
+.dash-detail-panel {
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  width: 360px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.dash-detail-panel-inner {
+  padding: 24px 24px 40px;
+}
+
+.dash-detail-close {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  color: var(--text-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding-top: 2px;
+  transition: color 0.12s;
+}
+.dash-detail-close:hover { color: var(--text-1); }
+
+/* ── RESULT CARD ── */
+/* Clickable card in search results, david grid, database list */
+.dash-result-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dash-result-card:hover   { background: var(--bg-hover); border-color: var(--border-strong); }
+.dash-result-card.selected { background: var(--bg-hover); }
+
+/* ── BADGE ── */
+/* Small inline label — DEEP, FACEBOOK, HIRING, etc. */
+.dash-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 7px;
+  letter-spacing: 1px;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  white-space: nowrap;
+  display: inline-block;
+  border-radius: 2px;
+}
+.dash-badge-green  { color: var(--sig-green);  border-color: var(--sig-green-border);  background: var(--sig-green-dim); }
+.dash-badge-orange { color: var(--orange);     border-color: var(--orange-border);     background: var(--orange-dim); }
+
+/* ── CONFIDENCE BAR ── */
+/* Thin progress bar used in agent cards and detail panels */
+.dash-conf-track {
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.dash-conf-fill {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 0.3s ease;
+}
