@@ -1,0 +1,307 @@
+/* ══════════════════════════════════════════════════════════════
+   RECRUITERRR — DASHBOARD STYLES
+   
+   Imported only by app/(dashboard)/dashboard/layout.tsx.
+   All rules scoped under .dash-shell.
+   Light is default; dark applied via [data-theme="dark"].
+══════════════════════════════════════════════════════════════ */
+
+/* ── LIGHT TOKENS (default) ── */
+.dash-shell {
+  --bg:            #f4f3f0;
+  --bg-raised:     #ffffff;
+  --bg-card:       #ffffff;
+  --bg-hover:      #f9f8f6;
+  --border:        #e4e1db;
+  --border-strong: #c9c4bc;
+  --border-light:  #c9c4bc;
+  --text-1:        #111110;
+  --text-2:        #6b6560;
+  --text-3:        #a8a29c;
+  --text-4:        #d0cbc4;
+  --shadow-sm:     rgba(0, 0, 0, 0.05);
+  --shadow-md:     rgba(0, 0, 0, 0.09);
+  --shadow-lg:     rgba(0, 0, 0, 0.14);
+
+  /* Legacy aliases — kept so existing page components don't break */
+  --black:  #111110;
+  --white:  #111110;
+  --dark:   #f4f3f0;
+  --card:   #ffffff;
+  --muted:  #6b6560;
+  --green:  #1a9e5c;
+  --yellow: #b07d00;
+  --red:    #cc2200;
+}
+
+/* ── DARK TOKENS ── */
+[data-theme="dark"] .dash-shell {
+  --bg:            #0f0f0f;
+  --bg-raised:     #181818;
+  --bg-card:       #1d1d1d;
+  --bg-hover:      #222222;
+  --border:        #2a2a2a;
+  --border-strong: #3a3a3a;
+  --border-light:  #3a3a3a;
+  --text-1:        #f5f4f2;
+  --text-2:        #9a9590;
+  --text-3:        #55524e;
+  --text-4:        #302e2a;
+  --shadow-sm:     rgba(0, 0, 0, 0.3);
+  --shadow-md:     rgba(0, 0, 0, 0.5);
+  --shadow-lg:     rgba(0, 0, 0, 0.7);
+  --black:  #0f0f0f;
+  --white:  #f5f4f2;
+  --dark:   #0f0f0f;
+  --card:   #1d1d1d;
+  --muted:  #9a9590;
+  --green:  #1a9e5c;
+  --yellow: #b07d00;
+  --red:    #cc2200;
+}
+
+/* ── SCROLLBAR (dashboard context) ── */
+.dash-shell ::-webkit-scrollbar       { width: 4px; height: 4px; }
+.dash-shell ::-webkit-scrollbar-track { background: transparent; }
+.dash-shell ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+.dash-shell ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* ── SHELL ── */
+.dash-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: var(--text-1);
+  line-height: 1.5;
+}
+
+/* ── SIDEBAR ── */
+.dash-sidebar {
+  width: 212px;
+  flex-shrink: 0;
+  background: var(--bg-raised);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  transition: background 0.2s;
+  z-index: 50;
+}
+
+.dash-sidebar-logo {
+  padding: 20px 18px 18px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 19px;
+  letter-spacing: 3px;
+  color: var(--text-1);
+  display: block;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.dash-sidebar-logo span { color: var(--orange); }
+
+/* ── NAV ── */
+.dash-sidebar-nav { padding: 10px 0; flex: 1; }
+
+.dash-nav-section {
+  padding: 10px 18px 3px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.dash-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 18px;
+  font-size: 13px;
+  color: var(--text-2);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-left-color 0.12s;
+  text-decoration: none;
+  user-select: none;
+}
+.dash-nav-item:hover               { background: var(--bg-hover); color: var(--text-1); }
+.dash-nav-item.active              { background: var(--bg-hover); color: var(--text-1); border-left-color: var(--orange); font-weight: 600; }
+.dash-nav-item.active .dash-nav-icon { color: var(--orange); }
+.dash-nav-item:hover .dash-nav-icon  { color: var(--text-2); }
+
+.dash-nav-icon {
+  width: 14px;
+  text-align: center;
+  font-size: 11px;
+  flex-shrink: 0;
+  color: var(--text-3);
+  transition: color 0.12s;
+}
+
+.dash-nav-pip {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--orange);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── SIDEBAR FOOTER ── */
+.dash-sidebar-footer {
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.dash-sidebar-plan {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 1px;
+}
+
+.dash-plan-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--sig-green);
+  flex-shrink: 0;
+}
+
+/* ── THEME TOGGLE ── */
+.dash-theme-toggle { display: flex; align-items: center; justify-content: space-between; }
+
+.dash-theme-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 1px;
+}
+
+.dash-toggle-btn {
+  position: relative;
+  width: 36px; height: 20px;
+  background: var(--border-strong);
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .dash-toggle-btn { background: var(--orange); }
+
+.dash-toggle-knob {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  pointer-events: none;
+}
+[data-theme="dark"] .dash-toggle-knob { transform: translateX(16px); }
+
+/* ── MAIN ── */
+.dash-main { flex: 1; min-width: 0; min-height: 100vh; background: var(--bg); }
+
+/* ── COMMON PAGE PATTERNS ── */
+.page-wrap { padding: 32px 40px; max-width: 1320px; }
+
+.page-eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.page-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 52px;
+  letter-spacing: 2px;
+  color: var(--text-1);
+  line-height: 1;
+  margin-bottom: 24px;
+}
+.page-title span { color: var(--orange); }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 4px var(--shadow-sm);
+}
+
+.section-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.section-label-orange { color: var(--orange); }
+.section-label-green  { color: var(--sig-green); }
+.section-label-muted  { color: var(--text-3); }
+
+/* ── FLAGS ── */
+.flag {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  white-space: nowrap;
+  display: inline-block;
+}
+.flag-hot  { color: var(--sig-green);  border-color: var(--sig-green-border);  background: var(--sig-green-dim); }
+.flag-warm { color: var(--sig-yellow); border-color: var(--sig-yellow-border); background: var(--sig-yellow-dim); }
+.flag-cold { color: var(--text-3);     border-color: var(--border); }
+
+/* ── BUTTONS ── */
+.btn-ghost {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-ghost:hover { border-color: var(--orange); color: var(--orange); }
+
+.btn-primary {
+  padding: 12px 28px;
+  background: var(--orange);
+  border: none;
+  border-radius: var(--radius);
+  color: white;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 2px;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover    { opacity: 0.88; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── SELECT OPTIONS ── */
+.dash-shell select option { background: var(--bg-card); color: var(--text-1); }

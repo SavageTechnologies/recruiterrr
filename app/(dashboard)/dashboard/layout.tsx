@@ -2,6 +2,7 @@ import { UserButton } from '@clerk/nextjs'
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import './dash.css'
 import { isAdmin, hasFullAccess } from '@/lib/auth/access'
 import { supabase } from '@/lib/supabase.server'
 import BillingButton from '@/components/dashboard/BillingButton'
@@ -16,11 +17,11 @@ export default async function DashboardLayout({
   const { userId } = await auth()
   const adminUser = userId ? isAdmin(userId) : false
 
-  // ── Subscription gate ───────────────────────────────────────────────────────
+  // ── Subscription gate ──────────────────────────────────────────────────────
   // Admins and comped users pass through unconditionally.
   // Everyone else needs plan='pro' + subscription_status='active' in Supabase.
-  // The subscribe page lives in its own route group so it's never under this layout.
   let subscriberUser = adminUser || (userId ? hasFullAccess(userId) : false)
+
   if (userId && !hasFullAccess(userId)) {
     const { data: user } = await supabase
       .from('users')
@@ -34,18 +35,6 @@ export default async function DashboardLayout({
   }
 
   return (
-    <>
-      <script dangerouslySetInnerHTML={{ __html: `
-        (function() {
-          try {
-            var t = localStorage.getItem('recruiterrr_theme');
-            if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-            else document.documentElement.setAttribute('data-theme', 'light');
-          } catch(e) {
-            document.documentElement.setAttribute('data-theme', 'light');
-          }
-        })();
-      `}} />
     <div className="dash-shell">
 
       {/* ── SIDEBAR ── */}
@@ -143,7 +132,7 @@ export default async function DashboardLayout({
         <DashboardNav />
         {children}
       </main>
+
     </div>
-    </>
   )
 }
