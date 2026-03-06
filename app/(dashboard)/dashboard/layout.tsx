@@ -55,7 +55,7 @@ export default async function DashboardLayout({
 
           <Link href="/dashboard/search" className="dash-nav-item">
             <span className="dash-nav-icon">⊕</span>
-            Search
+            Agent Search
           </Link>
 
           <Link href="/dashboard/database" className="dash-nav-item">
