@@ -118,7 +118,7 @@ function ProfileRow({ agent, onClick }: { agent: AgentProfile; onClick: () => vo
             <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--sig-red)', letterSpacing: 1 }}>▸ YT</span>
           )}
         </div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-2)', letterSpacing: 1 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
           {agent.city}, {agent.state}
           {agent.phone ? ` · ${agent.phone}` : ''}
           {agent.rating ? ` · ★ ${agent.rating} (${agent.reviews})` : ''}
@@ -131,10 +131,10 @@ function ProfileRow({ agent, onClick }: { agent: AgentProfile; onClick: () => vo
       </div>
 
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1, marginBottom: 4 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
           {daysSince === 0 ? 'TODAY' : daysSince === 1 ? '1D AGO' : `${daysSince}D AGO`}
         </div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 1 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-4)' }}>
           ×{agent.search_count}
         </div>
       </div>
@@ -167,7 +167,7 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 2, color: 'var(--text-1)', marginBottom: 4 }}>
               {agent.name}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 2, textTransform: 'uppercase' }}>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--text-3)', letterSpacing: 2, textTransform: 'uppercase' }}>
               {agent.agency_type || 'Health Insurance Agency'}
             </div>
           </div>
@@ -186,14 +186,14 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
             </span>
           </div>
           <div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 4 }}>RECRUIT SCORE</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 4 }}>RECRUIT SCORE</div>
             <FlagBadge flag={agent.prometheus_flag} />
           </div>
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1 }}>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1 }}>
               SEEN ×{agent.search_count}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 1, marginTop: 2 }}>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'var(--text-4)', letterSpacing: 1, marginTop: 2 }}>
               FIRST {new Date(agent.first_seen).toLocaleDateString()}
             </div>
           </div>
@@ -201,16 +201,16 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
 
         {/* Analyst notes */}
         {agent.prometheus_notes && (
-          <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--text-1)', lineHeight: 1.7, letterSpacing: 0.5 }}>
+          <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--orange-dim)', borderLeft: '2px solid var(--orange)', fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: 'var(--text-1)', lineHeight: 1.7, letterSpacing: 0.5 }}>
             {agent.prometheus_notes}
           </div>
         )}
 
         {/* Contact */}
         <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 10 }}>CONTACT</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 10 }}>CONTACT</div>
           {agent.phone && (
-            <a href={`tel:${agent.phone}`} style={{ display: 'block', fontSize: 14, color: 'var(--text-1)', fontFamily: "'DM Mono', monospace", textDecoration: 'none', marginBottom: 6 }}>
+            <a href={`tel:${agent.phone}`} style={{ display: 'block', fontSize: 14, color: 'var(--text-1)', fontFamily: "'DM Sans', sans-serif", textDecoration: 'none', marginBottom: 6 }}>
               {agent.phone}
             </a>
           )}
@@ -222,13 +222,13 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
           )}
           {agent.contact_email && (
             <a href={`mailto:${agent.contact_email}`}
-              style={{ display: 'block', marginTop: 8, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-2)', letterSpacing: 1, textDecoration: 'none' }}>
+              style={{ display: 'block', marginTop: 8, fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--text-2)', letterSpacing: 1, textDecoration: 'none' }}>
               @ {agent.contact_email}
             </a>
           )}
           {agent.website && (
             <a href={agent.website} target="_blank" rel="noopener noreferrer"
-              style={{ display: 'block', marginTop: 8, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--orange)', letterSpacing: 1, textDecoration: 'none' }}>
+              style={{ display: 'block', marginTop: 8, fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--orange)', letterSpacing: 1, textDecoration: 'none' }}>
               ↗ {agent.website}
             </a>
           )}
@@ -237,7 +237,7 @@ function DetailPanel({ agent, onClose }: { agent: AgentProfile; onClose: () => v
         {/* Carriers */}
         {agent.carriers && agent.carriers.length > 0 && agent.carriers[0] !== 'Unknown' && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8 }}>CARRIERS</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8 }}>CARRIERS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {agent.carriers.map(c => (
                 <span key={c} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 8px', border: '1px solid var(--border)', color: 'var(--text-2)', letterSpacing: 1, textTransform: 'uppercase', borderRadius: 3 }}>
@@ -340,7 +340,7 @@ export default function DatabasePage() {
   }
 
   const selectStyle: React.CSSProperties = {
-    fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1,
+    fontFamily: "'DM Sans', sans-serif", fontSize: 9, letterSpacing: 1,
     padding: '7px 12px', background: 'var(--bg-card)', border: '1px solid var(--border)',
     color: 'var(--text-2)', cursor: 'pointer', outline: 'none', borderRadius: 'var(--radius)',
   }
@@ -351,11 +351,10 @@ export default function DatabasePage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32 }}>
         <div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 4, color: 'var(--text-1)', marginBottom: 6 }}>
-            AGENT DATABASE
-          </div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-2)', letterSpacing: 2 }}>
-            Every agent surfaced by your searches and lookups — scored and stored.
+          <div className="page-eyebrow">Agent Database</div>
+          <h1 className="page-title">AGENT DATABASE<span>.</span></h1>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: -16, marginBottom: 8 }}>
+            Every agent surfaced by your searches — scored and stored.
           </div>
         </div>
         <button
@@ -363,12 +362,12 @@ export default function DatabasePage() {
           disabled={exporting || !stats?.total}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            padding: '10px 18px', background: 'transparent',
+            padding: '11px 20px', background: 'transparent',
             border: '1px solid var(--border-strong)',
             color: exporting ? 'var(--text-3)' : 'var(--text-2)',
-            fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2,
+            fontFamily: "'DM Sans', sans-serif", fontSize: 13,
             cursor: exporting ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
-            borderRadius: 'var(--radius)',
+            borderRadius: 'var(--radius)', fontWeight: 500,
           }}
           onMouseEnter={e => { if (!exporting) { e.currentTarget.style.borderColor = 'var(--orange)'; e.currentTarget.style.color = 'var(--orange)' } }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-2)' }}
@@ -389,7 +388,7 @@ export default function DatabasePage() {
           ].map(s => (
             <div key={s.label} style={{ padding: '16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: '0 1px 3px var(--shadow-sm)' }}>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: s.color, lineHeight: 1, marginBottom: 5 }}>{s.value}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2 }}>{s.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -402,9 +401,9 @@ export default function DatabasePage() {
           onChange={e => setSearch(e.target.value)}
           placeholder="Search agents..."
           style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1,
-            padding: '8px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)',
-            color: 'var(--text-1)', outline: 'none', width: 200, borderRadius: 'var(--radius)',
+            fontFamily: "'DM Sans', sans-serif", fontSize: 13,
+            padding: '9px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)',
+            color: 'var(--text-1)', outline: 'none', width: 220, borderRadius: 'var(--radius)',
           }}
         />
 
@@ -414,7 +413,7 @@ export default function DatabasePage() {
           const activeBg = f === 'hot' ? 'var(--sig-green-dim)' : f === 'warm' ? 'var(--sig-yellow-dim)' : 'var(--bg-hover)'
           return (
             <button key={f} onClick={() => setFilterFlag(f)} style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px',
+              fontFamily: "'DM Sans', sans-serif", fontSize: 12, padding: '9px 16px', fontWeight: 500,
               background: active ? activeBg : 'transparent',
               border: `1px solid ${active ? color : 'var(--border)'}`,
               color: active ? color : 'var(--text-2)',
@@ -429,7 +428,7 @@ export default function DatabasePage() {
         <button
           onClick={() => setFilterPhone(v => !v)}
           style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px',
+            fontFamily: "'DM Sans', sans-serif", fontSize: 12, padding: '9px 16px', fontWeight: 500,
             background: filterPhone ? 'var(--orange-dim)' : 'transparent',
             border: `1px solid ${filterPhone ? 'var(--orange)' : 'var(--border)'}`,
             color: filterPhone ? 'var(--orange)' : 'var(--text-2)',
@@ -463,12 +462,12 @@ export default function DatabasePage() {
       </div>
 
       {/* Active filter summary */}
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8, display: 'flex', gap: 16, alignItems: 'center' }}>
+      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8, display: 'flex', gap: 16, alignItems: 'center' }}>
         <span>{loading ? 'LOADING...' : `${pagination?.total ?? agents.length} PROFILES${filterFlag !== 'all' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search ? ' (FILTERED)' : ''}`}</span>
         {(filterFlag !== 'hot' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search) && (
           <button
             onClick={() => { setFilterFlag('hot'); setFilterState('all'); setFilterCity('all'); setFilterPhone(false); setSearch('') }}
-            style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 2, padding: '3px 10px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-3)', cursor: 'pointer', borderRadius: 'var(--radius)' }}
+            style={{ fontSize: 11, padding: '4px 12px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-3)', cursor: 'pointer', borderRadius: 'var(--radius)' }}
           >
             RESET FILTERS
           </button>
@@ -478,14 +477,14 @@ export default function DatabasePage() {
       {/* Table header */}
       <div style={{ display: 'grid', gridTemplateColumns: '48px 1fr auto', gap: 16, padding: '8px 20px', borderBottom: '1px solid var(--border)' }}>
         <div />
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2 }}>AGENT</div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, textAlign: 'right' }}>LAST SEEN</div>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 500 }}>AGENT</div>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 500, textAlign: 'right' }}>LAST SEEN</div>
       </div>
 
       {/* Rows */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 var(--radius) var(--radius)' }}>
         {loading ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-3)', letterSpacing: 3 }}>
+          <div style={{ padding: '60px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-3)' }}>
             QUERYING DATABASE...
           </div>
         ) : agents.length === 0 ? (
@@ -493,7 +492,7 @@ export default function DatabasePage() {
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: 'var(--text-4)', marginBottom: 12, letterSpacing: 4 }}>
               {filterFlag !== 'all' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search ? 'NO MATCHES' : 'NO PROFILES YET'}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-3)', letterSpacing: 2 }}>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-3)', letterSpacing: 2 }}>
               {filterFlag !== 'all' || filterState !== 'all' || filterCity !== 'all' || filterPhone || search
                 ? 'Try adjusting your filters.'
                 : 'Run searches to start building your database.'}
@@ -507,7 +506,7 @@ export default function DatabasePage() {
       {/* Pagination */}
       {pagination && pagination.total_pages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
             PAGE {page} OF {pagination.total_pages} · {pagination.total} TOTAL
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
@@ -518,7 +517,7 @@ export default function DatabasePage() {
               { label: '»',    action: () => setPage(pagination.total_pages),                         disabled: page === pagination.total_pages },
             ].map(b => (
               <button key={b.label} onClick={b.action} disabled={b.disabled} style={{
-                fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '6px 14px',
+                fontSize: 12, padding: '8px 16px', fontWeight: 500,
                 background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
                 color: b.disabled ? 'var(--text-4)' : 'var(--text-2)', cursor: b.disabled ? 'default' : 'pointer',
               }}>{b.label}</button>
