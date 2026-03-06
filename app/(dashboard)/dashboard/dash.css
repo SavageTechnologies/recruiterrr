@@ -121,25 +121,28 @@
 .dash-nav-item {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 9px 18px;
+  gap: 10px;
+  padding: 8px 16px 8px 15px;
   font-size: 13px;
   color: var(--text-2);
-  border-left: 3px solid transparent;
+  border-left: 2px solid transparent;
   cursor: pointer;
   transition: background 0.12s, color 0.12s, border-left-color 0.12s;
   text-decoration: none;
   user-select: none;
+  font-family: 'DM Sans', sans-serif;
 }
-.dash-nav-item:hover               { background: var(--bg-hover); color: var(--text-1); }
-.dash-nav-item.active              { background: var(--bg-hover); color: var(--text-1); border-left-color: var(--orange); font-weight: 600; }
+.dash-nav-item:hover                 { background: var(--bg-hover); color: var(--text-1); }
+.dash-nav-item.active                { background: var(--bg-hover); color: var(--text-1); border-left-color: var(--orange); font-weight: 600; }
 .dash-nav-item.active .dash-nav-icon { color: var(--orange); }
 .dash-nav-item:hover .dash-nav-icon  { color: var(--text-2); }
 
 .dash-nav-icon {
-  width: 14px;
-  text-align: center;
-  font-size: 11px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   color: var(--text-3);
   transition: color 0.12s;

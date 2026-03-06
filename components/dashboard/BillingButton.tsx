@@ -2,6 +2,16 @@
 
 import { useState } from 'react'
 
+function IconBilling() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="12" height="9" rx="1.5" />
+      <path d="M2 7.5h12" />
+      <line x1="5.5" y1="11" x2="8" y2="11" />
+    </svg>
+  )
+}
+
 type Props = {
   asNavItem?: boolean
 }
@@ -31,7 +41,7 @@ export default function BillingButton({ asNavItem = false }: Props) {
         className="dash-nav-item"
         style={{ width: '100%', border: 'none', background: 'none', textAlign: 'left' }}
       >
-        <span className="dash-nav-icon">◻</span>
+        <span className="dash-nav-icon"><IconBilling /></span>
         {loading ? 'Loading...' : 'Billing'}
       </button>
     )
