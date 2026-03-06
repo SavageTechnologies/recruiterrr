@@ -184,11 +184,6 @@ export default async function DashboardLayout({
                 David
               </Link>
 
-              <Link href="/dashboard/admin/adspy" className="dash-nav-item">
-                <span className="dash-nav-icon"><IconMeredith /></span>
-                Meredith
-              </Link>
-
               <Link href="/dashboard/admin" className="dash-nav-item">
                 <span className="dash-nav-icon"><IconAdmin /></span>
                 Admin

@@ -16,7 +16,6 @@ export default function DashboardNav() {
 
     // Match most specific route first
     const routes: [string, string][] = [
-      ['/dashboard/admin/adspy', '[href="/dashboard/admin/adspy"]'],
       ['/dashboard/admin',       '[href="/dashboard/admin"]'],
       ['/dashboard/search',      '[href="/dashboard/search"]'],
       ['/dashboard/database',    '[href="/dashboard/database"]'],

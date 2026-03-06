@@ -165,7 +165,6 @@ export default function AdminPage() {
     { href: '/dashboard/search',     label: 'Agent Search', color: '#4fc3f7', stats: `${g.total_searches} total · ${g.searches_today} today` },
     { href: '/dashboard/anathema',   label: 'Anathema',     color: 'var(--sig-green)', stats: `${g.total_anathema} total · ${g.anathema_today} today` },
     { href: '/dashboard/prometheus', label: 'Prometheus',   color: 'var(--orange)',    stats: `${g.total_prometheus} total` },
-    { href: '/dashboard/admin/adspy',label: 'Meredith',     color: '#38bdf8',          stats: 'Ad Library scanner' },
     { href: '/dashboard/david',      label: 'David',        color: '#a78bfa',          stats: 'Agent intel' },
   ]
 
@@ -594,3 +593,4 @@ export default function AdminPage() {
     </div>
   )
 }
+
