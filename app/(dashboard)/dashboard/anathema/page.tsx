@@ -36,63 +36,83 @@ const STAGE_LOGS: Record<number, string[]> = {
 }
 
 const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
-  FACEBOOK:     { label: 'FB',     color: '#4267B2' },
-  YOUTUBE:      { label: 'YT',     color: '#ff4444' },
-  GOOGLE_REVIEW:{ label: 'REVIEW', color: 'var(--yellow)' },
-  SERP:         { label: 'WEB',    color: 'var(--text-2)' },
-  WEBSITE:      { label: 'SITE',   color: 'var(--orange)' },
-  LINKEDIN:     { label: 'LI',     color: '#0077B5' },
-  OTHER:        { label: 'OTHER',  color: 'var(--text-2)' },
+  FACEBOOK:      { label: 'FB',     color: '#4267B2' },
+  YOUTUBE:       { label: 'YT',     color: '#cc2200' },
+  GOOGLE_REVIEW: { label: 'REVIEW', color: 'var(--sig-yellow)' },
+  SERP:          { label: 'WEB',    color: 'var(--text-2)' },
+  WEBSITE:       { label: 'SITE',   color: 'var(--orange)' },
+  LINKEDIN:      { label: 'LI',     color: '#0077B5' },
+  OTHER:         { label: 'OTHER',  color: 'var(--text-2)' },
 }
 
-function DavidFactsPanel({ facts, agentName, deepScanStatus }: { facts: DavidFact[]; agentName: string; deepScanStatus?: 'idle' | 'polling' | 'complete' | 'timeout' }) {
+const TREE_COLOR: Record<string, string> = {
+  integrity: 'var(--sig-green)',
+  amerilife: '#2196f3',
+  sms:       'var(--sig-yellow)',
+  unknown:   'var(--text-3)',
+}
+const TREE_BORDER: Record<string, string> = {
+  integrity: 'var(--sig-green-border)',
+  amerilife: 'rgba(33,150,243,0.3)',
+  sms:       'var(--sig-yellow-border)',
+  unknown:   'var(--border)',
+}
+const TREE_DIM: Record<string, string> = {
+  integrity: 'var(--sig-green-dim)',
+  amerilife: 'rgba(33,150,243,0.07)',
+  sms:       'var(--sig-yellow-dim)',
+  unknown:   'transparent',
+}
+
+// ── DAVID Facts Panel ─────────────────────────────────────────────────────────
+
+function DavidFactsPanel({ facts, agentName, deepScanStatus }: {
+  facts: DavidFact[]
+  agentName: string
+  deepScanStatus?: 'idle' | 'polling' | 'complete' | 'timeout'
+}) {
   const [showMed, setShowMed] = useState(false)
-  const high = facts.filter(f => f.usability === 'HIGH')
-  const med  = facts.filter(f => f.usability === 'MED')
+  const high    = facts.filter(f => f.usability === 'HIGH')
+  const med     = facts.filter(f => f.usability === 'MED')
   const visible = showMed ? [...high, ...med] : high
   if (facts.length === 0) return null
   return (
-    <div style={{ marginTop: 2, background: 'rgba(255,85,0,0.03)', border: '1px solid rgba(255,85,0,0.2)', animation: 'slideIn 0.3s ease both' }}>
-      <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,85,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: '2px solid var(--orange)', borderRadius: 'var(--radius)', marginTop: 10, animation: 'slideIn 0.3s ease both' }}>
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--orange)', letterSpacing: 3, marginBottom: 2 }}>◈ DAVID · PERSONAL INTEL</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-2)', letterSpacing: 1 }}>
-            {high.length} HIGH USABILITY · {med.length} MED · Use to personalize your opener
-          </div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--orange)', marginBottom: 2 }}>◈ DAVID — PERSONAL INTEL</div>
+          <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{high.length} high usability · {med.length} supporting · Use to personalize your opener</div>
           {deepScanStatus === 'polling' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite' }} />
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--orange)', letterSpacing: 2 }}>DEEPENING · PULLING FACEBOOK POSTS + YOUTUBE · STAY ON PAGE</span>
+              <span style={{ fontSize: 11, color: 'var(--orange)' }}>Deepening — pulling Facebook + YouTube · stay on page</span>
             </div>
           )}
           {deepScanStatus === 'complete' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--green)', letterSpacing: 2 }}>● DEEP SCAN COMPLETE · FACTS UPDATED</span>
-            </div>
+            <div style={{ fontSize: 11, color: 'var(--sig-green)', marginTop: 5 }}>● Deep scan complete · facts updated</div>
           )}
         </div>
         {med.length > 0 && (
-          <button onClick={() => setShowMed(v => !v)}
-            style={{ background: 'transparent', border: '1px solid rgba(255,85,0,0.2)', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 8, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>
-            {showMed ? 'HIDE MED' : `+${med.length} MED`}
+          <button onClick={() => setShowMed(v => !v)} className="btn-ghost" style={{ fontSize: 11 }}>
+            {showMed ? 'Hide supporting' : `+${med.length} supporting`}
           </button>
         )}
       </div>
-      <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {visible.length === 0 ? (
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)' }}>No high-usability facts found.{med.length > 0 ? ' Show MED to see supporting context.' : ''}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-3)' }}>No high-usability facts found.{med.length > 0 ? ' Show supporting to see context.' : ''}</div>
         ) : visible.map((fact, i) => {
           const src = SOURCE_LABELS[fact.source] || SOURCE_LABELS.OTHER
           return (
-            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 14px', background: fact.usability === 'HIGH' ? 'rgba(255,85,0,0.06)' : 'rgba(255,255,255,0.02)', borderLeft: `2px solid ${fact.usability === 'HIGH' ? 'var(--orange)' : 'var(--border)'}`, animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0, alignItems: 'center', paddingTop: 1 }}>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, padding: '1px 5px', border: `1px solid ${src.color}40`, color: src.color, letterSpacing: 1 }}>{src.label}</span>
-                {fact.recency === 'RECENT' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 6, color: 'var(--green)', letterSpacing: 1 }}>RECENT</span>}
+            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 14px', background: fact.usability === 'HIGH' ? 'var(--orange-dim)' : 'var(--bg)', borderLeft: `3px solid ${fact.usability === 'HIGH' ? 'var(--orange)' : 'var(--border)'}`, borderRadius: '0 var(--radius) var(--radius) 0', animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0, alignItems: 'center', paddingTop: 2 }}>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '1px 5px', border: `1px solid ${src.color}40`, color: src.color, letterSpacing: 1, borderRadius: 2 }}>{src.label}</span>
+                {fact.recency === 'RECENT' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--sig-green)', letterSpacing: 1 }}>RECENT</span>}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: 'var(--text-1)', lineHeight: 1.6, marginBottom: fact.raw_quote ? 5 : 0 }}>{fact.fact}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6, marginBottom: fact.raw_quote ? 6 : 0 }}>{fact.fact}</div>
                 {fact.raw_quote && (
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-2)', lineHeight: 1.5, borderLeft: '1px solid var(--border)', paddingLeft: 8 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, borderLeft: '2px solid var(--border)', paddingLeft: 10, fontStyle: 'italic' }}>
                     "{fact.raw_quote.slice(0, 140)}{fact.raw_quote.length > 140 ? '...' : ''}"
                   </div>
                 )}
@@ -102,25 +122,29 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: { facts: DavidFac
         })}
       </div>
       {high.length > 0 && (
-        <div style={{ padding: '8px 20px', borderTop: '1px solid rgba(255,85,0,0.1)', fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-3)', letterSpacing: 1 }}>
-          OPENER TIP — Lead with a HIGH fact as a bridge: "I was looking at your profile and noticed..."
+        <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)' }}>
+          Opener tip — lead with a HIGH fact: "I was looking at your profile and noticed..."
         </div>
       )}
     </div>
   )
 }
 
+// ── Terminal Log ──────────────────────────────────────────────────────────────
+
 function TerminalLog({ lines }: { lines: string[] }) {
   return (
-    <div style={{ background: "var(--bg)", border: '1px solid rgba(0,230,118,0.15)', padding: '16px', height: 190, overflowY: 'auto', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, lineHeight: 2 }}>
-      <div style={{ color: 'var(--text-4)', marginBottom: 4, fontSize: 10 }}>anathema@pathogen-intel:~$ ./scan</div>
+    <div style={{ background: '#0f0f0f', border: '1px solid #2a2a2a', padding: '16px', height: 200, overflowY: 'auto', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, lineHeight: 2, borderRadius: 'var(--radius)' }}>
+      <div style={{ color: '#444', marginBottom: 4, fontSize: 10 }}>anathema@pathogen-intel:~$ ./scan</div>
       {lines.map((line, i) => (
-        <div key={i} style={{ color: line.startsWith('[OK]') ? 'var(--green)' : line.startsWith('[WARN]') ? 'var(--yellow)' : line.startsWith('[ALERT]') ? 'var(--red)' : line.startsWith('[FOUND]') ? 'rgba(0,230,118,0.6)' : '#444', animation: 'slideIn 0.2s ease both' }}>{line}</div>
+        <div key={i} style={{ color: line.startsWith('[OK]') ? '#00e676' : line.startsWith('[WARN]') ? '#ff9800' : line.startsWith('[ALERT]') ? '#ff1744' : line.startsWith('[FOUND]') ? 'rgba(0,230,118,0.6)' : '#444', animation: 'slideIn 0.2s ease both' }}>{line}</div>
       ))}
-      <div style={{ display: 'inline-block', width: 8, height: 12, background: 'var(--green)', animation: 'blink 1s step-end infinite', verticalAlign: 'middle' }} />
+      <div style={{ display: 'inline-block', width: 8, height: 12, background: '#00e676', animation: 'blink 1s step-end infinite', verticalAlign: 'middle' }} />
     </div>
   )
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function findSourceEvidence(entity: string, debugEntries: SerpDebugEntry[], directProofUrl?: string | null): { url: string; title: string } | null {
   if (directProofUrl) return { url: directProofUrl, title: 'View source ↗' }
@@ -134,66 +158,76 @@ function findSourceEvidence(entity: string, debugEntries: SerpDebugEntry[], dire
   return null
 }
 
+// ── Chain Signal Row ──────────────────────────────────────────────────────────
+
 function ChainSignalRow({ signal, debugEntries }: { signal: ChainSignal; debugEntries?: SerpDebugEntry[] }) {
-  const cfg = TIER_CONFIG[signal.tier]
+  const cfg      = TIER_CONFIG[signal.tier]
   const evidence = debugEntries ? findSourceEvidence(signal.entity, debugEntries) : null
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 10px', background: cfg.dimColor, borderLeft: `2px solid ${cfg.borderColor}`, marginBottom: 4 }}>
-      <span style={{ flexShrink: 0, marginTop: 1, fontSize: 8, color: cfg.color, letterSpacing: 1.5, fontFamily: "'DM Mono', monospace", border: `1px solid ${cfg.borderColor}`, padding: '1px 5px', lineHeight: 1.8 }}>{cfg.label}</span>
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 12px', marginBottom: 4, background: signal.tier === 'HIGH' ? 'var(--sig-green-dim)' : 'var(--bg)', borderLeft: `2px solid ${signal.tier === 'HIGH' ? 'var(--sig-green)' : 'var(--border)'}`, borderRadius: '0 var(--radius) var(--radius) 0' }}>
+      <span style={{ flexShrink: 0, marginTop: 2, fontFamily: "'DM Mono', monospace", fontSize: 8, color: cfg.color, border: `1px solid ${cfg.borderColor}`, padding: '1px 5px', letterSpacing: 1.5, lineHeight: 1.8 }}>{cfg.label}</span>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 11, lineHeight: 1.5, fontFamily: "'DM Mono', monospace", color: signal.tier === 'LOW' ? '#555' : signal.tier === 'MED' ? '#888' : '#aaa' }}>{signal.text}</div>
-        {evidence && <a href={evidence.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 3, fontSize: 10, color: 'rgba(0,230,118,0.55)', textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}>↗ {evidence.title.slice(0, 70)}</a>}
+        <div style={{ fontSize: 12, color: 'var(--text-1)', lineHeight: 1.5 }}>{signal.text}</div>
+        {evidence && <a href={evidence.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 3, fontSize: 11, color: 'var(--sig-green)', textDecoration: 'none' }}>↗ {evidence.title.slice(0, 70)}</a>}
       </div>
     </div>
   )
 }
 
+// ── Chain Section ─────────────────────────────────────────────────────────────
+
 function ChainSection({ result }: { result: ScanResult }) {
   const [expanded, setExpanded] = useState(false)
-  const signals = result.predicted_sub_imo_signals || []
-  const grouped = groupSignals(signals)
+  const signals        = result.predicted_sub_imo_signals || []
+  const grouped        = groupSignals(signals)
   const visibleSignals = [...grouped.high, ...grouped.med]
-  const debugEntries = result.serp_debug || undefined
+  const debugEntries   = result.serp_debug || undefined
   if (visibleSignals.length === 0 && !result.predicted_sub_imo && !result.unresolved_upline) return null
   const partnerEvidence = result.predicted_sub_imo && debugEntries ? findSourceEvidence(result.predicted_sub_imo, debugEntries, result.predicted_sub_imo_proof_url) : result.predicted_sub_imo_proof_url ? { url: result.predicted_sub_imo_proof_url, title: 'View source ↗' } : null
   return (
-    <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)' }}>
+    <div style={{ padding: '18px 0', borderTop: '1px solid var(--border)', marginTop: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: 3 }}>CHAIN INTELLIGENCE</div>
-        {visibleSignals.length > 0 && <button onClick={() => setExpanded(v => !v)} style={{ background: 'transparent', border: '1px solid #2a2a2a', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1.5, padding: '4px 10px', cursor: 'pointer' }}>{expanded ? 'COLLAPSE' : `SHOW ALL SIGNALS (${visibleSignals.length})`}</button>}
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 0.5, textTransform: 'uppercase' }}>Chain Intelligence</div>
+        {visibleSignals.length > 0 && (
+          <button onClick={() => setExpanded(v => !v)} className="btn-ghost" style={{ fontSize: 11 }}>
+            {expanded ? 'Collapse' : `Show all signals (${visibleSignals.length})`}
+          </button>
+        )}
       </div>
       {result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 && (
-        <div style={{ marginBottom: visibleSignals.length > 0 ? 14 : 0, padding: '10px 16px', background: 'rgba(0,230,118,0.04)', border: `1px solid ${result.prediction_source === 'chain_resolver' ? 'rgba(0,230,118,0.4)' : 'rgba(0,230,118,0.2)'}` }}>
-          <div style={{ fontSize: 8, color: result.prediction_source === 'chain_resolver' ? 'rgba(0,230,118,0.6)' : '#555', letterSpacing: 2, marginBottom: 4 }}>{result.prediction_source === 'chain_resolver' ? 'CHAIN-SOURCED · THIS IS WHY WE KNOW' : 'PREDICTED SUB-IMO'}</div>
-          <div style={{ fontSize: 20, color: 'var(--green)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 3, marginBottom: partnerEvidence ? 6 : 0 }}>{result.predicted_sub_imo}</div>
-          {partnerEvidence && <a href={partnerEvidence.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontSize: 10, color: 'rgba(0,230,118,0.65)', textDecoration: 'none', fontFamily: "'DM Mono', monospace", letterSpacing: 0.5, marginBottom: 8 }}>↗ {partnerEvidence.title.slice(0, 70)}</a>}
+        <div style={{ marginBottom: visibleSignals.length > 0 ? 14 : 0, padding: '14px 16px', background: result.prediction_source === 'chain_resolver' ? 'var(--sig-green-dim)' : 'var(--bg)', border: `1px solid ${result.prediction_source === 'chain_resolver' ? 'var(--sig-green-border)' : 'var(--border)'}`, borderLeft: `3px solid ${result.prediction_source === 'chain_resolver' ? 'var(--sig-green)' : 'var(--border-strong)'}`, borderRadius: '0 var(--radius) var(--radius) 0' }}>
+          <div style={{ fontSize: 11, color: result.prediction_source === 'chain_resolver' ? 'var(--sig-green)' : 'var(--text-3)', marginBottom: 6, fontWeight: 600 }}>{result.prediction_source === 'chain_resolver' ? '● CHAIN-SOURCED · THIS IS WHY WE KNOW' : 'PREDICTED SUB-IMO'}</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: 'var(--sig-green)', letterSpacing: 2, marginBottom: partnerEvidence ? 8 : 0 }}>{result.predicted_sub_imo}</div>
+          {partnerEvidence && <a href={partnerEvidence.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontSize: 12, color: 'var(--sig-green)', textDecoration: 'none', marginBottom: 8 }}>↗ {partnerEvidence.title.slice(0, 70)}</a>}
           {result.predicted_sub_imo_confidence != null && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 100, height: 3, background: 'var(--border)', position: 'relative' }}><div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.predicted_sub_imo_confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.3), var(--green))', transition: 'width 0.8s ease' }} /></div>
-              <span style={{ fontSize: 11, color: 'var(--green)', letterSpacing: 1 }}>{result.predicted_sub_imo_confidence}%</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+              <div style={{ width: 120, height: 4, background: 'var(--border)', borderRadius: 2, position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.predicted_sub_imo_confidence}%`, background: 'var(--sig-green)', borderRadius: 2, transition: 'width 0.8s ease' }} />
+              </div>
+              <span style={{ fontSize: 13, color: 'var(--sig-green)', fontWeight: 600 }}>{result.predicted_sub_imo_confidence}%</span>
             </div>
           )}
         </div>
       )}
       {result.unresolved_upline && (
-        <div style={{ marginBottom: visibleSignals.length > 0 ? 12 : 0, padding: '10px 16px', background: 'rgba(255,152,0,0.04)', border: '1px solid rgba(255,152,0,0.35)' }}>
-          <div style={{ fontSize: 9, color: '#777', letterSpacing: 2, marginBottom: 4 }}>UNRESOLVED UPLINE · NOT IN NETWORK MAP</div>
-          <div style={{ fontSize: 15, color: '#ff9800', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, marginBottom: 6 }}>{result.unresolved_upline}</div>
-          {result.unresolved_upline_evidence && <div style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", marginBottom: 6, lineHeight: 1.6 }}>"{result.unresolved_upline_evidence}"</div>}
+        <div style={{ marginBottom: visibleSignals.length > 0 ? 12 : 0, padding: '14px 16px', background: 'var(--sig-yellow-dim)', border: '1px solid var(--sig-yellow-border)', borderLeft: '3px solid var(--sig-yellow)', borderRadius: '0 var(--radius) var(--radius) 0' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 6, fontWeight: 600 }}>UNRESOLVED UPLINE · NOT IN NETWORK MAP</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: 'var(--sig-yellow)', letterSpacing: 2, marginBottom: 6 }}>{result.unresolved_upline}</div>
+          {result.unresolved_upline_evidence && <div style={{ fontSize: 12, color: 'var(--text-2)', fontStyle: 'italic', marginBottom: 6, lineHeight: 1.6 }}>"{result.unresolved_upline_evidence}"</div>}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {result.unresolved_upline_source_url && <a href={result.unresolved_upline_source_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: 'rgba(255,152,0,0.7)', textDecoration: 'none', fontFamily: "'DM Mono', monospace" }}>↗ View source</a>}
-            <span style={{ fontSize: 9, color: 'var(--text-3)', fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{result.unresolved_upline_confidence} CONFIDENCE</span>
+            {result.unresolved_upline_source_url && <a href={result.unresolved_upline_source_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--sig-yellow)', textDecoration: 'none' }}>↗ View source</a>}
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{result.unresolved_upline_confidence} confidence</span>
           </div>
         </div>
       )}
       {visibleSignals.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: expanded ? 12 : 0, flexWrap: 'wrap' }}>
-          {grouped.high.length > 0 && <div style={{ fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.HIGH.borderColor}`, color: TIER_CONFIG.HIGH.color, fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{grouped.high.length} HIGH</div>}
-          {grouped.med.length > 0  && <div style={{ fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.MED.borderColor}`,  color: TIER_CONFIG.MED.color,  fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>{grouped.med.length} MED</div>}
+        <div style={{ display: 'flex', gap: 6, marginBottom: expanded ? 12 : 0, flexWrap: 'wrap' }}>
+          {grouped.high.length > 0 && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.HIGH.borderColor}`, color: TIER_CONFIG.HIGH.color, letterSpacing: 1, borderRadius: 2 }}>{grouped.high.length} HIGH</div>}
+          {grouped.med.length > 0  && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.MED.borderColor}`,  color: TIER_CONFIG.MED.color,  letterSpacing: 1, borderRadius: 2 }}>{grouped.med.length} MED</div>}
         </div>
       )}
       {expanded && visibleSignals.length > 0 && (
-        <div style={{ marginTop: 6 }}>
+        <div style={{ marginTop: 8 }}>
           {grouped.high.map((s, i) => <ChainSignalRow key={`h${i}`} signal={s} debugEntries={debugEntries} />)}
           {grouped.med.map((s, i)  => <ChainSignalRow key={`m${i}`} signal={s} debugEntries={debugEntries} />)}
         </div>
@@ -202,9 +236,144 @@ function ChainSection({ result }: { result: ScanResult }) {
   )
 }
 
+// ── Result Panel ──────────────────────────────────────────────────────────────
+
+function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfirmedTrees, confirmedOther, setConfirmedOther, subImo, setSubImo, recruiterNotes, setRecruiterNotes, saveState, onSave, davidFacts, deepScanStatus }: {
+  result: ScanResult; agencyName: string; city: string; state: string
+  confirmedTrees: string[]; setConfirmedTrees: (v: string[]) => void
+  confirmedOther: string; setConfirmedOther: (v: string) => void
+  subImo: string; setSubImo: (v: string) => void
+  recruiterNotes: string; setRecruiterNotes: (v: string) => void
+  saveState: 'idle' | 'saving' | 'saved'; onSave: () => void
+  davidFacts: DavidFact[] | null; deepScanStatus: 'idle' | 'polling' | 'complete' | 'timeout'
+}) {
+  const stage      = getStage(result.confidence, result.predicted_tree)
+  const treeLabel  = TREE_LABELS[result.predicted_tree] || 'UNCLASSIFIED'
+  const treeColor  = TREE_COLOR[result.predicted_tree]  || 'var(--text-3)'
+  const treeBorder = TREE_BORDER[result.predicted_tree] || 'var(--border)'
+  const treeDim    = TREE_DIM[result.predicted_tree]    || 'transparent'
+  const isUnknown  = result.predicted_tree === 'unknown'
+
+  return (
+    <div style={{ animation: 'slideIn 0.3s ease both' }}>
+      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12, fontWeight: 500 }}>
+        SPECIMEN: {agencyName.toUpperCase()}{city ? ` · ${city.toUpperCase()}, ${state.toUpperCase()}` : ''}
+      </div>
+
+      {/* Verdict card */}
+      <div style={{ background: 'var(--bg-card)', border: `1px solid ${treeBorder}`, borderLeft: `4px solid ${treeColor}`, borderRadius: 'var(--radius)', marginBottom: 10, overflow: 'hidden', boxShadow: '0 2px 8px var(--shadow-sm)' }}>
+
+        {/* Verdict header */}
+        <div style={{ padding: '20px 24px', background: isUnknown ? 'transparent' : treeDim, borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' }}>Strain Detected</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isUnknown ? 28 : 44, color: treeColor, letterSpacing: 3, lineHeight: 1, marginBottom: 14 }}>{treeLabel}</div>
+            {!isUnknown && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 200, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${result.confidence}%`, background: treeColor, borderRadius: 3, transition: 'width 0.8s ease' }} />
+                </div>
+                <span style={{ fontSize: 14, color: treeColor, fontWeight: 700 }}>{result.confidence}% confidence</span>
+              </div>
+            )}
+          </div>
+          <div style={{ textAlign: 'center', padding: '0 8px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>Infection Stage</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 64, color: isUnknown ? 'var(--text-4)' : treeColor, letterSpacing: 2, lineHeight: 1 }}>{stage?.roman || '—'}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, fontWeight: 500 }}>{stage?.label || 'INDETERMINATE'}</div>
+          </div>
+        </div>
+
+        {/* Reasoning */}
+        {result.reasoning && !isUnknown && (
+          <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{result.reasoning}</div>
+        )}
+
+        {/* Pathogen markers */}
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 0.5, marginBottom: 12, textTransform: 'uppercase' }}>Pathogen Markers</div>
+          {(result.signals_used || []).length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {(result.signals_used || []).map((sig, i) => (
+                <div key={i} style={{ fontSize: 13, color: 'var(--text-1)', display: 'flex', gap: 10, lineHeight: 1.5 }}>
+                  <span style={{ color: treeColor, flexShrink: 0 }}>▸</span><span>{sig}</span>
+                </div>
+              ))}
+              {result.facebook_profile_url && (
+                <div style={{ fontSize: 13, color: 'var(--text-1)', display: 'flex', gap: 10 }}>
+                  <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>▸</span>
+                  <a href={result.facebook_profile_url} target="_blank" rel="noopener noreferrer" style={{ color: '#4267B2', textDecoration: 'none' }}>◈ Facebook profile located ↗</a>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--text-3)' }}>No strong markers detected.</div>
+          )}
+        </div>
+
+        {/* Chain intel */}
+        <div style={{ padding: '0 24px' }}><ChainSection result={result} /></div>
+
+        {/* Field observation */}
+        <div style={{ padding: '18px 24px', background: 'var(--bg)', borderTop: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 14 }}>Field Observation Log</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5 }}>Confirm tree — select all that apply</div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+            {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => {
+              const active = confirmedTrees.includes(t)
+              const c = TREE_COLOR[t] || 'var(--text-2)'
+              const b = TREE_BORDER[t] || 'var(--border)'
+              const d = TREE_DIM[t] || 'transparent'
+              return (
+                <button key={t} onClick={() => setConfirmedTrees(confirmedTrees.includes(t) ? confirmedTrees.filter(x => x !== t) : [...confirmedTrees, t])}
+                  style={{ background: active ? d : 'transparent', border: `1px solid ${active ? c : 'var(--border-strong)'}`, color: active ? c : 'var(--text-2)', fontSize: 12, fontWeight: active ? 600 : 400, padding: '8px 16px', cursor: 'pointer', transition: 'all 0.12s', textTransform: 'uppercase', borderRadius: 'var(--radius)' }}>
+                  {active && '✓ '}{t === 'integrity' ? 'Integrity' : t === 'amerilife' ? 'AmeriLife' : t === 'sms' ? 'SMS' : 'Other'}
+                </button>
+              )
+            })}
+          </div>
+          {confirmedTrees.includes('other') && (
+            <input value={confirmedOther} onChange={e => setConfirmedOther(e.target.value)} placeholder="FMO name..."
+              style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '10px 14px', marginBottom: 10, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-1)', fontSize: 13, outline: 'none', borderRadius: 'var(--radius)' }} />
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+            <input value={subImo} onChange={e => setSubImo(e.target.value)}
+              placeholder={result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 ? `Confirm: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate...'}
+              style={{ padding: '10px 14px', fontSize: 13, background: 'var(--bg-card)', border: `1px solid ${result.predicted_sub_imo && !subImo ? 'var(--sig-green-border)' : 'var(--border)'}`, color: 'var(--text-1)', outline: 'none', borderRadius: 'var(--radius)' }} />
+            <input value={recruiterNotes} onChange={e => setRecruiterNotes(e.target.value)} placeholder="Field notes..."
+              style={{ padding: '10px 14px', fontSize: 13, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-1)', outline: 'none', borderRadius: 'var(--radius)' }} />
+          </div>
+          <button onClick={onSave} disabled={saveState === 'saving'}
+            style={{ padding: '10px 22px', background: saveState === 'saved' ? 'var(--sig-green-dim)' : 'var(--bg-card)', border: `1px solid ${saveState === 'saved' ? 'var(--sig-green-border)' : 'var(--border-strong)'}`, color: saveState === 'saved' ? 'var(--sig-green)' : 'var(--text-1)', fontSize: 13, fontWeight: 600, cursor: saveState === 'saving' ? 'default' : 'pointer', transition: 'all 0.2s', borderRadius: 'var(--radius)' }}>
+            {saveState === 'saved' ? '✓ Observation logged · click to update' : saveState === 'saving' ? 'Logging...' : 'Log observation'}
+          </button>
+        </div>
+      </div>
+
+      {/* DAVID */}
+      {davidFacts && davidFacts.length > 0 && <DavidFactsPanel facts={davidFacts} agentName={agencyName} deepScanStatus={deepScanStatus} />}
+      {davidFacts === null && (
+        <div style={{ marginTop: 10, padding: '14px 20px', background: 'var(--bg-card)', border: '1px solid var(--orange-border)', borderRadius: 'var(--radius)' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--orange)', marginBottom: 4 }}>◈ DAVID — PERSONAL INTEL</div>
+          {deepScanStatus === 'polling' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: 'var(--orange)' }}>Deepening — pulling Facebook + YouTube · stay on page</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>No personal facts extracted from this scan</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
 export default function AnathemaDashboardPage() {
   return (
-    <Suspense fallback={<div style={{ padding: '60px 40px', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: 2 }}>LOADING...</div>}>
+    <Suspense fallback={<div style={{ padding: '60px 40px', color: 'var(--text-3)', fontSize: 13 }}>Loading...</div>}>
       <AnathemaDashboardInner />
     </Suspense>
   )
@@ -232,18 +401,16 @@ function AnathemaDashboardInner() {
   const [specimenPage, setSpecimenPage]     = useState(0)
   const SPECIMENS_PER_PAGE = 5
 
-  const timerRef  = useRef<NodeJS.Timeout | null>(null)
-  const pollRef   = useRef<NodeJS.Timeout | null>(null)
-  const resultRef = useRef<HTMLDivElement>(null)
+  const timerRef     = useRef<NodeJS.Timeout | null>(null)
+  const pollRef      = useRef<NodeJS.Timeout | null>(null)
+  const resultRef    = useRef<HTMLDivElement>(null)
   const searchParams = useSearchParams()
 
   useEffect(() => {
     const name = searchParams.get('name')
     if (!name) return
     setAgencyName(decodeURIComponent(name))
-    const c = searchParams.get('city')
-    const s = searchParams.get('state')
-    const u = searchParams.get('url')
+    const c = searchParams.get('city'); const s = searchParams.get('state'); const u = searchParams.get('url')
     if (c) setCity(decodeURIComponent(c))
     if (s) setState(decodeURIComponent(s).toUpperCase().slice(0, 2))
     if (u) setWebsite(decodeURIComponent(u))
@@ -280,28 +447,18 @@ function AnathemaDashboardInner() {
   function startDeepPolling(id: string) {
     if (pollRef.current) clearInterval(pollRef.current)
     setDeepScanStatus('polling')
-    const INTERVAL = 5000
-    const TIMEOUT  = 3 * 60 * 1000
-    const started  = Date.now()
+    const started = Date.now()
     pollRef.current = setInterval(async () => {
-      if (Date.now() - started > TIMEOUT) {
-        clearInterval(pollRef.current!)
-        setDeepScanStatus('timeout')
-        return
-      }
+      if (Date.now() - started > 3 * 60 * 1000) { clearInterval(pollRef.current!); setDeepScanStatus('timeout'); return }
       try {
-        const res  = await fetch(`/api/anathema?id=${id}`)
-        const data = await res.json()
+        const res = await fetch(`/api/anathema?id=${id}`); const data = await res.json()
         const facts = data.scan?.david_facts?.facts ?? null
         const sources: string[] = data.scan?.david_facts?.scan_sources_used || []
-        const isDeep = sources.some((s: string) => s.startsWith('APIFY_'))
-        if (isDeep && facts) {
-          clearInterval(pollRef.current!)
-          setDeepScanStatus('complete')
-          setDavidFacts(facts)
+        if (sources.some((s: string) => s.startsWith('APIFY_')) && facts) {
+          clearInterval(pollRef.current!); setDeepScanStatus('complete'); setDavidFacts(facts)
         }
       } catch {}
-    }, INTERVAL)
+    }, 5000)
   }
 
   async function runScan() {
@@ -320,10 +477,7 @@ function AnathemaDashboardInner() {
     }
     tick()
     try {
-      const res = await fetch('/api/anathema', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: { name: agencyName.trim(), website: website.trim() || null, city: city.trim(), state: state.trim().toUpperCase(), address: city && state ? `${city}, ${state}` : '', carriers: [], notes: '', about: null } }),
-      })
+      const res  = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agent: { name: agencyName.trim(), website: website.trim() || null, city: city.trim(), state: state.trim().toUpperCase(), address: city && state ? `${city}, ${state}` : '', carriers: [], notes: '', about: null } }) })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       if (timerRef.current) clearTimeout(timerRef.current)
@@ -332,51 +486,36 @@ function AnathemaDashboardInner() {
       addLog(`[OK] Scan complete — ${agencyName.trim()}`)
       addLog(data.predicted_tree !== 'unknown' ? `[FOUND] STRAIN: ${tree} — CONFIDENCE: ${data.confidence}%` : `[WARN] STRAIN: UNCLASSIFIED — Insufficient markers`)
       if (data.facebook_profile_url) addLog(`[FOUND] Facebook profile located`)
-      if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence${data.predicted_sub_imo_proof_url ? ' · proof linked' : ''}`)
-      else if (data.unresolved_upline) addLog(`[ALERT] UNRESOLVED UPLINE: ${data.unresolved_upline} — not in network map`)
-      if (data.prediction_source === 'chain_resolver') addLog(`[FOUND] Prediction sourced from chain — partner resolved in network map`)
+      if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence`)
+      else if (data.unresolved_upline) addLog(`[ALERT] UNRESOLVED UPLINE: ${data.unresolved_upline}`)
       const davidFactsList: DavidFact[] = data.david_facts?.facts || []
-      if (davidFactsList.length > 0) addLog(`[FOUND] DAVID: ${davidFactsList.filter((f: DavidFact) => f.usability === 'HIGH').length} HIGH usability personal facts extracted`)
+      if (davidFactsList.length > 0) addLog(`[FOUND] DAVID: ${davidFactsList.filter((f: DavidFact) => f.usability === 'HIGH').length} HIGH usability personal facts`)
       setResult(data); setSaveState('idle')
       if (data.predicted_sub_imo) setSubImo(data.predicted_sub_imo)
       if (davidFactsList.length > 0) {
         setDavidFacts(davidFactsList)
-        // Save initial facts, then poll for Apify-enriched facts
-        const savedRes = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save_david_facts', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase(), david_facts: data.david_facts }) })
+        const savedRes  = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save_david_facts', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase(), david_facts: data.david_facts }) })
         const savedData = await savedRes.json().catch(() => ({}))
-        // If we got a specimen ID back, start polling for Apify enrichment
-        if (savedData.id) {
-          setSpecimenId(savedData.id)
-          startDeepPolling(savedData.id)
-        } else {
-          // Fall back: poll by name lookup after a short delay
+        if (savedData.id) { setSpecimenId(savedData.id); startDeepPolling(savedData.id) }
+        else {
           setDeepScanStatus('polling')
           setTimeout(async () => {
             try {
-              const checkRes = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'check_existing', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() }) })
+              const checkRes  = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'check_existing', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() }) })
               const checkData = await checkRes.json()
-              if (checkData.specimen?.id) {
-                setSpecimenId(checkData.specimen.id)
-                startDeepPolling(checkData.specimen.id)
-              }
+              if (checkData.specimen?.id) { setSpecimenId(checkData.specimen.id); startDeepPolling(checkData.specimen.id) }
             } catch {}
           }, 3000)
         }
-      } else {
-        // No initial facts but Apify might still find some — poll anyway if FB/YT targets exist
-        if (data.facebook_profile_url) {
-          setDeepScanStatus('polling')
-          setTimeout(async () => {
-            try {
-              const checkRes = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'check_existing', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() }) })
-              const checkData = await checkRes.json()
-              if (checkData.specimen?.id) {
-                setSpecimenId(checkData.specimen.id)
-                startDeepPolling(checkData.specimen.id)
-              }
-            } catch {}
-          }, 3000)
-        }
+      } else if (data.facebook_profile_url) {
+        setDeepScanStatus('polling')
+        setTimeout(async () => {
+          try {
+            const checkRes  = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'check_existing', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() }) })
+            const checkData = await checkRes.json()
+            if (checkData.specimen?.id) { setSpecimenId(checkData.specimen.id); startDeepPolling(checkData.specimen.id) }
+          } catch {}
+        }, 3000)
       }
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err: any) {
@@ -391,40 +530,19 @@ function AnathemaDashboardInner() {
     if (!result || saveState === 'saving') return
     setSaveState('saving')
     try {
-      const res = await fetch('/api/anathema', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'log_observation', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase(),
-          agent_website: website.trim() || null, agent_address: city && state ? `${city}, ${state}` : '',
-          predicted_tree: result.predicted_tree, predicted_confidence: result.confidence,
-          prediction_signals: result.signals_used, prediction_reasoning: result.reasoning,
-          prediction_source: result.prediction_source || null,
-          facebook_profile_url: result.facebook_profile_url, facebook_about: result.facebook_about,
-          predicted_sub_imo: result.predicted_sub_imo || null, predicted_sub_imo_confidence: result.predicted_sub_imo_confidence || null,
-          predicted_sub_imo_signals: result.predicted_sub_imo_signals || [], predicted_sub_imo_partner_id: result.predicted_sub_imo_partner_id || null,
-          predicted_sub_imo_proof_url: result.predicted_sub_imo_proof_url || null, serp_debug: result.serp_debug || null,
-          unresolved_upline: result.unresolved_upline || null,
-          unresolved_upline_evidence: result.unresolved_upline_evidence || null,
-          unresolved_upline_source_url: result.unresolved_upline_source_url || null,
-          unresolved_upline_confidence: result.unresolved_upline_confidence || null,
-          confirmed_tree: confirmedTrees.length === 1 ? confirmedTrees[0] : confirmedTrees.length > 1 ? confirmedTrees.join(',') : null,
-          confirmed_tree_other: confirmedOther || null, confirmed_sub_imo: subImo || null, recruiter_notes: recruiterNotes || null,
-          david_facts: davidFacts ? { facts: davidFacts } : null,
-        }),
-      })
+      const res = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'log_observation', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase(), agent_website: website.trim() || null, agent_address: city && state ? `${city}, ${state}` : '', predicted_tree: result.predicted_tree, predicted_confidence: result.confidence, prediction_signals: result.signals_used, prediction_reasoning: result.reasoning, prediction_source: result.prediction_source || null, facebook_profile_url: result.facebook_profile_url, facebook_about: result.facebook_about, predicted_sub_imo: result.predicted_sub_imo || null, predicted_sub_imo_confidence: result.predicted_sub_imo_confidence || null, predicted_sub_imo_signals: result.predicted_sub_imo_signals || [], predicted_sub_imo_partner_id: result.predicted_sub_imo_partner_id || null, predicted_sub_imo_proof_url: result.predicted_sub_imo_proof_url || null, serp_debug: result.serp_debug || null, unresolved_upline: result.unresolved_upline || null, unresolved_upline_evidence: result.unresolved_upline_evidence || null, unresolved_upline_source_url: result.unresolved_upline_source_url || null, unresolved_upline_confidence: result.unresolved_upline_confidence || null, confirmed_tree: confirmedTrees.length === 1 ? confirmedTrees[0] : confirmedTrees.length > 1 ? confirmedTrees.join(',') : null, confirmed_tree_other: confirmedOther || null, confirmed_sub_imo: subImo || null, recruiter_notes: recruiterNotes || null, david_facts: davidFacts ? { facts: davidFacts } : null }) })
       const data = await res.json()
-      if (!res.ok || !data.ok) { console.error('[logObservation] Save failed:', data); setSaveState('idle'); setError('Failed to save observation. Please try again.'); return }
+      if (!res.ok || !data.ok) { setSaveState('idle'); setError('Failed to save. Please try again.'); return }
       setSaveState('saved')
       fetch('/api/specimens').then(r => r.json()).then(d => setSpecimens(d.specimens || [])).catch(() => {})
-    } catch (err) { console.error('[logObservation] Network error:', err); setSaveState('idle'); setError('Failed to save observation. Please try again.') }
+    } catch { setSaveState('idle'); setError('Failed to save. Please try again.') }
   }
 
   async function loadSpecimen(s: any) {
     setAgencyName(s.agent_name || ''); setWebsite(s.agent_website || ''); setCity(s.city || ''); setState(s.state || '')
     setResult(null); setError(''); setLogLines([])
     setConfirmedTrees(s.confirmed_tree ? s.confirmed_tree.split(',').map((t: string) => t.trim()) : [])
-    setConfirmedOther(s.confirmed_tree_other || ''); setSubImo(s.confirmed_sub_imo || '')
-    setRecruiterNotes(s.recruiter_notes || ''); setSaveState('saved'); setDavidFacts(null)
+    setConfirmedOther(s.confirmed_tree_other || ''); setSubImo(s.confirmed_sub_imo || ''); setRecruiterNotes(s.recruiter_notes || ''); setSaveState('saved'); setDavidFacts(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
     try {
       const res = await fetch(`/api/anathema?id=${s.id}`)
@@ -438,8 +556,6 @@ function AnathemaDashboardInner() {
     } catch {}
   }
 
-  const stage     = result ? getStage(result.confidence, result.predicted_tree) : null
-  const treeLabel = result ? TREE_LABELS[result.predicted_tree] || 'UNCLASSIFIED' : ''
   const showTwoCol = !!(result || scanning)
 
   return (
@@ -449,71 +565,72 @@ function AnathemaDashboardInner() {
         @keyframes loadSlide { 0% { left: -40%; } 100% { left: 100%; } }
         @keyframes blink     { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
         @keyframes scanDown  { 0% { top: 0; opacity: 0.8; } 100% { top: 100%; opacity: 0; } }
-        .anathema-initial-scan { position: absolute; left: 0; width: 100%; height: 2px; z-index: 10; background: linear-gradient(90deg, transparent, #00e676, transparent); animation: scanDown 1.2s ease-out 1 forwards; }
         .detail-scroll::-webkit-scrollbar { width: 3px; }
         .detail-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); }
       `}</style>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-2)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 10 }}>Pathogen Analysis System · Chemical A0-3959X.91–15</div>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--text-1)', lineHeight: 0.9 }}>ANATHEMA<span style={{ color: 'var(--green)' }}>.</span></h1>
+        <div className="page-eyebrow">Pathogen Analysis System · Chemical A0-3959X.91–15</div>
+        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--text-1)', lineHeight: 0.9 }}>
+          ANATHEMA<span style={{ color: 'var(--sig-green)' }}>.</span>
+        </h1>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: showTwoCol ? '400px 1fr' : '1fr', gap: 0, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: showTwoCol ? '380px 1fr' : '1fr', gap: 0, alignItems: 'start' }}>
 
-        {/* LEFT: input + loading + empty state */}
-        <div style={{ paddingRight: showTwoCol ? 24 : 0, borderRight: showTwoCol ? '1px solid var(--border)' : 'none', minWidth: 0, overflow: 'hidden' }}>
+        {/* LEFT */}
+        <div style={{ paddingRight: showTwoCol ? 28 : 0, borderRight: showTwoCol ? '1px solid var(--border)' : 'none', minWidth: 0 }}>
 
-          {/* Input */}
-          <div style={{ display: 'flex', gap: 0, border: `1px solid ${scanning ? 'var(--green)' : 'var(--border-strong)'}`, background: 'var(--card)', marginBottom: 2, transition: 'border-color 0.2s', boxShadow: scanning ? '0 0 0 1px rgba(0,230,118,0.3)' : 'none' }}>
+          {/* Scan input */}
+          <div style={{ display: 'flex', gap: 0, border: `1.5px solid ${scanning ? 'var(--sig-green)' : 'var(--border-strong)'}`, background: 'var(--bg-card)', marginBottom: 6, transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: scanning ? '0 0 0 3px var(--sig-green-dim)' : '0 2px 6px var(--shadow-sm)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
             <input value={agencyName} onChange={e => setAgencyName(e.target.value)} onKeyDown={e => e.key === 'Enter' && runScan()} placeholder="Agency or agent name" disabled={scanning}
-              style={{ flex: 1, padding: '16px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-1)', fontFamily: "'DM Mono', monospace", fontSize: 13, letterSpacing: 1 }} />
+              style={{ flex: 1, padding: '16px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-1)', fontSize: 15 }} />
             <button onClick={runScan} disabled={scanning || !agencyName.trim()}
-              style={{ padding: '16px 24px', background: scanning ? "var(--bg-raised)" : 'transparent', border: 'none', borderLeft: `1px solid ${scanning ? 'rgba(0,230,118,0.2)' : 'var(--border-strong)'}`, cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 3, color: scanning ? '#333' : 'var(--green)', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+              style={{ padding: '14px 24px', background: scanning ? 'var(--sig-green-dim)' : 'var(--sig-green)', border: 'none', cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 3, color: scanning ? 'var(--sig-green)' : 'white', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
               {scanning ? 'SCANNING...' : '◈ SCAN'}
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 2, marginBottom: 2 }}>
-            <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="Website (optional)" disabled={scanning}
-              style={{ padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5 }} />
-            <input value={city} onChange={e => setCity(e.target.value)} placeholder="City" disabled={scanning}
-              style={{ padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5 }} />
-            <input value={state} onChange={e => setState(e.target.value.toUpperCase().slice(0, 2))} placeholder="ST" disabled={scanning}
-              style={{ padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--border)', outline: 'none', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5 }} />
+          {/* Optional fields */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 6, marginBottom: 6 }}>
+            {[
+              { value: website, set: setWebsite,                                                   ph: 'Website (optional)' },
+              { value: city,    set: setCity,                                                       ph: 'City' },
+              { value: state,   set: (v: string) => setState(v.toUpperCase().slice(0, 2)), ph: 'ST' },
+            ].map((f, i) => (
+              <input key={i} value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.ph} disabled={scanning}
+                style={{ padding: '10px 14px', fontSize: 13, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-2)', outline: 'none', borderRadius: 'var(--radius)' }} />
+            ))}
           </div>
 
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 1, marginBottom: 24 }}>WEBSITE + LOCATION OPTIONAL BUT IMPROVE SIGNAL QUALITY</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 20 }}>Website + location optional but improve signal quality</div>
 
-          {/* Loading */}
+          {/* Loading steps */}
           {scanning && currentStep >= 0 && (
             <div style={{ marginBottom: 24 }}>
-              <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 16 }}>
-                <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--green)', animation: 'loadSlide 1s ease-in-out infinite' }} />
+              <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 16, borderRadius: 1 }}>
+                <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--sig-green)', animation: 'loadSlide 1s ease-in-out infinite' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {LOADING_STEPS.map((step, i) => (
-                  <div key={step} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8, color: i < currentStep ? 'var(--green)' : i === currentStep ? 'rgba(0,230,118,0.7)' : '#333', transition: 'color 0.3s' }}>
-                    <span style={{ fontSize: 7 }}>{i < currentStep ? '●' : i === currentStep ? '◐' : '○'}</span>{step}
+                  <div key={step} style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 10, color: i < currentStep ? 'var(--sig-green)' : i === currentStep ? 'var(--text-1)' : 'var(--text-4)', transition: 'color 0.3s' }}>
+                    <span style={{ color: i < currentStep ? 'var(--sig-green)' : i === currentStep ? 'var(--orange)' : 'var(--text-4)', fontSize: 9, flexShrink: 0 }}>{i < currentStep ? '●' : i === currentStep ? '◐' : '○'}</span>
+                    {step}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {error && <div style={{ padding: '14px 18px', border: '1px solid var(--red)', background: 'rgba(255,23,68,0.05)', color: 'var(--red)', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1, marginBottom: 20 }}>{error}</div>}
+          {error && (
+            <div style={{ padding: '12px 16px', border: '1px solid var(--sig-red-border)', background: 'var(--sig-red-dim)', color: 'var(--sig-red)', fontSize: 13, marginBottom: 16, borderRadius: 'var(--radius)' }}>{error}</div>
+          )}
 
           {result && !scanning && (
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => { setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); runScan() }}
-                style={{ background: 'transparent', border: '1px solid rgba(0,230,118,0.2)', color: 'var(--green)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px', cursor: 'pointer' }}>
-                ↺ RESCAN
-              </button>
-              <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }}
-                style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, padding: '7px 14px', cursor: 'pointer' }}>
-                NEW SCAN
-              </button>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+              <button onClick={() => { setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); runScan() }} className="btn-ghost" style={{ fontSize: 12 }}>↺ Rescan</button>
+              <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>New scan</button>
             </div>
           )}
 
@@ -521,55 +638,55 @@ function AnathemaDashboardInner() {
           {!scanning && !result && (
             <div style={{ marginTop: 8 }}>
               {specimens.length > 0 && (
-                <div style={{ marginBottom: 40 }}>
+                <div style={{ marginBottom: 36 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2 }}>RECENT SCANS</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', letterSpacing: 1 }}>{specimenPage * SPECIMENS_PER_PAGE + 1}–{Math.min((specimenPage + 1) * SPECIMENS_PER_PAGE, specimens.length)} OF {specimens.length}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>Recent scans</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-4)' }}>{specimenPage * SPECIMENS_PER_PAGE + 1}–{Math.min((specimenPage + 1) * SPECIMENS_PER_PAGE, specimens.length)} of {specimens.length}</div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {specimens.slice(specimenPage * SPECIMENS_PER_PAGE, (specimenPage + 1) * SPECIMENS_PER_PAGE).map((s: any) => {
-                      const tree = TREE_LABELS[s.predicted_tree] || 'UNCLASSIFIED'
-                      const treeColor = s.predicted_tree === 'integrity' ? 'var(--green)' : s.predicted_tree === 'amerilife' ? '#2196f3' : s.predicted_tree === 'sms' ? '#ff9800' : '#333'
+                      const tree = TREE_LABELS[s.predicted_tree] || 'Unclassified'
+                      const tc   = TREE_COLOR[s.predicted_tree]  || 'var(--text-3)'
                       return (
                         <button key={s.id} onClick={() => loadSpecimen(s)}
-                          style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, alignItems: 'center', padding: '12px 16px', background: "var(--bg-card)", border: '1px solid rgba(0,230,118,0.08)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,230,118,0.3)'; (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-raised)" }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,230,118,0.08)'; (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-card)" }}>
+                          style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, alignItems: 'center', padding: '12px 16px', background: 'var(--bg-card)', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', borderRadius: 'var(--radius)' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-strong)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover)' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-card)' }}>
                           <div>
-                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-1)', letterSpacing: 0.5, marginBottom: 2 }}>{s.agent_name}</div>
-                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1 }}>{[s.city, s.state].filter(Boolean).join(', ')}{s.confirmed_sub_imo && <span style={{ color: 'var(--text-2)' }}> · {s.confirmed_sub_imo}</span>}</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>{s.agent_name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{[s.city, s.state].filter(Boolean).join(', ')}{s.confirmed_sub_imo && <span style={{ color: 'var(--text-2)' }}> · {s.confirmed_sub_imo}</span>}</div>
                           </div>
-                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: treeColor, letterSpacing: 2 }}>{tree}</div>
-                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9 }}>{s.confirmed_tree ? <span style={{ color: 'var(--green)', fontSize: 8 }}>✓</span> : s.predicted_confidence ? <span style={{ color: 'var(--text-3)' }}>{s.predicted_confidence}%</span> : <span style={{ color: 'var(--text-4)' }}>—</span>}</div>
-                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', whiteSpace: 'nowrap' }}>{new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          <div style={{ fontSize: 12, color: tc, fontWeight: 600 }}>{tree}</div>
+                          <div style={{ fontSize: 12 }}>{s.confirmed_tree ? <span style={{ color: 'var(--sig-green)' }}>✓</span> : s.predicted_confidence ? <span style={{ color: 'var(--text-3)' }}>{s.predicted_confidence}%</span> : <span style={{ color: 'var(--text-4)' }}>—</span>}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-4)', whiteSpace: 'nowrap' }}>{new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                         </button>
                       )
                     })}
                   </div>
                   {specimens.length > SPECIMENS_PER_PAGE && (
-                    <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
-                      <button onClick={() => setSpecimenPage(p => Math.max(0, p - 1))} disabled={specimenPage === 0} style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--border)', color: specimenPage === 0 ? '#222' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, cursor: specimenPage === 0 ? 'default' : 'pointer' }}>← PREV</button>
-                      <button onClick={() => setSpecimenPage(p => Math.min(Math.ceil(specimens.length / SPECIMENS_PER_PAGE) - 1, p + 1))} disabled={(specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length} style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--border)', color: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? '#222' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 2, cursor: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? 'default' : 'pointer' }}>NEXT →</button>
+                    <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                      <button onClick={() => setSpecimenPage(p => Math.max(0, p - 1))} disabled={specimenPage === 0} className="btn-ghost" style={{ flex: 1, fontSize: 12, opacity: specimenPage === 0 ? 0.4 : 1 }}>← Prev</button>
+                      <button onClick={() => setSpecimenPage(p => Math.min(Math.ceil(specimens.length / SPECIMENS_PER_PAGE) - 1, p + 1))} disabled={(specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length} className="btn-ghost" style={{ flex: 1, fontSize: 12, opacity: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? 0.4 : 1 }}>Next →</button>
                     </div>
                   )}
                 </div>
               )}
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>WHAT ANATHEMA DETECTS</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 10 }}>What Anathema detects</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                 {[
-                  { n: '01', title: 'Carrier Fingerprint',   tip: 'Every tree has its carriers. The carriers tell you more than the agent will.' },
-                  { n: '02', title: 'Language Markers',      tip: '"FFL agent", "IntegrityCONNECT", "USABG" — brand contamination in their own copy.' },
-                  { n: '03', title: 'Web Intelligence',      tip: 'Live Google search cross-references the agency against Integrity, AmeriLife, and SMS directories.' },
-                  { n: '04', title: 'Facebook Profile Scan', tip: 'Trip photos with FMO branding. Agents post what they won\'t say on the phone.' },
-                  { n: '05', title: 'Infection Staging',     tip: 'STAGE I (trace) through STAGE IV (confirmed). Know how confident the signal is.' },
-                  { n: '06', title: 'DAVID Personal Intel',  tip: 'Personal facts for your opener — family, hobbies, recent events, YouTube content.' },
+                  { n: '01', title: 'Carrier fingerprint',   tip: 'Every tree has its carriers. The carriers tell you more than the agent will.' },
+                  { n: '02', title: 'Language markers',      tip: '"FFL agent", "IntegrityCONNECT", "USABG" — brand contamination in their own copy.' },
+                  { n: '03', title: 'Web intelligence',      tip: 'Live Google search cross-references the agency against Integrity, AmeriLife, and SMS directories.' },
+                  { n: '04', title: 'Facebook profile scan', tip: "Trip photos with FMO branding. Agents post what they won't say on the phone." },
+                  { n: '05', title: 'Infection staging',     tip: 'STAGE I (trace) through STAGE IV (confirmed). Know how confident the signal is.' },
+                  { n: '06', title: 'DAVID personal intel',  tip: 'Personal facts for your opener — family, hobbies, recent events, YouTube content.' },
                 ].map(c => (
-                  <div key={c.n} style={{ background: "var(--bg-card)", border: '1px solid rgba(0,230,118,0.1)', padding: '16px 18px', transition: 'border-color 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.3)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(0,230,118,0.1)')}>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--green)', letterSpacing: 2, marginBottom: 8 }}>{c.n}</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-1)', marginBottom: 6 }}>{c.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" }}>{c.tip}</div>
+                  <div key={c.n} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '16px', borderRadius: 'var(--radius)', transition: 'border-color 0.12s' }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--sig-green-border)')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--sig-green)', letterSpacing: 2, marginBottom: 6 }}>{c.n}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 5 }}>{c.title}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>{c.tip}</div>
                   </div>
                 ))}
               </div>
@@ -577,130 +694,24 @@ function AnathemaDashboardInner() {
           )}
         </div>
 
-        {/* RIGHT: result panel */}
+        {/* RIGHT */}
         {showTwoCol && (
-          <div ref={resultRef} className="detail-scroll" style={{ paddingLeft: 24, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto', position: 'sticky', top: 16 }}>
-
+          <div ref={resultRef} className="detail-scroll" style={{ paddingLeft: 28, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto', position: 'sticky', top: 16 }}>
             {scanning && !result && (
-              <div style={{ paddingTop: 48, display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {/* Current step — big and readable */}
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 3, marginBottom: 20 }}>
-                  SCANNING · {agencyName.slice(0, 32).toUpperCase()}
-                </div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: 'rgba(0,230,118,0.7)', letterSpacing: 2, lineHeight: 1.1, marginBottom: 24, minHeight: 36 }}>
-                  {currentStep >= 0 ? LOADING_STEPS[currentStep] : ''}
-                </div>
-                {/* Terminal log — single instance, right side only */}
+              <div style={{ paddingTop: 40 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', letterSpacing: 1, marginBottom: 16 }}>SCANNING · {agencyName.slice(0, 36).toUpperCase()}</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--sig-green)', letterSpacing: 2, lineHeight: 1.1, marginBottom: 28, minHeight: 40 }}>{currentStep >= 0 ? LOADING_STEPS[currentStep] : ''}</div>
                 <TerminalLog lines={logLines} />
               </div>
             )}
-
             {result && !scanning && (
-              <div style={{ animation: 'slideIn 0.3s ease both' }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-2)', letterSpacing: 2, marginBottom: 10 }}>
-                  SPECIMEN: {agencyName.toUpperCase()}{city ? ` · ${city.toUpperCase()}, ${state.toUpperCase()}` : ''}
-                </div>
-
-                <div style={{ background: "var(--bg-raised)", border: '1px solid rgba(0,230,118,0.25)', fontFamily: "'DM Mono', monospace", position: 'relative', overflow: 'hidden', marginBottom: 2 }}>
-                  <div className="anathema-initial-scan" />
-
-                  <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,230,118,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: 3 }}>◈ ANATHEMA · PATHOGEN ANALYSIS SYSTEM v1</div>
-                    <div style={{ fontSize: 9, color: 'var(--text-4)', letterSpacing: 1 }}>DIRECT SPECIMEN SCAN</div>
-                  </div>
-
-                  <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: 3, marginBottom: 8 }}>STRAIN DETECTED</div>
-                      <div style={{ fontSize: result.predicted_tree !== 'unknown' ? 40 : 24, color: result.predicted_tree !== 'unknown' ? 'var(--green)' : '#444', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 3, marginBottom: 12, lineHeight: 1 }}>{treeLabel}</div>
-                      {result.predicted_tree !== 'unknown' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 180, height: 4, background: 'var(--border)', position: 'relative' }}>
-                            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.confidence}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.4), #00e676)', transition: 'width 0.8s ease' }} />
-                          </div>
-                          <div style={{ fontSize: 11, color: 'var(--green)', letterSpacing: 1 }}>{result.confidence}% CONFIDENCE</div>
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: 3, marginBottom: 6 }}>INFECTION STAGE</div>
-                      <div style={{ fontSize: 56, color: result.predicted_tree !== 'unknown' ? 'var(--green)' : '#222', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, lineHeight: 1 }}>{stage?.roman || '—'}</div>
-                      <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: 2 }}>{stage?.label}</div>
-                    </div>
-                  </div>
-
-                  {result.reasoning && result.predicted_tree !== 'unknown' && (
-                    <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)', fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, letterSpacing: 0.3 }}>{result.reasoning}</div>
-                  )}
-
-                  <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(0,230,118,0.1)' }}>
-                    <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: 3, marginBottom: 12 }}>PATHOGEN MARKERS</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {(result.signals_used || []).map((sig, i) => (
-                        <div key={i} style={{ fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 10, lineHeight: 1.5 }}>
-                          <span style={{ color: 'var(--green)', flexShrink: 0 }}>▸</span><span>{sig}</span>
-                        </div>
-                      ))}
-                      {result.facebook_profile_url && (
-                        <div style={{ fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 10, marginTop: 2 }}>
-                          <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>▸</span>
-                          <a href={result.facebook_profile_url} target="_blank" rel="noopener noreferrer" style={{ color: '#4267B2', textDecoration: 'none', fontFamily: "'DM Mono', monospace" }}>◈ Facebook profile located ↗</a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <ChainSection result={result} />
-
-                  {/* Field observation — action zone */}
-                  <div style={{ padding: '16px 24px', background: 'rgba(0,0,0,0.2)' }}>
-                    <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: 3, marginBottom: 14 }}>FIELD OBSERVATION LOG</div>
-                    <div style={{ fontSize: 8, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 8, fontFamily: "'DM Mono', monospace" }}>CONFIRM TREE — SELECT ALL THAT APPLY</div>
-                    <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
-                      {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => {
-                        const active = confirmedTrees.includes(t)
-                        return (
-                          <button key={t} onClick={() => setConfirmedTrees(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
-                            style={{ background: active ? 'rgba(0,230,118,0.1)' : 'transparent', border: `1px solid ${active ? 'var(--green)' : '#333'}`, color: active ? 'var(--green)' : '#555', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '6px 14px', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }}>
-                            {active && '✓ '}{t === 'integrity' ? 'INTEGRITY' : t === 'amerilife' ? 'AMERILIFE' : t === 'sms' ? 'SMS' : 'OTHER'}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {confirmedTrees.includes('other') && (
-                      <input value={confirmedOther} onChange={e => setConfirmedOther(e.target.value)} placeholder="FMO name..."
-                        style={{ display: 'block', width: '100%', background: "var(--bg)", border: '1px solid var(--border)', color: 'var(--text-1)', fontFamily: "'DM Mono', monospace", fontSize: 11, padding: '8px 12px', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
-                    )}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
-                      <input value={subImo} onChange={e => setSubImo(e.target.value)}
-                        placeholder={result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 ? `Confirm: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate...'}
-                        style={{ padding: '8px 12px', background: "var(--bg)", border: `1px solid ${result.predicted_sub_imo && !subImo ? 'rgba(0,230,118,0.2)' : '#222'}`, color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }} />
-                      <input value={recruiterNotes} onChange={e => setRecruiterNotes(e.target.value)} placeholder="Field notes..."
-                        style={{ padding: '8px 12px', background: "var(--bg)", border: '1px solid var(--border)', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 11, outline: 'none' }} />
-                    </div>
-                    <button onClick={logObservation} disabled={saveState === 'saving'}
-                      style={{ background: saveState === 'saved' ? 'rgba(0,230,118,0.08)' : 'transparent', border: `1px solid ${saveState === 'saved' ? 'var(--green)' : '#333'}`, color: saveState === 'saved' ? 'var(--green)' : '#666', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '9px 20px', cursor: saveState === 'saving' ? 'default' : 'pointer', transition: 'all 0.2s' }}>
-                      {saveState === 'saved' ? '✓ OBSERVATION LOGGED · CLICK TO UPDATE' : saveState === 'saving' ? 'LOGGING...' : 'LOG OBSERVATION'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* DAVID facts */}
-                {davidFacts && davidFacts.length > 0 && <DavidFactsPanel facts={davidFacts} agentName={agencyName} deepScanStatus={deepScanStatus} />}
-                {davidFacts === null && result && (
-                  <div style={{ marginTop: 2, padding: '14px 20px', background: 'rgba(255,85,0,0.02)', border: '1px solid rgba(255,85,0,0.15)', fontFamily: "'DM Mono', monospace" }}>
-                    <div style={{ fontSize: 9, color: 'var(--orange)', letterSpacing: 3, marginBottom: 4 }}>◈ DAVID · PERSONAL INTEL</div>
-                    {deepScanStatus === 'polling' ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite', flexShrink: 0 }} />
-                        <span style={{ fontSize: 8, color: 'var(--orange)', letterSpacing: 2 }}>DEEPENING · PULLING FACEBOOK POSTS + YOUTUBE · STAY ON PAGE</span>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: 9, color: 'var(--text-4)', letterSpacing: 1 }}>○ No personal facts extracted from this scan</div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <ResultPanel result={result} agencyName={agencyName} city={city} state={state}
+                confirmedTrees={confirmedTrees} setConfirmedTrees={setConfirmedTrees}
+                confirmedOther={confirmedOther} setConfirmedOther={setConfirmedOther}
+                subImo={subImo} setSubImo={setSubImo}
+                recruiterNotes={recruiterNotes} setRecruiterNotes={setRecruiterNotes}
+                saveState={saveState} onSave={logObservation}
+                davidFacts={davidFacts} deepScanStatus={deepScanStatus} />
             )}
           </div>
         )}
