@@ -1,10 +1,10 @@
 import Link from 'next/link'
 
 const WHAT_IT_IS = [
-  { title: "We Don't Touch Your CRM",        body: "DAVID doesn't integrate with HubSpot, Salesforce, or anything else. It returns a structured data payload. You decide where it goes and what your system does with it." },
-  { title: "We Don't Write Your Messages",   body: "Your voice, your templates, your brand. DAVID gives your AI writer or sequencer the intelligence it needs to stop sending generic outreach. The writing is yours." },
-  { title: 'We Translate ANATHEMA Into Structure', body: "ANATHEMA builds deep profiles. DAVID formats that intelligence — tree, upline, signals, score, context — into clean JSON your system can actually read and act on." },
-  { title: 'One Input. Complete Profile.',   body: "Pass in a producer name and market. Get back everything — predicted distribution chain, confidence, digital footprint, behavioral signals. Your system handles the rest." },
+  { title: "We Don't Touch Your CRM",               body: "DAVID doesn't integrate with HubSpot, Salesforce, or anything else. It returns a structured intelligence payload. You decide where it goes and what your system does with it." },
+  { title: "We Don't Write Your Messages",          body: "Your voice, your templates, your brand. DAVID gives your AI writer or sequencer the intelligence it needs to stop sending generic outreach. The writing is yours — we just make sure it's informed." },
+  { title: 'We Structure ANATHEMA Into Action',     body: "ANATHEMA builds deep profiles. DAVID formats that intelligence — tree, upline, confidence, personal facts, behavioral signals — into clean, machine-readable data your system can actually act on." },
+  { title: 'One Input. A Complete Picture.',        body: "Pass in a producer name and market. Get back everything — predicted distribution chain, confidence score, digital footprint, personal facts, and behavioral signals. Fully structured. Ready to use." },
 ]
 
 const PAYLOAD_FIELDS = [
@@ -21,23 +21,23 @@ const PAYLOAD_FIELDS = [
 ]
 
 const PERSONAL_FACTS = [
-  { source: 'YOUTUBE',      fact: 'Published a video about Medicaid benefits for veterans — 3,200 views, 6 weeks ago' },
-  { source: 'SERP',         fact: 'Best Insurance Agency in Moore and South OKC — 2025' },
-  { source: 'GOOGLE',       fact: 'Client review: went above and beyond on a Form 1095-A issue no one else could solve' },
-  { source: 'FACEBOOK',     fact: 'NAIFA Oklahoma conference photos last month — tagged the event and two attendees' },
+  { source: 'YOUTUBE',  fact: 'Published a video about Medicaid benefits for veterans — 3,200 views, 6 weeks ago' },
+  { source: 'SERP',     fact: 'Best Insurance Agency in Moore and South OKC — 2025' },
+  { source: 'GOOGLE',   fact: 'Client review: went above and beyond on a Form 1095-A issue no one else could solve' },
+  { source: 'FACEBOOK', fact: 'NAIFA Oklahoma conference photos last month — tagged the event and two attendees' },
 ]
 
 const STEPS = [
-  { n: '01', title: 'Find the Producer',    body: 'Run a search or pull a producer from your database. Every agent ANATHEMA has touched already has a profile.' },
-  { n: '02', title: 'Request the Payload',  body: 'One API call. Pass in the producer. Get back the full structured profile — tree, upline, confidence, signals, context, score.' },
-  { n: '03', title: 'Your System Takes Over', body: "Feed the payload into your AI writer, CRM, or sequencer. It knows exactly who it's talking to. What it does with that is up to you." },
+  { n: '01', title: 'Find the Producer',      body: 'Run a search or pull a producer from your database. Every agent ANATHEMA has touched already has a profile waiting.' },
+  { n: '02', title: 'Request the Profile',    body: 'One API call. Pass in the producer. Get back the full structured profile — tree, upline, confidence, signals, personal facts, and outreach score.' },
+  { n: '03', title: 'Your System Takes Over', body: "Feed the payload into your AI writer, CRM, or sequencer. It knows exactly who it's talking to. What it does with that intelligence is entirely up to you." },
 ]
 
 const FOR_WHOM = [
-  { label: 'Teams Running AI-Powered Outreach',          body: "Your AI writer is only as good as the context you give it. DAVID gives it the full picture — so the output stops sounding generic." },
-  { label: 'CRM Teams Enriching Contact Records',        body: "Stop staring at a name and a phone number. DAVID enriches every record with predicted tree, upline, confidence, and behavioral signals." },
-  { label: 'Sequencer Users Who Want Profile-Driven Routing', body: "Route producers into different sequences based on their DAVID classification. Integrity captives get one flow. Independents get another." },
-  { label: "Any Recruiter Whose Outreach Is Being Ignored", body: "The problem isn't your offer. It's that your system has no context. DAVID fixes the context. Your system fixes the message." },
+  { label: 'Teams Running AI-Powered Outreach',               body: "Your AI writer is only as good as the context you give it. DAVID hands it a complete picture of who the producer is — so the output stops reading like a template and starts reading like someone actually did their homework." },
+  { label: 'CRM Teams Enriching Contact Records',             body: "Stop staring at a name and a phone number. DAVID enriches every record with predicted tree affiliation, upline, confidence score, and the personal signals that make a cold opener land." },
+  { label: 'Sequencer Users Who Want Smarter Routing',        body: "Route producers into different sequences based on their DAVID profile. Integrity-affiliated agents get one flow. Independents get another. The right message to the right person at the right time." },
+  { label: "Any Recruiter Whose Outreach Isn't Getting Replies", body: "The problem usually isn't your offer — it's that your outreach has no context. DAVID fixes the context. When your system knows who it's talking to, the message finally sounds like it was written for that person." },
 ]
 
 export default function DavidLandingPage() {
@@ -55,9 +55,9 @@ export default function DavidLandingPage() {
             THEIR ATTENTION.
           </h1>
           <p className="site-lead" style={{ maxWidth: 560, marginBottom: 48 }}>
-            DAVID doesn&apos;t write your messages. It structures everything ANATHEMA knows about a producer
-            into a clean, machine-readable payload — so your CRM, sequencer, or AI writer can build
-            outreach that actually reflects who they are.
+            DAVID takes everything ANATHEMA knows about a producer and structures it into a clean,
+            machine-readable profile — so your CRM, sequencer, or AI writer can build outreach that
+            actually reflects who they are, what they care about, and why now is the right time to reach out.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <Link href="/dashboard" className="site-btn-primary" style={{ background: 'var(--site-purple)', boxShadow: '0 2px 12px rgba(124,92,191,0.28)' }}>
@@ -75,8 +75,8 @@ export default function DavidLandingPage() {
             {[
               ['1',   '',   'API Call Per Full Profile'],
               ['100', '%',  'Your Stack. Your Templates.'],
-              ['0',   '',   'Messages Written By Us'],
-              ['∞',   '',   'Systems It Can Feed Into'],
+              ['0',   '',   'Generic Messages Sent'],
+              ['∞',   '',   'Profiles Growing Daily'],
             ].map(([num, acc, label]) => (
               <div key={label} className="site-stat-item">
                 <div className="site-stat-num" style={{ color: 'var(--site-purple)' }}>
@@ -109,7 +109,7 @@ export default function DavidLandingPage() {
       <section className="site-section site-section-paper site-section-divider">
         <div className="site-inner">
           <div className="site-eyebrow">What You Receive</div>
-          <h2 className="site-h2">THE PAYLOAD.<br /><span style={{ color: 'var(--site-purple)' }}>ONE CALL. FULL PICTURE.</span></h2>
+          <h2 className="site-h2">THE PROFILE.<br /><span style={{ color: 'var(--site-purple)' }}>ONE CALL. FULL PICTURE.</span></h2>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
 
@@ -120,7 +120,7 @@ export default function DavidLandingPage() {
               borderRadius: 'var(--radius-md)', padding: 28, overflow: 'hidden',
             }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', letterSpacing: 2, marginBottom: 16 }}>
-                // DAVID API RESPONSE — agent: John Smith, Oklahoma City OK
+                // DAVID PROFILE — agent: John Smith, Oklahoma City OK
               </div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, lineHeight: 2, color: '#888' }}>
                 <span style={{ color: '#333' }}>{'{'}</span>
@@ -153,18 +153,18 @@ export default function DavidLandingPage() {
                 <span style={{ color: '#333' }}>{'}'}</span>
               </div>
               <div style={{ marginTop: 16, fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#2a2a2a', letterSpacing: 1 }}>
-                ↳ One API call. Full structured profile. Your system decides what to do with it.
+                ↳ One call. Full structured profile. Your system decides what to do next.
               </div>
             </div>
 
             {/* What's in it */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { label: 'Recruit Score + Flag',     body: 'HOT / WARM / COLD with a numeric score. Your sequencer can route on this automatically.' },
-                { label: 'Predicted Tree + Upline',  body: 'Which FMO consolidator they roll up through, the confidence level, and the specific sub-IMO if identified.' },
-                { label: 'Product Focus',            body: 'What lines they actually write — Medicare Advantage, life, ACA — so your pitch matches their book.' },
-                { label: 'Personal Facts Array',     body: 'YouTube content, awards, reviews, Facebook signals, conference attendance. The context your AI writer needs to open cold.' },
-                { label: 'Outreach Ready Flag',      body: 'Boolean. True means the profile is enriched enough for your system to act on without manual review.' },
+                { label: 'Recruit Score + Flag',     body: 'HOT / WARM / COLD with a numeric score. Route producers automatically into the right sequence without manual review.' },
+                { label: 'Predicted Tree + Upline',  body: 'Which consolidator they roll up through, the confidence level, and the specific sub-IMO if identified — so you know the full chain before the conversation starts.' },
+                { label: 'Product Focus',            body: 'What lines they actually write — Medicare Advantage, life, ACA — so your pitch speaks directly to their book of business.' },
+                { label: 'Personal Facts Array',     body: 'YouTube content, awards, reviews, social signals, conference attendance. The real-world context your AI writer needs to open a cold conversation that actually gets a response.' },
+                { label: 'Outreach Ready Flag',      body: 'Boolean. True means the profile is enriched enough for your system to act on immediately without manual review.' },
               ].map(item => (
                 <div key={item.label} className="site-card" style={{ padding: '20px 22px' }}>
                   <div className="site-label" style={{ color: 'var(--site-purple)', marginBottom: 6 }}>{item.label}</div>
@@ -180,10 +180,10 @@ export default function DavidLandingPage() {
       <section className="site-section site-section-white site-section-divider">
         <div className="site-inner">
           <div className="site-eyebrow">What Changes</div>
-          <h2 className="site-h2">SAME PRODUCER.<br /><span style={{ color: 'var(--site-purple)' }}>DIFFERENT WORLD.</span></h2>
+          <h2 className="site-h2">SAME PRODUCER.<br /><span style={{ color: 'var(--site-purple)' }}>COMPLETELY DIFFERENT RESULT.</span></h2>
           <p className="site-lead" style={{ maxWidth: 560, marginBottom: 48 }}>
             DAVID passes the enriched profile to your AI writer. It doesn&apos;t change your templates —
-            it gives them something real to work with.
+            it gives them something real to work with. The difference in response rate isn&apos;t subtle.
           </p>
 
           <div className="site-grid-bordered" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 16 }}>
@@ -229,7 +229,7 @@ export default function DavidLandingPage() {
           </div>
 
           <div style={{ padding: '14px 20px', background: 'var(--site-paper)', border: '1px solid var(--site-border)', borderRadius: 'var(--radius)', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--site-ink-4)', letterSpacing: 0.5 }}>
-            ↳ Your AI writer received the DAVID payload — personal facts, awards, content signals — and built this. We gave it the intelligence. It did the writing.
+            ↳ Your AI writer received the DAVID profile — personal facts, awards, content signals — and built this. We supplied the intelligence. It did the writing.
           </div>
         </div>
       </section>
@@ -258,15 +258,17 @@ export default function DavidLandingPage() {
           <div className="site-card" style={{ padding: '48px 40px', borderColor: 'var(--site-purple-border)' }}>
             <div className="site-eyebrow" style={{ marginBottom: 16 }}>Why David</div>
             <h2 className="site-h2" style={{ marginBottom: 20 }}>
-              HE STUDIED EVERY HUMAN<br />
-              <span style={{ color: 'var(--site-purple)' }}>BEFORE THEY WALKED IN THE ROOM.</span>
+              KNOW WHO YOU&apos;RE TALKING TO<br />
+              <span style={{ color: 'var(--site-purple)' }}>BEFORE YOU SAY A WORD.</span>
             </h2>
             <p className="site-lead" style={{ maxWidth: 600 }}>
-              David — the synthetic intelligence from Prometheus — observed, catalogued, and understood
-              every human on the ship before a single conversation happened. He didn&apos;t react.
-              He was already prepared. DAVID gives your recruiting operation that same preparation.
-              The intelligence exists. We just make sure your system can read it.{' '}
-              <em style={{ color: 'var(--site-ink)' }}>What you do with it is up to you.</em>
+              The best recruiters in this industry have always done their homework before the call.
+              They knew the producer&apos;s carriers, their awards, what they posted last week, what
+              conference they just attended. That kind of preparation used to take hours — or it just
+              didn&apos;t happen. DAVID makes it automatic. Every producer you reach out to, your system
+              already knows who they are. The intelligence exists. We structure it so your operation
+              can act on it at scale.{' '}
+              <em style={{ color: 'var(--site-ink)' }}>What you build with it is up to you.</em>
             </p>
           </div>
         </div>
@@ -297,7 +299,7 @@ export default function DavidLandingPage() {
               YOUR SYSTEM ALREADY<br />
               <span style={{ color: 'var(--site-purple)' }}>KNOWS WHAT TO DO.</span>
             </h2>
-            <p className="site-lead">Give it the intelligence. The rest is yours.</p>
+            <p className="site-lead">Give it the intelligence. Every profile built from here compounds into a better database, a sharper system, and a bigger advantage over everyone still recruiting blind.</p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
             <Link href="/dashboard" className="site-btn-primary" style={{ background: 'var(--site-purple)', boxShadow: '0 4px 24px rgba(124,92,191,0.28)', fontSize: 18, padding: '16px 40px' }}>

@@ -1,17 +1,17 @@
 import Link from 'next/link'
 
 const STAGES = [
-  { roman: 'I',   range: '1–34%',   label: 'Trace Markers',    body: 'Weak signal. A single carrier overlap or vague language pattern. Not conclusive — but enough to start asking questions.' },
-  { roman: 'II',  range: '35–54%',  label: 'Partial Match',    body: 'Multiple signals point to a tree. Possible affiliation. Worth a targeted approach and one qualifying question on the call.' },
-  { roman: 'III', range: '55–79%',  label: 'Strong Markers',   body: "Carrier fingerprint plus confirmed language signals. High probability affiliation. You know who you're dealing with." },
-  { roman: 'IV',  range: '80–100%', label: 'Full Confirmation', body: 'Definitive. Direct affiliation language, partner listing, or Facebook confirmation. Act accordingly.' },
+  { roman: 'I',   range: '1–34%',   label: 'Trace Markers',    body: 'Weak signal. A single carrier overlap or vague language pattern. Not conclusive — but enough to start asking the right questions.' },
+  { roman: 'II',  range: '35–54%',  label: 'Partial Match',    body: 'Multiple signals point to the same tree. Likely affiliated. Worth a targeted approach and one qualifying question on the call.' },
+  { roman: 'III', range: '55–79%',  label: 'Strong Indicators', body: "Carrier fingerprint plus confirmed language signals. High probability affiliation. You know who you're dealing with before you dial." },
+  { roman: 'IV',  range: '80–100%', label: 'Full Confirmation', body: 'Definitive. Direct affiliation language, partner listing, or social confirmation. You have everything you need to walk in prepared.' },
 ]
 
 const SIGNALS = [
-  { n: '01', title: 'Carrier Fingerprint', body: "Every tree has its carriers. The carrier mix a producer writes is one of the strongest affiliation signals available — most producers don't realize their appointments are a fingerprint." },
-  { n: '02', title: 'Language Markers',    body: "Website copy, About pages, and social bios contain embedded signals — branded program names, platform references, event language. These aren't accidents. They're brand contamination." },
-  { n: '03', title: 'Web Intelligence',    body: 'A live search cross-references the producer against the full distribution network index — partner directories, press releases, association pages, and co-mentions that no producer voluntarily surfaces.' },
-  { n: '04', title: 'Facebook Profile Scan', body: "The most unguarded signal. Trip photos with FMO branding. Affiliation language in the bio. Retreat announcements. Producers post what they won't say on the phone. ANATHEMA reads it." },
+  { n: '01', title: 'Carrier Fingerprint', body: "Every distribution tree has its carriers. The mix a producer writes is one of the strongest affiliation signals available — and most producers have no idea their appointments give them away." },
+  { n: '02', title: 'Language Markers',    body: "Website copy, About pages, and social bios contain embedded affiliation signals — branded program names, platform references, event language. These aren't accidents. They're identifiers." },
+  { n: '03', title: 'Web Intelligence',    body: 'A live cross-reference against the full distribution network index — partner directories, press releases, association pages, and co-mentions that no producer would voluntarily surface.' },
+  { n: '04', title: 'Social Profile Scan', body: "The most unguarded signal in the industry. Trip photos with FMO branding. Affiliation language in the bio. Conference announcements. Producers post publicly what they won't say on the phone. ANATHEMA reads it." },
 ]
 
 const TREES = [
@@ -42,10 +42,10 @@ const TREES = [
 ]
 
 const PROBLEMS = [
-  { title: 'The Major Trees Control Most of the Market', body: 'A small number of large consolidators — Integrity Marketing Group, AmeriLife, Senior Market Sales, and others — collectively control the majority of the independent distribution market. Most producers who call themselves independent are affiliated with one of them.' },
-  { title: 'The Hierarchy Is Invisible', body: 'No public registry. No disclosure requirement. The distribution tree can be 3–5 layers deep — IMO to sub-FMO to affiliate to producer — and none of it is documented anywhere.' },
-  { title: "You're Wasting Calls", body: "If you're recruiting for one tree and you spend 45 minutes pitching a producer already in it, you just wasted your time. ANATHEMA tells you before you dial." },
-  { title: 'Competitive Intel Is Currency', body: "Knowing which tree a producer rolls up through tells you their contracts, their carriers, their incentives, and exactly what you need to offer to get them to move." },
+  { title: 'The Major Trees Control Most of the Market', body: 'A small number of large consolidators — Integrity Marketing Group, AmeriLife, Senior Market Sales, and others — collectively control the majority of the independent distribution market. Most producers who call themselves independent roll up through one of them.' },
+  { title: 'The Hierarchy Is Invisible by Design', body: 'No public registry. No disclosure requirement. The distribution tree can be 3–5 layers deep — IMO to sub-FMO to affiliate to producer — and none of it is documented anywhere. Until now.' },
+  { title: "You're Wasting Time on the Wrong People", body: "If you're recruiting for one tree and you spend 45 minutes pitching a producer already locked into it, that call was never going to close. ANATHEMA tells you who's actually moveable before you dial." },
+  { title: 'Knowing the Tree Changes the Conversation', body: "Knowing which consolidator a producer rolls up through tells you their contracts, their carriers, their incentive structure, and exactly what you need to offer to earn a real conversation. That's not a small advantage. That's the whole game." },
 ]
 
 export default function AnathemaLandingPage() {
@@ -58,9 +58,9 @@ export default function AnathemaLandingPage() {
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--site-green)', animation: 'siteLivePulse 2s ease infinite' }} />
             <div className="site-label" style={{ color: 'var(--site-green)' }}>A Recruiterrr Intelligence System</div>
           </div>
-          <h1 className="site-h1" style={{ marginBottom: 28 }}>EVERY AGENT<br />HAS BEEN<br /><span style={{ color: 'var(--site-green)' }}>INFECTED.</span></h1>
+          <h1 className="site-h1" style={{ marginBottom: 28 }}>EVERY AGENT<br />ROLLS UP<br /><span style={{ color: 'var(--site-green)' }}>THROUGH SOMEONE.</span></h1>
           <p className="site-lead" style={{ maxWidth: 560, marginBottom: 48 }}>
-            In the US insurance market, no producer operates independently. Every one of them rolls up through a distribution hierarchy — a tree they didn&apos;t choose and won&apos;t tell you about. The pathogen leaves traces. ANATHEMA reads them.
+            In the US insurance market, no producer truly operates alone. Every one of them sits inside a distribution hierarchy — a tree they didn&apos;t choose and won&apos;t disclose. That hierarchy leaves traces. ANATHEMA finds them, maps them, and tells you exactly who you&apos;re dealing with before you make the call.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <Link href="/dashboard/search" className="site-btn-primary" style={{ background: 'var(--site-green)', boxShadow: '0 2px 12px rgba(26,122,74,0.28)' }}>Run a Scan</Link>
@@ -73,7 +73,7 @@ export default function AnathemaLandingPage() {
       <div className="site-stats-band">
         <div className="site-inner">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
-            {[['∞', '', 'Distribution Trees'], ['4', '', 'Signal Tiers'], ['IV', '', 'Infection Stages'], ['∞', '', 'Specimen Learning']].map(([num, acc, label]) => (
+            {[['∞', '', 'Distribution Trees Tracked'], ['4', '', 'Signal Tiers'], ['IV', '', 'Confidence Stages'], ['∞', '', 'Gets Smarter Every Scan']].map(([num, acc, label]) => (
               <div key={label} className="site-stat-item">
                 <div className="site-stat-num" style={{ color: 'var(--site-green)' }}>{num}<span>{acc}</span></div>
                 <div className="site-stat-label">{label}</div>
@@ -105,7 +105,7 @@ export default function AnathemaLandingPage() {
         <div className="site-inner">
           <div className="site-eyebrow">Mapped Hierarchies</div>
           <h2 className="site-h2">KNOWN TREES.<br /><span style={{ color: 'var(--site-green)' }}>MORE BEING MAPPED.</span></h2>
-          <p className="site-lead" style={{ maxWidth: 560, marginBottom: 48 }}>These are the three largest consolidators currently in the detection index. The index grows with every scan.</p>
+          <p className="site-lead" style={{ maxWidth: 560, marginBottom: 48 }}>These are the three largest consolidators currently in the intelligence index. Coverage grows with every scan run on the platform.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
             {TREES.map(tree => (
               <div key={tree.name} className="site-card" style={{ padding: '28px 24px', borderColor: 'var(--site-green-border)' }}>
@@ -115,7 +115,7 @@ export default function AnathemaLandingPage() {
                 <p className="site-body" style={{ marginBottom: 12 }}>{tree.carriers}</p>
                 <div className="site-eyebrow" style={{ marginBottom: 4 }}>Geography</div>
                 <p className="site-body" style={{ marginBottom: 12 }}>{tree.geo}</p>
-                <div className="site-eyebrow" style={{ marginBottom: 4 }}>Language Markers</div>
+                <div className="site-eyebrow" style={{ marginBottom: 4 }}>Affiliation Markers</div>
                 <p className="site-body" style={{ color: 'var(--site-green)' }}>{tree.tell}</p>
                 <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--site-border)' }}>
                   <span className="site-body" style={{ fontSize: 10 }}>{tree.count}</span>
@@ -129,8 +129,8 @@ export default function AnathemaLandingPage() {
       {/* SIGNAL TIERS */}
       <section className="site-section site-section-white site-section-divider">
         <div className="site-inner">
-          <div className="site-eyebrow">How It Scans</div>
-          <h2 className="site-h2">4 SIGNAL TIERS.<br /><span style={{ color: 'var(--site-green)' }}>ONE VERDICT.</span></h2>
+          <div className="site-eyebrow">How It Works</div>
+          <h2 className="site-h2">4 SIGNAL SOURCES.<br /><span style={{ color: 'var(--site-green)' }}>ONE VERDICT.</span></h2>
           <div className="site-grid-bordered" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
             {SIGNALS.map(s => (
               <div key={s.n} className="site-tool-card" style={{ '--tool-accent': 'var(--site-green)' } as React.CSSProperties}>
@@ -143,11 +143,11 @@ export default function AnathemaLandingPage() {
         </div>
       </section>
 
-      {/* INFECTION STAGES */}
+      {/* CONFIDENCE STAGES */}
       <section className="site-section site-section-paper site-section-divider">
         <div className="site-inner">
-          <div className="site-eyebrow">Infection Staging</div>
-          <h2 className="site-h2">STAGE I TO IV.<br /><span style={{ color: 'var(--site-green)' }}>KNOW THE DEPTH.</span></h2>
+          <div className="site-eyebrow">Confidence Staging</div>
+          <h2 className="site-h2">STAGE I TO IV.<br /><span style={{ color: 'var(--site-green)' }}>KNOW WHERE YOU STAND.</span></h2>
           <div className="site-grid-bordered" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
             {STAGES.map(stage => (
               <div key={stage.roman} style={{ background: 'var(--site-white)', padding: '28px 24px' }}>
@@ -168,7 +168,7 @@ export default function AnathemaLandingPage() {
             <div className="site-eyebrow" style={{ marginBottom: 16 }}>Field Intelligence Loop</div>
             <h2 className="site-h2" style={{ marginBottom: 20 }}>THE SYSTEM GETS SMARTER.<br /><span style={{ color: 'var(--site-green)' }}>EVERY SCAN TEACHES IT.</span></h2>
             <p className="site-lead" style={{ maxWidth: 600 }}>
-              After ANATHEMA returns a prediction, you can log what you personally know — confirm the strain, correct it, add the sub-IMO name, or leave field notes. Every observation goes into the specimen database. Over time, ANATHEMA&apos;s predictions aren&apos;t just based on fingerprint rules — they&apos;re weighted against real confirmed data from real recruiters in the field.
+              After ANATHEMA returns a prediction, you can log what you personally know — confirm the affiliation, correct it, add the sub-IMO name, or leave field notes. Every observation feeds back into the intelligence database. Over time, ANATHEMA&apos;s predictions aren&apos;t just based on pattern rules — they&apos;re weighted against real confirmed data from real recruiters working the field every day. The more it&apos;s used, the sharper it gets.
             </p>
           </div>
         </div>
@@ -180,7 +180,7 @@ export default function AnathemaLandingPage() {
           <div>
             <div className="site-eyebrow">Get Started</div>
             <h2 className="site-h2" style={{ marginBottom: 20 }}>RUN YOUR FIRST<br /><span style={{ color: 'var(--site-green)' }}>SCAN.</span></h2>
-            <p className="site-lead">Available inside your dashboard on every agent card. No extra setup.</p>
+            <p className="site-lead">Available inside your dashboard on every agent card. No extra setup. Results in under two minutes.</p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
             <Link href="/dashboard/search" className="site-btn-primary" style={{ background: 'var(--site-green)', boxShadow: '0 4px 24px rgba(26,122,74,0.28)', fontSize: 18, padding: '16px 40px' }}>Open Dashboard</Link>
