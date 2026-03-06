@@ -2,8 +2,9 @@ import { UserButton } from '@clerk/nextjs'
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import '../(site)/site.css'
 
-// Minimal layout for the subscribe page — has auth but NO subscription gate.
+// Minimal layout for the subscribe/activate pages — has auth but NO subscription gate.
 // Prevents the redirect loop that would occur if subscribe lived under the main layout.
 export default async function SubscribeLayout({
   children,
@@ -14,22 +15,25 @@ export default async function SubscribeLayout({
   if (!userId) redirect('/sign-in')
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+    <div className="site-shell">
       <nav style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 40px', borderBottom: '1px solid var(--border)',
-        position: 'sticky', top: 0, background: 'var(--bg-raised)', zIndex: 100,
-        boxShadow: '0 1px 4px var(--shadow-sm)',
+        padding: '0 40px', height: 64, borderBottom: '1px solid var(--site-border)',
+        position: 'sticky', top: 0,
+        background: 'rgba(247, 245, 242, 0.92)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        zIndex: 100,
       }}>
         <Link href="/dashboard/subscribe" style={{
           fontFamily: "'Bebas Neue', sans-serif",
-          fontSize: 22, letterSpacing: 3, color: 'var(--text-1)', textDecoration: 'none',
+          fontSize: 22, letterSpacing: 3, color: 'var(--site-ink)', textDecoration: 'none',
         }}>
-          RECRUITERRR<span style={{ color: 'var(--orange)' }}>.</span>
+          RECRUITERRR<span style={{ color: 'var(--site-orange)' }}>.</span>
         </Link>
         <UserButton afterSignOutUrl="/" />
       </nav>
-      <main>{children}</main>
+      <main style={{ position: 'relative', zIndex: 1 }}>{children}</main>
     </div>
   )
 }

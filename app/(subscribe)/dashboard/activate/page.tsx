@@ -9,6 +9,9 @@ import { useRouter } from 'next/navigation'
 // This solves the race condition between the Clerk user.created webhook and
 // the Stripe checkout.session.completed webhook.
 
+const mono = "'DM Mono', monospace"
+const bebas = "'Bebas Neue', sans-serif"
+
 export default function ActivatePage() {
   const router = useRouter()
   const [attempts, setAttempts] = useState(0)
@@ -50,28 +53,33 @@ export default function ActivatePage() {
 
   return (
     <div style={{
-      minHeight: '80vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', padding: '40px 24px',
+      minHeight: 'calc(100vh - 64px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '40px 24px',
     }}>
       <div style={{ textAlign: 'center', maxWidth: 400 }}>
 
         {status === 'checking' && (
           <>
             <div style={{
-              width: 40, height: 40, border: '2px solid #222',
-              borderTop: '2px solid var(--orange)', borderRadius: '50%',
-              margin: '0 auto 28px',
+              width: 36, height: 36,
+              border: '2px solid var(--site-border)',
+              borderTop: '2px solid var(--site-orange)',
+              borderRadius: '50%',
+              margin: '0 auto 32px',
               animation: 'spin 0.8s linear infinite',
             }} />
             <div style={{
-              fontFamily: "'Bebas Neue', sans-serif", fontSize: 28,
-              letterSpacing: 2, color: 'var(--white)', marginBottom: 8,
+              fontFamily: bebas, fontSize: 28,
+              letterSpacing: 2, color: 'var(--site-ink)', marginBottom: 10,
             }}>
               ACTIVATING YOUR ACCOUNT
             </div>
             <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 10,
-              color: '#444', letterSpacing: 2,
+              fontFamily: mono, fontSize: 10,
+              color: 'var(--site-ink-3)', letterSpacing: 2,
             }}>
               CONFIRMING PAYMENT · JUST A MOMENT
             </div>
@@ -80,12 +88,10 @@ export default function ActivatePage() {
 
         {status === 'redirecting' && (
           <>
+            <div style={{ fontSize: 28, color: 'var(--site-orange)', marginBottom: 16 }}>✦</div>
             <div style={{
-              fontSize: 28, color: 'var(--orange)', marginBottom: 16,
-            }}>✦</div>
-            <div style={{
-              fontFamily: "'Bebas Neue', sans-serif", fontSize: 28,
-              letterSpacing: 2, color: 'var(--white)',
+              fontFamily: bebas, fontSize: 28,
+              letterSpacing: 2, color: 'var(--site-ink)',
             }}>
               ACCOUNT ACTIVE — LOADING DASHBOARD
             </div>
@@ -95,24 +101,27 @@ export default function ActivatePage() {
         {status === 'manual' && (
           <>
             <div style={{
-              fontFamily: "'Bebas Neue', sans-serif", fontSize: 28,
-              letterSpacing: 2, color: 'var(--white)', marginBottom: 8,
+              fontFamily: bebas, fontSize: 28,
+              letterSpacing: 2, color: 'var(--site-ink)', marginBottom: 10,
             }}>
               READY
             </div>
             <div style={{
-              fontFamily: "'DM Mono', monospace", fontSize: 10,
-              color: '#444', letterSpacing: 2, marginBottom: 28,
+              fontFamily: mono, fontSize: 10,
+              color: 'var(--site-ink-3)', letterSpacing: 2, marginBottom: 32,
             }}>
               YOUR ACCOUNT IS SET UP
             </div>
             <button
               onClick={() => router.replace('/dashboard')}
               style={{
-                padding: '16px 32px', background: 'var(--orange)',
-                border: 'none', cursor: 'crosshair',
-                fontFamily: "'Bebas Neue', sans-serif", fontSize: 18,
-                letterSpacing: 3, color: 'var(--black)',
+                padding: '16px 40px',
+                background: 'var(--site-orange)',
+                border: 'none', borderRadius: '4px',
+                cursor: 'pointer',
+                fontFamily: bebas, fontSize: 18,
+                letterSpacing: 3, color: 'white',
+                boxShadow: '0 2px 12px rgba(232,77,28,0.28)',
               }}
             >
               GO TO DASHBOARD
