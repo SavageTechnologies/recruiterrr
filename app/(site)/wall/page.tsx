@@ -1,6 +1,3 @@
-import PageHeader from '@/components/ui/PageHeader'
-import Card from '@/components/ui/Card'
-
 const POSTS = [
   {
     name: 'Drew Gurley',
@@ -11,26 +8,35 @@ const POSTS = [
 
 export default function WallPage() {
   return (
-    <div style={{ maxWidth: 760, padding: '80px 40px' }}>
-      <PageHeader label="The Wall" title="WHAT PEOPLE" accent="ARE SAYING." />
-      <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#444', letterSpacing: 1, marginBottom: 48 }}>real feedback. no edits.</p>
+    <>
+      <section className="site-section site-section-paper">
+        <div className="site-inner">
+          <div className="site-eyebrow-orange">The Wall</div>
+          <h1 className="site-h1">WHAT PEOPLE<br /><span>ARE SAYING.</span></h1>
+          <p className="site-lead" style={{ maxWidth: 440 }}>Real feedback. No edits.</p>
+        </div>
+      </section>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {POSTS.map((p, i) => (
-          <Card key={i} padding="36px 40px">
-            <div style={{ fontSize: 16, color: 'var(--white)', lineHeight: 1.8, fontStyle: 'italic', marginBottom: 28 }}>
-              "{p.text}"
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 2, height: 32, background: 'var(--orange)', flexShrink: 0 }} />
-              <div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--white)', letterSpacing: 1 }}>{p.name}</div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginTop: 2 }}>{p.company}</div>
+      <section className="site-section site-section-white site-section-divider">
+        <div className="site-inner">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 760 }}>
+            {POSTS.map((p, i) => (
+              <div key={i} className="site-card" style={{ padding: '36px 40px' }}>
+                <p style={{ fontSize: 17, color: 'var(--site-ink-2)', lineHeight: 1.85, fontStyle: 'italic', marginBottom: 28 }}>
+                  &ldquo;{p.text}&rdquo;
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 3, height: 36, background: 'var(--site-orange)', borderRadius: 2, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--site-ink)', fontWeight: 500, letterSpacing: 0.5 }}>{p.name}</div>
+                    <div className="site-body" style={{ marginTop: 2 }}>{p.company}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
   )
 }

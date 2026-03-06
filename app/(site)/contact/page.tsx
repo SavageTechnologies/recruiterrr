@@ -1,34 +1,45 @@
-import PageHeader from '@/components/ui/PageHeader'
-import Card from '@/components/ui/Card'
+import Link from 'next/link'
 
 const CONTACTS = [
   { label: 'General Questions', value: 'hello@recruiterrr.com' },
-  { label: 'Support', value: 'support@recruiterrr.com' },
-  { label: 'Feature Requests', value: 'ideas@recruiterrr.com' },
-  { label: 'Enterprise / Teams', value: 'sales@recruiterrr.com' },
+  { label: 'Support',           value: 'support@recruiterrr.com' },
+  { label: 'Feature Requests',  value: 'ideas@recruiterrr.com' },
+  { label: 'Enterprise / Teams',value: 'sales@recruiterrr.com' },
 ]
 
 export default function ContactPage() {
   return (
-    <div style={{ maxWidth: 760, padding: '80px 40px' }}>
-      <PageHeader label="Contact" title="LET'S" accent="TALK." />
+    <>
+      <section className="site-section site-section-paper">
+        <div className="site-inner">
+          <div className="site-eyebrow-orange">Contact</div>
+          <h1 className="site-h1">LET&apos;S<br /><span>TALK.</span></h1>
+          <p className="site-lead" style={{ maxWidth: 520, marginBottom: 60 }}>
+            We&apos;re a small team. You&apos;ll get a real person, not a ticket queue.
+          </p>
+          <div className="site-grid-bordered" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: 64 }}>
+            {CONTACTS.map(c => (
+              <div key={c.label} style={{ background: 'var(--site-white)', padding: '32px 36px' }}>
+                <div className="site-eyebrow" style={{ marginBottom: 10 }}>{c.label}</div>
+                <a href={`mailto:${c.value}`} style={{ fontSize: 15, color: 'var(--site-orange)', textDecoration: 'none', fontWeight: 500 }}>
+                  {c.value}
+                </a>
+              </div>
+            ))}
+          </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, marginBottom: 48 }}>
-        {CONTACTS.map(c => (
-          <Card key={c.label}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>{c.label}</div>
-            <a href={`mailto:${c.value}`} style={{ fontSize: 14, color: 'var(--orange)', textDecoration: 'none' }}>{c.value}</a>
-          </Card>
-        ))}
-      </div>
-
-      <Card padding="32px">
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, marginBottom: 16 }}>RESPONSE TIME</div>
-        <div style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.8 }}>
-          We're a small team building fast. We read every email and typically respond within 24 hours on weekdays.
-          If you're experiencing a bug or outage, email support and we'll get on it same day.
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="site-card" style={{ padding: '32px 28px' }}>
+              <div className="site-label" style={{ marginBottom: 12 }}>Response time</div>
+              <p className="site-body">We typically respond within one business day. For urgent issues, email support directly.</p>
+            </div>
+            <div className="site-card" style={{ padding: '32px 28px' }}>
+              <div className="site-label" style={{ marginBottom: 12 }}>Enterprise inquiries</div>
+              <p className="site-body">Interested in team access or a custom agreement? <Link href="mailto:sales@recruiterrr.com" style={{ color: 'var(--site-ink)', textDecoration: 'underline' }}>Email our sales team</Link> and we&apos;ll set up a call.</p>
+            </div>
+          </div>
         </div>
-      </Card>
-    </div>
+      </section>
+    </>
   )
 }
