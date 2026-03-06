@@ -247,12 +247,20 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
   saveState: 'idle' | 'saving' | 'saved'; onSave: () => void
   davidFacts: DavidFact[] | null; deepScanStatus: 'idle' | 'polling' | 'complete' | 'timeout'
 }) {
-  const stage      = getStage(result.confidence, result.predicted_tree)
-  const treeLabel  = TREE_LABELS[result.predicted_tree] || 'UNCLASSIFIED'
-  const treeColor  = TREE_COLOR[result.predicted_tree]  || 'var(--text-3)'
-  const treeBorder = TREE_BORDER[result.predicted_tree] || 'var(--border)'
-  const treeDim    = TREE_DIM[result.predicted_tree]    || 'transparent'
-  const isUnknown  = result.predicted_tree === 'unknown'
+  // If user has confirmed a tree, show that — not the raw prediction
+  const confirmedKey  = confirmedTrees.length > 0 && confirmedTrees[0] !== 'other' ? confirmedTrees[0] : null
+  const displayTree   = confirmedKey || result.predicted_tree
+  const isConfirmed   = confirmedTrees.length > 0
+  const stage         = getStage(result.confidence, displayTree)
+  const treeLabel     = confirmedKey
+    ? (TREE_LABELS[confirmedKey] || confirmedKey.toUpperCase())
+    : confirmedTrees.includes('other') && confirmedOther
+    ? confirmedOther.toUpperCase()
+    : TREE_LABELS[result.predicted_tree] || 'UNCLASSIFIED'
+  const treeColor  = TREE_COLOR[displayTree]  || 'var(--text-3)'
+  const treeBorder = TREE_BORDER[displayTree] || 'var(--border)'
+  const treeDim    = TREE_DIM[displayTree]    || 'transparent'
+  const isUnknown  = displayTree === 'unknown' && !isConfirmed
 
   return (
     <div style={{ animation: 'slideIn 0.3s ease both' }}>
@@ -267,7 +275,11 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
         <div style={{ padding: '20px 24px', background: isUnknown ? 'transparent' : treeDim, borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' }}>Affiliation Detected</div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isUnknown ? 28 : 44, color: treeColor, letterSpacing: 3, lineHeight: 1, marginBottom: 14 }}>{treeLabel}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isUnknown ? 28 : 44, color: treeColor, letterSpacing: 3, lineHeight: 1 }}>{treeLabel}</div>
+              {isConfirmed && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--sig-green)', border: '1px solid var(--sig-green-border)', background: 'var(--sig-green-dim)', padding: '2px 8px', letterSpacing: 1, borderRadius: 3 }}>✓ CONFIRMED</span>}
+              {!isConfirmed && result.predicted_tree !== 'unknown' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', border: '1px solid var(--border)', padding: '2px 8px', letterSpacing: 1, borderRadius: 3 }}>PREDICTED</span>}
+            </div>
             {!isUnknown && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 200, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
