@@ -565,16 +565,23 @@ function AnathemaDashboardInner() {
         @keyframes loadSlide { 0% { left: -40%; } 100% { left: 100%; } }
         @keyframes blink     { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
         @keyframes scanDown  { 0% { top: 0; opacity: 0.8; } 100% { top: 100%; opacity: 0; } }
+        @keyframes betaSweep { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(100%); } }
         .detail-scroll::-webkit-scrollbar { width: 3px; }
         .detail-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); }
       `}</style>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <div className="page-eyebrow">Pathogen Analysis System · Chemical A0-3959X.91–15</div>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--text-1)', lineHeight: 0.9 }}>
-          ANATHEMA<span style={{ color: 'var(--sig-green)' }}>.</span>
-        </h1>
+        <div className="page-eyebrow">Relationship Analysis System</div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--text-1)', lineHeight: 0.9 }}>
+            ANATHEMA<span style={{ color: 'var(--sig-green)' }}>.</span>
+          </h1>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 3, color: 'var(--sig-green)', border: '1px solid var(--sig-green-border)', background: 'var(--sig-green-dim)', padding: '5px 10px', marginBottom: 8, position: 'relative', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+            <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(26,158,92,0.18), transparent)', animation: 'betaSweep 3s ease-in-out infinite' }} />
+            ⚡ BETA
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: showTwoCol ? '380px 1fr' : '1fr', gap: 0, alignItems: 'start' }}>
@@ -674,12 +681,12 @@ function AnathemaDashboardInner() {
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 10 }}>What Anathema detects</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                 {[
-                  { n: '01', title: 'Carrier fingerprint',   tip: 'Every tree has its carriers. The carriers tell you more than the agent will.' },
-                  { n: '02', title: 'Language markers',      tip: '"FFL agent", "IntegrityCONNECT", "USABG" — brand contamination in their own copy.' },
-                  { n: '03', title: 'Web intelligence',      tip: 'Live Google search cross-references the agency against Integrity, AmeriLife, and SMS directories.' },
-                  { n: '04', title: 'Facebook profile scan', tip: "Trip photos with FMO branding. Agents post what they won't say on the phone." },
-                  { n: '05', title: 'Infection staging',     tip: 'STAGE I (trace) through STAGE IV (confirmed). Know how confident the signal is.' },
-                  { n: '06', title: 'DAVID personal intel',  tip: 'Personal facts for your opener — family, hobbies, recent events, YouTube content.' },
+                  { n: '01', title: 'Carrier analysis',     tip: 'Identifies which carriers an agent is actively writing with — a strong indicator of how they operate and where their loyalties are.' },
+                  { n: '02', title: 'Language patterns',     tip: "Scans the agent's own words — website copy, bios, job posts — for affiliation signals they didn't know they were broadcasting." },
+                  { n: '03', title: 'Web intelligence',      tip: 'Cross-references the agency across public directories, partner pages, and indexed content to build an affiliation picture.' },
+                  { n: '04', title: 'Social presence scan',  tip: "Facebook and YouTube reveal what agents won't say on a call — trip photos, events, and brand associations tell the real story." },
+                  { n: '05', title: 'Confidence staging',    tip: 'Results are staged I through IV based on signal strength. STAGE I means early indicators. STAGE IV means confirmed affiliation.' },
+                  { n: '06', title: 'Personal intel',        tip: 'Surfaces personal facts — hobbies, family, recent milestones — so you can open a conversation that feels like research, not a cold call.' },
                 ].map(c => (
                   <div key={c.n} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '16px', borderRadius: 'var(--radius)', transition: 'border-color 0.12s' }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--sig-green-border)')}
