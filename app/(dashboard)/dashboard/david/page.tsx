@@ -2,17 +2,16 @@
 
 import { useEffect, useState } from "react"
 
+// ── Tree colors — used only as secondary context, not the main event ──────────
 const TREE_COLORS: Record<string, { border: string; label: string; bar: string; bg: string }> = {
-  INTEGRITY:  { border: "#f4621f", label: "#f4621f", bar: "#f4621f", bg: "rgba(244,98,31,0.06)"  },
-  AMERILIFE:  { border: "#4fc3f7", label: "#2a9fd6", bar: "#4fc3f7", bg: "rgba(79,195,247,0.06)" },
-  SMS:        { border: "#9c6faa", label: "#9c6faa", bar: "#ce93d8", bg: "rgba(156,111,170,0.06)"},
-  OTHER:      { border: "#7a7570", label: "#7a7570", bar: "#7a7570", bg: "rgba(122,117,112,0.04)" },
-  UNKNOWN:    { border: "#2e2b27", label: "#7a7570", bar: "#2e2b27", bg: "transparent"            },
+  INTEGRITY: { border: "#f4621f", label: "#f4621f", bar: "#f4621f", bg: "rgba(244,98,31,0.06)"   },
+  AMERILIFE: { border: "#4fc3f7", label: "#2a9fd6", bar: "#4fc3f7", bg: "rgba(79,195,247,0.06)"  },
+  SMS:       { border: "#9c6faa", label: "#9c6faa", bar: "#ce93d8", bg: "rgba(156,111,170,0.06)" },
+  OTHER:     { border: "#7a7570", label: "#7a7570", bar: "#7a7570", bg: "rgba(122,117,112,0.04)" },
+  UNKNOWN:   { border: "#2e2b27", label: "#7a7570", bar: "#2e2b27", bg: "transparent"             },
 }
 
-const mono = "'DM Mono', 'Courier New', monospace"
-const bebas = "'Bebas Neue', sans-serif"
-const PAGE_SIZE = 10
+const PAGE_SIZE = 12
 
 type Fact = { fact: string; usability: string; source: string }
 type Node = {
@@ -20,156 +19,210 @@ type Node = {
   confidence: number; upline: string | null; facts: number; highFacts: number
   factsList: Fact[]; hasFacebook: boolean; apifyEnriched: boolean; scannedAt: string
 }
-type SortKey = "deep" | "facts" | "confidence" | "recent"
+type SortKey = "intel" | "facts" | "recent"
 
 function sortNodes(nodes: Node[], key: SortKey): Node[] {
   return [...nodes].sort((a, b) => {
-    if (key === "deep") {
+    if (key === "intel") {
       if (a.apifyEnriched !== b.apifyEnriched) return a.apifyEnriched ? -1 : 1
-      return b.facts - a.facts
+      return b.highFacts - a.highFacts
     }
-    if (key === "facts")      return b.facts - a.facts
-    if (key === "confidence") return b.confidence - a.confidence
+    if (key === "facts") return b.facts - a.facts
     return new Date(b.scannedAt).getTime() - new Date(a.scannedAt).getTime()
   })
 }
 
+// ── Agent card ────────────────────────────────────────────────────────────────
+
 function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => void; selected: boolean }) {
   const col = TREE_COLORS[node.tree] || TREE_COLORS.UNKNOWN
   const topFact = node.factsList.find(f => f.usability === "HIGH")
+  const hasContact = false // placeholder — contact enrichment coming
 
   return (
-    <div onClick={onClick} style={{
-      background: selected ? "var(--bg-hover)" : "var(--bg-card)",
-      border: `1px solid ${selected ? col.border : "var(--border)"}`,
-      borderLeft: `3px solid ${col.border}`,
-      padding: "16px 18px",
-      cursor: "pointer",
-      transition: "border-color 0.15s, background 0.15s",
-      display: "flex", flexDirection: "column", gap: 10,
-    }}>
-
-      {/* Header */}
+    <div
+      onClick={onClick}
+      style={{
+        background: selected ? "var(--bg-hover)" : "var(--bg-card)",
+        border: `1px solid ${selected ? "var(--border-strong)" : "var(--border)"}`,
+        borderLeft: `2px solid ${selected ? "var(--orange)" : col.border}`,
+        padding: "14px 16px",
+        cursor: "pointer",
+        transition: "border-color 0.15s, background 0.15s",
+        display: "flex", flexDirection: "column", gap: 9,
+        borderRadius: "var(--radius)",
+      }}
+    >
+      {/* Name + badges */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: bebas, fontSize: 18, color: "var(--text-1)", letterSpacing: 1.5, lineHeight: 1.1, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{
+            fontFamily: "'Bebas Neue', sans-serif", fontSize: 17,
+            color: "var(--text-1)", letterSpacing: 1.5, lineHeight: 1.1,
+            marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
             {node.name}
           </div>
-          <div style={{ fontFamily: mono, fontSize: 8, color: "var(--text-2)", letterSpacing: 2 }}>
+          <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "'DM Sans', sans-serif" }}>
             {node.city}, {node.state}
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, flexShrink: 0 }}>
-          {node.apifyEnriched && (
-            <span style={{ fontFamily: mono, fontSize: 7, color: "var(--green)", border: "1px solid rgba(0,200,100,0.25)", padding: "1px 5px", letterSpacing: 1 }}>DEEP</span>
-          )}
-          {node.facts > 0 && (
-            <span style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 1 }}>
-              {node.facts} facts{node.highFacts > 0 ? ` · ${node.highFacts}↑` : ""}
-            </span>
-          )}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+          {node.apifyEnriched && <span className="dash-badge dash-badge-green">DEEP</span>}
+          {node.hasFacebook   && <span className="dash-badge">FB</span>}
         </div>
       </div>
 
-      {/* Tree + confidence bar */}
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-          <span style={{ fontFamily: mono, fontSize: 8, color: col.label, letterSpacing: 2 }}>{node.tree}</span>
-          {node.confidence > 0 && <span style={{ fontFamily: mono, fontSize: 8, color: "var(--text-2)" }}>{node.confidence}%</span>}
+      {/* Top HIGH fact — the point of this card */}
+      {topFact ? (
+        <div style={{
+          fontSize: 12, color: "var(--text-1)", lineHeight: 1.6,
+          fontFamily: "'DM Sans', sans-serif",
+          borderLeft: "2px solid var(--sig-green-border)",
+          background: "var(--sig-green-dim)",
+          padding: "8px 10px", borderRadius: "0 var(--radius) var(--radius) 0",
+        }}>
+          {topFact.fact.length > 100 ? topFact.fact.slice(0, 100) + "…" : topFact.fact}
         </div>
-        <div style={{ height: 2, background: "var(--border)" }}>
-          {node.confidence > 0 && <div style={{ height: "100%", width: `${node.confidence}%`, background: col.bar }} />}
-        </div>
-      </div>
-
-      {/* Upline */}
-      {node.upline && (
-        <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 0.5, borderLeft: "2px solid var(--border)", paddingLeft: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {node.upline}
+      ) : (
+        <div style={{
+          fontSize: 11, color: "var(--text-4)", fontFamily: "'DM Sans', sans-serif",
+          padding: "6px 0",
+        }}>
+          No personal intel yet
         </div>
       )}
 
-      {/* Top fact preview */}
-      {topFact ? (
-        <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-1)", lineHeight: 1.5, borderLeft: "2px solid rgba(0,200,100,0.3)", paddingLeft: 8, opacity: 0.8 }}>
-          {topFact.fact.length > 90 ? topFact.fact.slice(0, 90) + "…" : topFact.fact}
+      {/* Footer — fact count + tree tag + contact status */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {node.facts > 0 && (
+            <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "'DM Sans', sans-serif" }}>
+              {node.facts} facts{node.highFacts > 0 ? ` · ${node.highFacts} actionable` : ""}
+            </span>
+          )}
+          <span style={{
+            fontFamily: "'DM Mono', monospace", fontSize: 9,
+            color: col.label, letterSpacing: 1, opacity: 0.7,
+          }}>
+            {node.tree}
+          </span>
         </div>
-      ) : node.facts === 0 ? (
-        <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 1, opacity: 0.5 }}>NO FACTS YET</div>
-      ) : null}
+        <span style={{
+          fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1,
+          color: hasContact ? "var(--sig-green)" : "var(--text-4)",
+        }}>
+          {hasContact ? "✓ CONTACT" : "NO CONTACT"}
+        </span>
+      </div>
     </div>
   )
 }
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
 
 function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
   const col = TREE_COLORS[node.tree] || TREE_COLORS.UNKNOWN
   const highFacts = node.factsList.filter(f => f.usability === "HIGH")
   const medFacts  = node.factsList.filter(f => f.usability === "MED")
   const lowFacts  = node.factsList.filter(f => f.usability === "LOW")
+  const [copied, setCopied] = useState(false)
 
   const copyBrief = () => {
-    const lines = node.factsList.map(f => `· ${f.fact}`).join("\n")
-    const text = `${node.name} · ${node.city}, ${node.state}\nTree: ${node.tree}${node.confidence ? ` (${node.confidence}%)` : ""}${node.upline ? `\nUpline: ${node.upline}` : ""}\n\n${lines}`
+    const lines = node.factsList
+      .filter(f => f.usability === "HIGH" || f.usability === "MED")
+      .map(f => `· ${f.fact}`)
+      .join("\n")
+    const text = `${node.name} — ${node.city}, ${node.state}\n\nPersonal Intel:\n${lines}\n\nTree: ${node.tree}${node.confidence ? ` (${node.confidence}% confidence)` : ""}${node.upline ? `\nUpline: ${node.upline}` : ""}`
     navigator.clipboard?.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
-    <div style={{ background: "var(--bg-card)", borderLeft: "1px solid var(--border)", width: 360, flexShrink: 0, overflowY: "auto", height: "100%" }}>
+    <div style={{
+      background: "var(--bg-card)", borderLeft: "1px solid var(--border)",
+      width: 380, flexShrink: 0, overflowY: "auto", height: "100%",
+    }}>
       <div style={{ padding: "24px 24px 40px" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
           <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
-            <div style={{ fontFamily: mono, fontSize: 8, color: col.label, letterSpacing: 3, marginBottom: 6, textTransform: "uppercase" }}>{node.tree}</div>
-            <div style={{ fontFamily: bebas, fontSize: 26, color: "var(--text-1)", letterSpacing: 2, lineHeight: 1.1, marginBottom: 5 }}>{node.name}</div>
-            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 2 }}>{node.city}, {node.state}</div>
+            <div className="page-eyebrow" style={{ marginBottom: 6 }}>Personal Intelligence</div>
+            <div style={{
+              fontFamily: "'Bebas Neue', sans-serif", fontSize: 28,
+              color: "var(--text-1)", letterSpacing: 2, lineHeight: 1.1, marginBottom: 4,
+            }}>
+              {node.name}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "'DM Sans', sans-serif" }}>
+              {node.city}, {node.state}
+            </div>
           </div>
-          <button onClick={onClose} style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", background: "none", border: "none", cursor: "pointer", flexShrink: 0, paddingTop: 2 }}>
-            × CLOSE
+          <button onClick={onClose} className="btn-ghost" style={{ fontSize: 11, padding: "5px 10px", marginTop: 2 }}>
+            Close
           </button>
         </div>
 
         {/* Badges */}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-          {node.apifyEnriched && <span style={{ fontFamily: mono, fontSize: 7, color: "var(--green)", border: "1px solid rgba(0,200,100,0.25)", padding: "2px 8px", letterSpacing: 1 }}>DEEP SCAN</span>}
-          {node.hasFacebook   && <span style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", border: "1px solid var(--border)", padding: "2px 8px", letterSpacing: 1 }}>FACEBOOK</span>}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20, marginTop: 14 }}>
+          {node.apifyEnriched && <span className="dash-badge dash-badge-green">DEEP SCAN</span>}
+          {node.hasFacebook   && <span className="dash-badge">FACEBOOK</span>}
+          <span className="dash-badge" style={{ color: col.label, borderColor: col.border }}>{node.tree}</span>
         </div>
 
-        {/* Confidence bar */}
-        {node.confidence > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 3 }}>TREE CONFIDENCE</span>
-              <span style={{ fontFamily: mono, fontSize: 8, color: col.label }}>{node.confidence}%</span>
+        {/* Contact status — roadmap placeholder */}
+        <div style={{
+          padding: "12px 14px", marginBottom: 20,
+          background: "var(--bg)", border: "1px solid var(--border)",
+          borderRadius: "var(--radius)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", marginBottom: 2, fontFamily: "'DM Sans', sans-serif" }}>
+              Contact Info
             </div>
-            <div style={{ height: 2, background: "var(--border)" }}>
-              <div style={{ height: "100%", width: `${node.confidence}%`, background: col.bar }} />
+            <div style={{ fontSize: 12, color: "var(--text-4)", fontFamily: "'DM Sans', sans-serif" }}>
+              Not yet attached — coming in next release
             </div>
           </div>
-        )}
+          <span className="dash-badge">PENDING</span>
+        </div>
 
-        {/* Upline */}
-        {node.upline && (
-          <div style={{ marginBottom: 20, padding: "12px 14px", background: col.bg, borderLeft: `3px solid ${col.border}` }}>
-            <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 3, marginBottom: 5 }}>PREDICTED UPLINE</div>
-            <div style={{ fontFamily: mono, fontSize: 12, color: col.label }}>{node.upline}</div>
-          </div>
-        )}
-
-        {/* Facts */}
+        {/* Personal Intel — main section */}
         {node.factsList.length === 0 ? (
-          <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 1, padding: "16px 0", opacity: 0.5 }}>NO FACTS COLLECTED YET</div>
+          <div style={{
+            padding: "24px 0", textAlign: "center",
+            fontSize: 12, color: "var(--text-4)",
+            fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7,
+          }}>
+            No personal intel collected yet.<br />
+            Run an Anathema scan to populate.
+          </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
             {highFacts.length > 0 && (
               <div>
-                <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 3, marginBottom: 8 }}>HIGH VALUE</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>
+                  Actionable Intel
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {highFacts.map((f, i) => (
-                    <div key={i} style={{ padding: "10px 12px", background: "rgba(0,200,100,0.05)", borderLeft: "2px solid rgba(0,200,100,0.35)" }}>
-                      <div style={{ fontFamily: mono, fontSize: 10, color: "var(--text-1)", lineHeight: 1.6 }}>{f.fact}</div>
-                      {f.source && <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 1, marginTop: 3, opacity: 0.5 }}>{f.source}</div>}
+                    <div key={i} style={{
+                      padding: "10px 12px", background: "var(--sig-green-dim)",
+                      borderLeft: "2px solid var(--sig-green-border)",
+                      borderRadius: "0 var(--radius) var(--radius) 0",
+                    }}>
+                      <div style={{ fontSize: 12, color: "var(--text-1)", lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" }}>
+                        {f.fact}
+                      </div>
+                      {f.source && (
+                        <div style={{ fontSize: 10, color: "var(--text-4)", marginTop: 4, fontFamily: "'DM Mono', monospace", letterSpacing: 0.5 }}>
+                          {f.source}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -178,11 +231,19 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
 
             {medFacts.length > 0 && (
               <div>
-                <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 3, marginBottom: 8, opacity: 0.7 }}>CONTEXT</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>
+                  Supporting Context
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {medFacts.map((f, i) => (
-                    <div key={i} style={{ padding: "9px 12px", background: "var(--bg)", borderLeft: "2px solid var(--border)" }}>
-                      <div style={{ fontFamily: mono, fontSize: 10, color: "var(--text-1)", lineHeight: 1.6, opacity: 0.7 }}>{f.fact}</div>
+                    <div key={i} style={{
+                      padding: "9px 12px", background: "var(--bg)",
+                      borderLeft: "2px solid var(--border)",
+                      borderRadius: "0 var(--radius) var(--radius) 0",
+                    }}>
+                      <div style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" }}>
+                        {f.fact}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -191,11 +252,15 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
 
             {lowFacts.length > 0 && (
               <div>
-                <div style={{ fontFamily: mono, fontSize: 7, color: "var(--text-2)", letterSpacing: 3, marginBottom: 8, opacity: 0.4 }}>LOGGED</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-4)", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>
+                  Logged
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                   {lowFacts.map((f, i) => (
-                    <div key={i} style={{ padding: "8px 12px", borderLeft: "2px solid var(--border)" }}>
-                      <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", lineHeight: 1.6, opacity: 0.6 }}>{f.fact}</div>
+                    <div key={i} style={{ padding: "7px 12px", borderLeft: "2px solid var(--border)" }}>
+                      <div style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" }}>
+                        {f.fact}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -204,9 +269,54 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
           </div>
         )}
 
+        {/* Tree context — secondary, below facts */}
+        {(node.confidence > 0 || node.upline) && (
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 12, fontFamily: "'DM Sans', sans-serif" }}>
+              Tree Context
+            </div>
+
+            {node.confidence > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: "var(--text-2)", fontFamily: "'DM Sans', sans-serif" }}>{node.tree} affiliation</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: col.label }}>{node.confidence}%</span>
+                </div>
+                <div style={{ height: 3, background: "var(--border)", borderRadius: 2 }}>
+                  <div style={{ height: "100%", width: `${node.confidence}%`, background: col.bar, borderRadius: 2 }} />
+                </div>
+              </div>
+            )}
+
+            {node.upline && (
+              <div style={{
+                padding: "10px 12px", background: col.bg,
+                borderLeft: `2px solid ${col.border}`,
+                borderRadius: "0 var(--radius) var(--radius) 0",
+              }}>
+                <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>Predicted upline</div>
+                <div style={{ fontSize: 12, color: col.label, fontFamily: "'DM Mono', monospace" }}>{node.upline}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Primary CTA */}
         {node.factsList.length > 0 && (
-          <button onClick={copyBrief} style={{ marginTop: 24, width: "100%", fontFamily: mono, fontSize: 9, letterSpacing: 2, padding: "12px 16px", background: "transparent", border: "1px solid var(--border)", color: "var(--text-2)", cursor: "pointer", textAlign: "left" }}>
-            COPY OUTREACH BRIEF
+          <button
+            onClick={copyBrief}
+            style={{
+              marginTop: 24, width: "100%", padding: "12px 16px",
+              background: copied ? "var(--sig-green-dim)" : "var(--orange)",
+              border: copied ? "1px solid var(--sig-green-border)" : "none",
+              borderRadius: "var(--radius)",
+              color: copied ? "var(--sig-green)" : "white",
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: 18, letterSpacing: 2,
+              cursor: "pointer", transition: "all 0.2s",
+            }}
+          >
+            {copied ? "✓ COPIED TO CLIPBOARD" : "COPY OUTREACH BRIEF"}
           </button>
         )}
       </div>
@@ -214,10 +324,12 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
   )
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function DavidPage() {
   const [nodes, setNodes]       = useState<Node[]>([])
   const [loading, setLoading]   = useState(true)
-  const [sort, setSort]         = useState<SortKey>("deep")
+  const [sort, setSort]         = useState<SortKey>("intel")
   const [filter, setFilter]     = useState("ALL")
   const [search, setSearch]     = useState("")
   const [selected, setSelected] = useState<Node | null>(null)
@@ -230,7 +342,6 @@ export default function DavidPage() {
       .catch(() => setLoading(false))
   }, [])
 
-  // Reset page when filters change
   useEffect(() => { setPage(1) }, [sort, filter, search])
 
   const trees = ["ALL", ...Array.from(new Set(nodes.map(n => n.tree))).sort()]
@@ -244,46 +355,65 @@ export default function DavidPage() {
     sort
   )
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-
+  const totalPages    = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginated     = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalFacts    = nodes.reduce((s, n) => s + n.facts, 0)
-  const enrichedCount = nodes.filter(n => n.apifyEnriched).length
   const highCount     = nodes.reduce((s, n) => s + n.highFacts, 0)
+  const enrichedCount = nodes.filter(n => n.apifyEnriched).length
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 57px)", background: "var(--bg)", overflow: "hidden" }}>
-
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* Top bar */}
+        {/* Topbar */}
         <div style={{ padding: "20px 32px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 4, marginBottom: 6, textTransform: "uppercase" }}>David · Contact Intelligence</div>
-            <div style={{ display: "flex", gap: 24 }}>
-              <span style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)" }}>{nodes.length} specimens</span>
-              <span style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)" }}>{totalFacts} facts</span>
-              <span style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)" }}>{highCount} high value</span>
-              {enrichedCount > 0 && <span style={{ fontFamily: mono, fontSize: 9, color: "var(--green)", opacity: 0.7 }}>{enrichedCount} deep enriched</span>}
+          <div style={{ marginBottom: 16 }}>
+            <div className="page-eyebrow">Admin Tool</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: "var(--text-1)", lineHeight: 1, marginBottom: 6 }}>
+              DAVID
             </div>
+            <div style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "'DM Sans', sans-serif", maxWidth: 560, lineHeight: 1.6 }}>
+              Personal intelligence built from Anathema scans. Each record is a dossier — facts you use to personalize outreach. Contact info and agentic automation coming soon.
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: "flex", gap: 20, marginBottom: 14, alignItems: "center" }}>
+            {[
+              { val: nodes.length, label: "agents", color: "var(--text-1)" },
+              { val: totalFacts,   label: "facts collected", color: "var(--text-1)" },
+              { val: highCount,    label: "actionable", color: "var(--sig-green)" },
+              ...(enrichedCount > 0 ? [{ val: enrichedCount, label: "deep enriched", color: "var(--sig-green)" }] : []),
+            ].map((s, i, arr) => (
+              <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 20 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
+                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: s.color, lineHeight: 1 }}>{s.val}</span>
+                  <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "'DM Sans', sans-serif" }}>{s.label}</span>
+                </div>
+                {i < arr.length - 1 && <div style={{ width: 1, height: 16, background: "var(--border)" }} />}
+              </div>
+            ))}
           </div>
 
           {/* Controls */}
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="search agents..."
-              style={{ fontFamily: mono, fontSize: 9, background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-1)", padding: "6px 12px", letterSpacing: 1, outline: "none", width: 200 }} />
-
-            <div style={{ display: "flex", gap: 2 }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name or city..."
+              className="dash-input"
+              style={{ width: 220 }}
+            />
+            <div className="dash-filter-bar">
               {trees.map(t => (
-                <button key={t} onClick={() => setFilter(t)} style={{ fontFamily: mono, fontSize: 8, letterSpacing: 1, padding: "5px 10px", background: filter === t ? "var(--bg-card)" : "transparent", border: `1px solid ${filter === t ? "var(--border-strong)" : "var(--border)"}`, color: filter === t ? "var(--text-1)" : "var(--text-2)", cursor: "pointer" }}>
+                <button key={t} onClick={() => setFilter(t)} className={`dash-filter-btn${filter === t ? " active" : ""}`}>
                   {t}
                 </button>
               ))}
             </div>
-
-            <div style={{ display: "flex", gap: 2, marginLeft: "auto" }}>
-              {([ ["deep","DEEP FIRST"], ["facts","MOST FACTS"], ["confidence","CONFIDENCE"], ["recent","RECENT"] ] as [SortKey, string][]).map(([key, label]) => (
-                <button key={key} onClick={() => setSort(key)} style={{ fontFamily: mono, fontSize: 8, letterSpacing: 1, padding: "5px 10px", background: sort === key ? "var(--bg-card)" : "transparent", border: `1px solid ${sort === key ? "var(--border-strong)" : "var(--border)"}`, color: sort === key ? "var(--text-1)" : "var(--text-2)", cursor: "pointer" }}>
+            <div className="dash-filter-bar" style={{ marginLeft: "auto" }}>
+              {([ ["intel","Best Intel"], ["facts","Most Facts"], ["recent","Recent"] ] as [SortKey, string][]).map(([key, label]) => (
+                <button key={key} onClick={() => setSort(key)} className={`dash-filter-btn${sort === key ? " active-orange" : ""}`}>
                   {label}
                 </button>
               ))}
@@ -291,36 +421,26 @@ export default function DavidPage() {
           </div>
         </div>
 
-        {/* Grid + pagination */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "24px 32px 16px" }}>
+        {/* Grid */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 32px 16px" }}>
           {loading ? (
-            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 4, padding: "60px 0", textAlign: "center" }}>LOADING...</div>
+            <div className="dash-empty-state">Loading intelligence...</div>
           ) : filtered.length === 0 ? (
-            <div style={{ fontFamily: mono, fontSize: 9, color: "var(--text-2)", letterSpacing: 3, padding: "60px 0", textAlign: "center", opacity: 0.4 }}>
-              {nodes.length === 0 ? "NO SPECIMENS YET — RUN ANATHEMA SCANS TO POPULATE" : "NO RESULTS"}
+            <div className="dash-empty-state">
+              {nodes.length === 0 ? "No records yet — run Anathema scans to start building dossiers" : "No agents match your search"}
             </div>
           ) : (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 2, marginBottom: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, marginBottom: 20 }}>
                 {paginated.map(n => (
                   <AgentCard key={n.id} node={n} selected={selected?.id === n.id} onClick={() => setSelected(selected?.id === n.id ? null : n)} />
                 ))}
               </div>
-
-              {/* Pagination */}
               {totalPages > 1 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 24 }}>
-                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                    style={{ fontFamily: mono, fontSize: 9, letterSpacing: 1, padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", color: page === 1 ? "var(--text-4)" : "var(--text-2)", cursor: page === 1 ? "default" : "pointer" }}>
-                    ← PREV
-                  </button>
-                  <div style={{ fontFamily: mono, fontSize: 8, color: "var(--text-2)", letterSpacing: 2 }}>
-                    {page} / {totalPages} · {filtered.length} agents
-                  </div>
-                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                    style={{ fontFamily: mono, fontSize: 9, letterSpacing: 1, padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", color: page === totalPages ? "var(--text-4)" : "var(--text-2)", cursor: page === totalPages ? "default" : "pointer" }}>
-                    NEXT →
-                  </button>
+                <div className="dash-pagination">
+                  <button className="dash-pagination-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← Prev</button>
+                  <span className="dash-pagination-count">{page} / {totalPages} · {filtered.length} agents</span>
+                  <button className="dash-pagination-btn" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Next →</button>
                 </div>
               )}
             </>
@@ -328,7 +448,6 @@ export default function DavidPage() {
         </div>
       </div>
 
-      {/* Detail panel */}
       {selected && <DetailPanel node={selected} onClose={() => setSelected(null)} />}
     </div>
   )
