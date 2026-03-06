@@ -44,8 +44,8 @@ export default function PrometheusScansTable({
         display: 'grid',
         gridTemplateColumns: '1fr 80px 110px 70px 90px 110px',
         gap: 12, padding: '8px 16px', marginBottom: 4,
-        fontSize: 11, fontWeight: 600, color: 'var(--text-3)',
-        textTransform: 'uppercase', letterSpacing: 0.5,
+        fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: 600, color: 'var(--text-3)',
+        textTransform: 'uppercase', letterSpacing: 1.5,
       }}>
         <div>FMO / IMO</div>
         <div>Size</div>
@@ -79,11 +79,11 @@ export default function PrometheusScansTable({
             onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.borderColor = 'var(--border)')}
           >
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: topContact ? 3 : 0 }}>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: topContact ? 3 : 0 }}>
                 {scan.domain}
               </div>
               {topContact && (
-                <div style={{ fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {topContact.name} · {topContact.title}
                 </div>
               )}
@@ -91,19 +91,19 @@ export default function PrometheusScansTable({
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: sizeColor, letterSpacing: 0.5, alignSelf: 'center', fontWeight: 600 }}>
               {size}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-2)', alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: 'var(--text-2)', alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {treeShort}
             </div>
-            <div style={{ fontSize: 12, fontWeight: 600, alignSelf: 'center' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, alignSelf: 'center' }}>
               {scan.actively_recruiting
                 ? <span style={{ color: 'var(--sig-green)' }}>YES</span>
                 : <span style={{ color: 'var(--text-4)' }}>NO</span>
               }
             </div>
-            <div style={{ fontSize: 12, alignSelf: 'center', color: contactCount > 0 ? 'var(--orange)' : 'var(--text-4)', fontWeight: contactCount > 0 ? 600 : 400 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, alignSelf: 'center', color: contactCount > 0 ? 'var(--orange)' : 'var(--text-4)', fontWeight: contactCount > 0 ? 600 : 400 }}>
               {contactCount > 0 ? `${contactCount} found` : '—'}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', alignSelf: 'center' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', alignSelf: 'center' }}>
               {new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
           </div>
@@ -112,7 +112,7 @@ export default function PrometheusScansTable({
 
       {totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, padding: '0 4px' }}>
-          <div style={{ fontSize: 11, color: 'var(--text-4)' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-4)' }}>
             {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, scans.length)} of {scans.length}
           </div>
           <div style={{ display: 'flex', gap: 4 }}>

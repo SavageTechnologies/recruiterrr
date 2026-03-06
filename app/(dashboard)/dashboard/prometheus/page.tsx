@@ -110,13 +110,13 @@ function TerminalLog({ lines }: { lines: string[] }) {
 }
 
 function ConfidenceBadge({ confidence }: { confidence: 'HIGH' | 'MEDIUM' | 'LOW' }) {
-  const map = { HIGH: { color: 'var(--green)', label: '● HIGH CONFIDENCE' }, MEDIUM: { color: 'var(--yellow)', label: '◐ MEDIUM CONFIDENCE' }, LOW: { color: 'var(--text-2)', label: '○ LOW CONFIDENCE' } }
+  const map = { HIGH: { color: 'var(--sig-green)', label: '● HIGH CONFIDENCE' }, MEDIUM: { color: 'var(--sig-yellow)', label: '◐ MEDIUM CONFIDENCE' }, LOW: { color: 'var(--text-2)', label: '○ LOW CONFIDENCE' } }
   const { color, label } = map[confidence]
   return <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 10px', border: `1px solid ${color}`, color, letterSpacing: 1 }}>{label}</div>
 }
 
 function SizeBadge({ size }: { size: string }) {
-  const color = size === 'LARGE' ? 'var(--orange)' : size === 'MID-SIZE' ? 'var(--sig-yellow)' : size === 'SMALL' ? 'var(--text-3)' : 'var(--text-4)'
+  const color = size === 'LARGE' ? 'var(--sig-orange)' : size === 'MID-SIZE' ? 'var(--sig-yellow)' : size === 'SMALL' ? 'var(--text-3)' : 'var(--text-4)'
   return <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 10px', border: `1px solid ${color}`, color, letterSpacing: 1 }}>{size}</div>
 }
 
@@ -146,7 +146,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function SentimentDot({ sentiment }: { sentiment: string }) {
-  const color = sentiment === 'positive' ? 'var(--green)' : sentiment === 'negative' ? 'var(--red)' : 'var(--yellow)'
+  const color = sentiment === 'positive' ? 'var(--sig-green)' : sentiment === 'negative' ? 'var(--sig-red)' : 'var(--sig-yellow)'
   return <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0, marginTop: 5 }} />
 }
 
@@ -196,7 +196,7 @@ function SerpEntry({ entry, fmoName, domain }: { entry: any; fmoName: string; do
         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: hasResults ? 'var(--sig-green)' : 'var(--text-4)', minWidth: 16 }}>{hasResults ? '●' : '○'}</span>
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)', minWidth: 180 }}>{label}</span>
         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.query}</span>
-        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: relevantResults.length > 0 ? 'var(--green)' : '#444', minWidth: 80, textAlign: 'right' }}>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: relevantResults.length > 0 ? 'var(--sig-green)' : '#444', minWidth: 80, textAlign: 'right' }}>
           {relevantResults.length} relevant
         </span>
         {noiseCount > 0 && (
@@ -220,7 +220,7 @@ function SerpEntry({ entry, fmoName, domain }: { entry: any; fmoName: string; do
                 const relevant = isRelevant(r)
                 return (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '16px 1fr', gap: 10, opacity: relevant ? 1 : 0.3 }}>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: relevant ? 'var(--green)' : '#333', paddingTop: 2 }}>{relevant ? '◈' : '·'}</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: relevant ? 'var(--sig-green)' : '#333', paddingTop: 2 }}>{relevant ? '◈' : '·'}</span>
                     <div>
                       <div style={{ display: 'flex', gap: 8, marginBottom: 3, alignItems: 'baseline' }}>
                         <span style={{ fontSize: 13, color: relevant ? 'var(--text-1)' : 'var(--text-3)', fontWeight: 500 }}>{r.title}</span>
@@ -342,12 +342,12 @@ function PrometheusPageInner() {
 
   const TABS = [
     { key: 'intel',      label: 'INTEL BRIEF'                                                     },
-    { key: 'angles',     label: `⚡ SALES ANGLES${angleCount > 0 ? ` (${angleCount})` : ''}` },
-    { key: 'contacts',   label: `◎ CONTACTS${contactCount > 0 ? ` (${contactCount})` : ''}`  },
+    { key: 'angles',     label: `SALES ANGLES${angleCount > 0 ? ` (${angleCount})` : ''}` },
+    { key: 'contacts',   label: `CONTACTS${contactCount > 0 ? ` (${contactCount})` : ''}`  },
     { key: 'recruiting', label: 'RECRUITING'                                                       },
     { key: 'offer',      label: 'WHAT THEY OFFER'                                                 },
     { key: 'voice',      label: `AGENT VOICE${quoteCount > 0 ? ` (${quoteCount})` : ''}`          },
-    { key: 'sources',    label: '⬡ SOURCES'                                                   },
+    { key: 'sources',    label: 'SOURCES'                                                   },
   ] as const
 
   return (
@@ -467,7 +467,7 @@ function PrometheusPageInner() {
           <div style={{ display: 'flex', gap: 2, marginBottom: 2, marginTop: 2, flexWrap: 'wrap' }}>
             {TABS.map(tab => (
               <div key={tab.key} onClick={() => setActiveTab(tab.key)}
-                style={{ padding: '10px 18px', background: activeTab === tab.key ? 'var(--bg-card)' : 'transparent', border: `1px solid ${activeTab === tab.key ? 'var(--orange)' : 'var(--border)'}`, fontSize: 13, fontWeight: activeTab === tab.key ? 600 : 400, cursor: 'pointer', color: activeTab === tab.key ? 'var(--orange)' : 'var(--text-2)', transition: 'all 0.15s', whiteSpace: 'nowrap', borderRadius: 'var(--radius)' }}>
+                style={{ padding: '10px 18px', background: activeTab === tab.key ? 'var(--bg-card)' : 'transparent', border: `1px solid ${activeTab === tab.key ? 'var(--orange)' : 'var(--border)'}`, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: activeTab === tab.key ? 600 : 400, letterSpacing: 0.5, cursor: 'pointer', color: activeTab === tab.key ? 'var(--orange)' : 'var(--text-2)', transition: 'all 0.15s', whiteSpace: 'nowrap', borderRadius: 'var(--radius)' }}>
                 {tab.label}
               </div>
             ))}
@@ -476,7 +476,7 @@ function PrometheusPageInner() {
           {/* ── INTEL BRIEF ── */}
           {activeTab === 'intel' && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 20 }}>INTEL BRIEF</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-2)', letterSpacing: 2, marginBottom: 20 }}>INTEL BRIEF</div>
 
               {/* Trip highlight */}
               {analysis.what_they_offer?.trip_current && analysis.what_they_offer.trip_current !== 'Not found in scan' && (
@@ -501,7 +501,7 @@ function PrometheusPageInner() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {analysis.recruiting_activity.signals.slice(0, 3).map((s, i) => (
                         <div key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-2)', display: 'flex', gap: 8 }}>
-                          <span style={{ color: 'var(--green)' }}>→</span>{s}
+                          <span style={{ color: 'var(--sig-green)' }}>→</span>{s}
                         </div>
                       ))}
                     </div>
@@ -533,7 +533,7 @@ function PrometheusPageInner() {
           {/* ── CONTACTS ── */}
           {activeTab === 'contacts' && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 20 }}>CONTACTS</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-2)', letterSpacing: 2, marginBottom: 20 }}>CONTACTS</div>
               {(analysis.contacts || []).length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {analysis.contacts.map((c, i) => (
@@ -564,7 +564,7 @@ function PrometheusPageInner() {
           {/* ── RECRUITING SIGNALS ── */}
           {activeTab === 'recruiting' && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 20 }}>RECRUITING SIGNALS</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-2)', letterSpacing: 2, marginBottom: 20 }}>RECRUITING SIGNALS</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, padding: '12px 16px', background: analysis.recruiting_activity?.actively_recruiting ? 'rgba(0,230,118,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${analysis.recruiting_activity?.actively_recruiting ? 'var(--sig-green-border)' : 'var(--border)'}` }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: analysis.recruiting_activity?.actively_recruiting ? 'var(--sig-green)' : 'var(--text-3)' }}>
                   {analysis.recruiting_activity?.actively_recruiting ? '● Actively recruiting' : '○ No active recruiting signals found'}
@@ -576,7 +576,7 @@ function PrometheusPageInner() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {analysis.recruiting_activity.signals.map((s, i) => (
                       <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                        <span style={{ color: 'var(--green)', flexShrink: 0, marginTop: 3, fontSize: 10 }}>→</span>
+                        <span style={{ color: 'var(--sig-green)', flexShrink: 0, marginTop: 3, fontSize: 10 }}>→</span>
                         <span style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6 }}>{s}</span>
                       </div>
                     ))}
@@ -594,7 +594,7 @@ function PrometheusPageInner() {
           {/* ── WHAT THEY OFFER ── */}
           {activeTab === 'offer' && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 20 }}>WHAT THEY OFFER</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-2)', letterSpacing: 2, marginBottom: 20 }}>WHAT THEY OFFER</div>
               <Tags label="Carriers" items={analysis.what_they_offer?.carriers || []} />
               <Tags label="Products" items={analysis.what_they_offer?.products || []} />
               <Row label="Contracts" value={analysis.what_they_offer?.contract_terms} />
@@ -625,7 +625,7 @@ function PrometheusPageInner() {
           {/* ── SALES ANGLES ── */}
           {activeTab === 'angles' && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 20 }}>SALES ANGLES</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-2)', letterSpacing: 2, marginBottom: 20 }}>SALES ANGLES</div>
               {analysis.sales_angles?.size_and_budget_read && (
                 <div style={{ padding: '16px 18px', background: 'rgba(255,165,0,0.04)', border: '1px solid rgba(255,165,0,0.15)', marginBottom: 12 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--orange)', marginBottom: 8 }}>SIZE & BUDGET READ</div>
@@ -634,13 +634,13 @@ function PrometheusPageInner() {
               )}
               {analysis.sales_angles?.tech_gap && analysis.sales_angles.tech_gap !== 'Not found in scan' && (
                 <div style={{ padding: '16px 18px', background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.15)', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--green)', marginBottom: 8 }}>TECH GAP</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sig-green)', marginBottom: 8 }}>TECH GAP</div>
                   <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6 }}>{analysis.sales_angles.tech_gap}</div>
                 </div>
               )}
               {analysis.sales_angles?.retention_problem && analysis.sales_angles.retention_problem !== 'Not found in scan' && (
                 <div style={{ padding: '16px 18px', background: 'rgba(255,23,68,0.04)', border: '1px solid rgba(255,23,68,0.15)', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--red)', marginBottom: 8 }}>RETENTION PROBLEM</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sig-red)', marginBottom: 8 }}>RETENTION PROBLEM</div>
                   <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6 }}>{analysis.sales_angles.retention_problem}</div>
                 </div>
               )}
@@ -656,7 +656,7 @@ function PrometheusPageInner() {
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sig-red)', marginBottom: 12 }}>Agent Pain Points (additional angles)</div>
                   {analysis.agent_sentiment.common_complaints.map((c, i) => (
                     <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
-                      <span style={{ color: 'var(--red)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>−</span>
+                      <span style={{ color: 'var(--sig-red)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>−</span>
                       <span style={{ fontSize: 12, color: 'var(--text-1)', lineHeight: 1.5 }}>{c}</span>
                     </div>
                   ))}
@@ -668,13 +668,13 @@ function PrometheusPageInner() {
           {/* ── AGENT VOICE ── */}
           {activeTab === 'voice' && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 20 }}>AGENT VOICE</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-2)', letterSpacing: 2, marginBottom: 20 }}>AGENT VOICE</div>
 
               {/* Quotes */}
               {(analysis.agent_sentiment?.agent_quotes || []).length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 24 }}>
                   {analysis.agent_sentiment.agent_quotes.map((q, i) => (
-                    <div key={i} style={{ padding: '14px 18px', background: 'var(--bg)', border: '1px solid var(--border)', borderLeft: `3px solid ${q.sentiment === 'positive' ? 'var(--green)' : q.sentiment === 'negative' ? 'var(--red)' : 'var(--yellow)'}` }}>
+                    <div key={i} style={{ padding: '14px 18px', background: 'var(--bg)', border: '1px solid var(--border)', borderLeft: `3px solid ${q.sentiment === 'positive' ? 'var(--sig-green)' : q.sentiment === 'negative' ? 'var(--sig-red)' : 'var(--sig-yellow)'}` }}>
                       <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
                         <SentimentDot sentiment={q.sentiment} />
                         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-2)', letterSpacing: 2 }}>{q.topic?.toUpperCase()}</span>
@@ -695,7 +695,7 @@ function PrometheusPageInner() {
                     <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sig-green)', marginBottom: 12 }}>What agents like</div>
                     {analysis.agent_sentiment.common_praise.map((p, i) => (
                       <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
-                        <span style={{ color: 'var(--green)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>+</span>
+                        <span style={{ color: 'var(--sig-green)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>+</span>
                         <span style={{ fontSize: 12, color: 'var(--text-1)', lineHeight: 1.5 }}>{p}</span>
                       </div>
                     ))}
@@ -706,7 +706,7 @@ function PrometheusPageInner() {
                     <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sig-red)', marginBottom: 12 }}>What agents complain about</div>
                     {analysis.agent_sentiment.common_complaints.map((c, i) => (
                       <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
-                        <span style={{ color: 'var(--red)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>−</span>
+                        <span style={{ color: 'var(--sig-red)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>−</span>
                         <span style={{ fontSize: 12, color: 'var(--text-1)', lineHeight: 1.5 }}>{c}</span>
                       </div>
                     ))}
@@ -731,12 +731,12 @@ function PrometheusPageInner() {
           {/* ── SOURCES ── */}
           {activeTab === 'sources' && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 20 }}>EVIDENCE TRAIL</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-2)', letterSpacing: 2, marginBottom: 20 }}>EVIDENCE TRAIL</div>
               <div style={{ marginBottom: 24 }}>
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-2)', letterSpacing: 2, marginBottom: 12 }}>WEBSITE</div>
                 {result.domain ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.15)', padding: '10px 16px' }}>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--green)' }}>● FOUND</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--sig-green)' }}>● FOUND</span>
                     <a href={`https://${result.domain}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text-1)', textDecoration: 'none' }}>{result.domain}</a>
                     <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-2)', marginLeft: 'auto' }}>{result.pages?.length || 0} pages: {result.pages?.join(', ')}</span>
                   </div>
