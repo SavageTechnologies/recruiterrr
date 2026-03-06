@@ -779,7 +779,7 @@ function PrometheusPageInner() {
           )}
 
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-2)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 14 }}>What Prometheus Extracts</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {[
               { n: '01', title: 'Contacts',              tip: 'Named leaders with titles — CEO, VP, founder. Pulled from team pages, SERP, and press releases.' },
               { n: '02', title: 'Recruiting Activity',   tip: 'Is this FMO actively trying to grow agents right now? Job postings, ads, recent announcements.' },

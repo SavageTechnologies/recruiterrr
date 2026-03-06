@@ -31,18 +31,22 @@ export default function PrometheusScansTable({
 
   if (!scans.length) {
     return (
-      <div style={{ padding: '24px 0' }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#333' }}>
-          No scans yet — run your first FMO above.
-        </div>
+      <div style={{ padding: '24px 0', fontSize: 13, color: 'var(--text-3)' }}>
+        No scans yet — run your first FMO above.
       </div>
     )
   }
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 80px 80px 110px', gap: 12, padding: '8px 16px', marginBottom: 4, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, textTransform: 'uppercase' }}>
+      {/* Header row */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 80px 110px 70px 90px 110px',
+        gap: 12, padding: '8px 16px', marginBottom: 4,
+        fontSize: 11, fontWeight: 600, color: 'var(--text-3)',
+        textTransform: 'uppercase', letterSpacing: 0.5,
+      }}>
         <div>FMO / IMO</div>
         <div>Size</div>
         <div>Tree</div>
@@ -53,46 +57,53 @@ export default function PrometheusScansTable({
 
       {visible.map((scan: Scan) => {
         const size = scan.fmo_size || scan.verdict || '—'
-        const sizeColor = size === 'LARGE' ? 'var(--orange)' : size === 'MID-SIZE' ? 'var(--yellow)' : 'var(--muted)'
-        const treeRaw = scan.vendor_tier || '—'
-        const treeShort = treeRaw.length > 12 ? treeRaw.slice(0, 10) + '...' : treeRaw
+        const sizeColor = size === 'LARGE' ? 'var(--orange)' : size === 'MID-SIZE' ? 'var(--sig-yellow)' : 'var(--text-3)'
+        const treeRaw   = scan.vendor_tier || '—'
+        const treeShort = treeRaw.length > 14 ? treeRaw.slice(0, 12) + '...' : treeRaw
         const contactCount = Array.isArray(scan.contacts) ? scan.contacts.length : (scan.has_contacts ? 1 : 0)
-        const topContact = Array.isArray(scan.contacts) && scan.contacts.length > 0 ? scan.contacts[0] : null
+        const topContact   = Array.isArray(scan.contacts) && scan.contacts.length > 0 ? scan.contacts[0] : null
 
         return (
           <div
             key={scan.id}
             onClick={() => onSelect(scan.id, scan.domain)}
-            style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 80px 80px 110px', gap: 12, padding: '14px 16px', background: 'var(--dark)', border: '1px solid var(--border)', marginBottom: 2, cursor: 'pointer', transition: 'border-color 0.15s' }}
-            onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.borderColor = 'var(--orange)')}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 80px 110px 70px 90px 110px',
+              gap: 12, padding: '14px 16px',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              marginBottom: 4, cursor: 'pointer', transition: 'border-color 0.12s',
+              borderRadius: 'var(--radius)',
+            }}
+            onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.borderColor = 'var(--border-strong)')}
             onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => (e.currentTarget.style.borderColor = 'var(--border)')}
           >
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: topContact ? 3 : 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: topContact ? 3 : 0 }}>
                 {scan.domain}
               </div>
               {topContact && (
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#444', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {topContact.name} · {topContact.title}
                 </div>
               )}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: sizeColor, letterSpacing: 1, alignSelf: 'center' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: sizeColor, letterSpacing: 0.5, alignSelf: 'center', fontWeight: 600 }}>
               {size}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', alignSelf: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {treeShort}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, alignSelf: 'center' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, alignSelf: 'center' }}>
               {scan.actively_recruiting
-                ? <span style={{ color: 'var(--green)' }}>YES</span>
-                : <span style={{ color: '#333' }}>NO</span>
+                ? <span style={{ color: 'var(--sig-green)' }}>YES</span>
+                : <span style={{ color: 'var(--text-4)' }}>NO</span>
               }
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, alignSelf: 'center', color: contactCount > 0 ? 'var(--orange)' : '#333' }}>
+            <div style={{ fontSize: 12, alignSelf: 'center', color: contactCount > 0 ? 'var(--orange)' : 'var(--text-4)', fontWeight: contactCount > 0 ? 600 : 400 }}>
               {contactCount > 0 ? `${contactCount} found` : '—'}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, alignSelf: 'center' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', alignSelf: 'center' }}>
               {new Date(scan.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
           </div>
@@ -100,25 +111,23 @@ export default function PrometheusScansTable({
       })}
 
       {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, padding: '0 4px' }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, padding: '0 4px' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-4)' }}>
             {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, scans.length)} of {scans.length}
           </div>
-          <div style={{ display: 'flex', gap: 2 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              style={{ padding: '6px 14px', background: 'transparent', border: '1px solid var(--border)', color: page === 0 ? '#333' : 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1, cursor: page === 0 ? 'not-allowed' : 'pointer' }}
-            >
-              PREV
-            </button>
+              className="btn-ghost"
+              style={{ fontSize: 12, opacity: page === 0 ? 0.4 : 1 }}
+            >← Prev</button>
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page === totalPages - 1}
-              style={{ padding: '6px 14px', background: 'transparent', border: '1px solid var(--border)', color: page === totalPages - 1 ? '#333' : 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1, cursor: page === totalPages - 1 ? 'not-allowed' : 'pointer' }}
-            >
-              NEXT
-            </button>
+              className="btn-ghost"
+              style={{ fontSize: 12, opacity: page === totalPages - 1 ? 0.4 : 1 }}
+            >Next →</button>
           </div>
         </div>
       )}
