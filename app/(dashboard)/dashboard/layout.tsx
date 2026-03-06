@@ -73,17 +73,6 @@ function IconDavid() {
   )
 }
 
-function IconMeredith() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3.5" width="12" height="9" rx="1.5" />
-      <path d="M2 6.5h12" />
-      <line x1="5.5" y1="3.5" x2="5.5" y2="6.5" />
-      <line x1="10.5" y1="3.5" x2="10.5" y2="6.5" />
-    </svg>
-  )
-}
-
 function IconAdmin() {
   return (
     <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -172,17 +161,17 @@ export default async function DashboardLayout({
                 <span className="dash-nav-icon"><IconPrometheus /></span>
                 Prometheus
               </Link>
+
+              <Link href="/dashboard/david" className="dash-nav-item">
+                <span className="dash-nav-icon"><IconDavid /></span>
+                David
+              </Link>
             </>
           )}
 
           {adminUser && (
             <>
               <div className="dash-nav-section" style={{ marginTop: 8 }}>Admin</div>
-
-              <Link href="/dashboard/david" className="dash-nav-item">
-                <span className="dash-nav-icon"><IconDavid /></span>
-                David
-              </Link>
 
               <Link href="/dashboard/admin" className="dash-nav-item">
                 <span className="dash-nav-icon"><IconAdmin /></span>
