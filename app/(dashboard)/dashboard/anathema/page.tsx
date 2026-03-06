@@ -552,10 +552,35 @@ function AnathemaDashboardInner() {
 
   async function loadSpecimen(s: any) {
     setAgencyName(s.agent_name || ''); setWebsite(s.agent_website || ''); setCity(s.city || ''); setState(s.state || '')
-    setResult(null); setError(''); setLogLines([])
-    setConfirmedTrees(s.confirmed_tree ? s.confirmed_tree.split(',').map((t: string) => t.trim()) : [])
+    setError(''); setLogLines([])
+    const trees = s.confirmed_tree ? s.confirmed_tree.split(',').map((t: string) => t.trim()) : []
+    setConfirmedTrees(trees)
     setConfirmedOther(s.confirmed_tree_other || ''); setSubImo(s.confirmed_sub_imo || ''); setRecruiterNotes(s.recruiter_notes || ''); setSaveState('saved'); setDavidFacts(null)
+
+    // Build a synthetic result immediately from list data so the card renders
+    // even if the full scan record has no analysis_json
+    const syntheticResult = {
+      predicted_tree: s.predicted_tree || 'unknown',
+      confidence: s.predicted_confidence || 0,
+      signals_used: [],
+      reasoning: '',
+      facebook_profile_url: null,
+      facebook_about: null,
+      predicted_sub_imo: s.confirmed_sub_imo || null,
+      predicted_sub_imo_confidence: null,
+      predicted_sub_imo_signals: [],
+      predicted_sub_imo_partner_id: null,
+      predicted_sub_imo_proof_url: null,
+      prediction_source: null,
+      serp_debug: null,
+      unresolved_upline: null,
+      unresolved_upline_evidence: null,
+      unresolved_upline_source_url: null,
+      unresolved_upline_confidence: null,
+    }
+    setResult(syntheticResult)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+
     try {
       const res = await fetch(`/api/anathema?id=${s.id}`)
       if (!res.ok) return
@@ -565,6 +590,15 @@ function AnathemaDashboardInner() {
         if (data.scan.analysis_json.predicted_sub_imo && !s.confirmed_sub_imo) setSubImo(data.scan.analysis_json.predicted_sub_imo)
         if (data.scan.david_facts?.facts) setDavidFacts(data.scan.david_facts.facts)
       }
+      // Re-apply confirmed fields from the saved scan
+      if (data.scan?.confirmed_tree) {
+        setConfirmedTrees(Array.isArray(data.scan.confirmed_tree)
+          ? data.scan.confirmed_tree
+          : data.scan.confirmed_tree.split(',').map((t: string) => t.trim()))
+      }
+      if (data.scan?.confirmed_tree_other) setConfirmedOther(data.scan.confirmed_tree_other)
+      if (data.scan?.sub_imo) setSubImo(data.scan.sub_imo)
+      if (data.scan?.recruiter_notes) setRecruiterNotes(data.scan.recruiter_notes)
     } catch {}
   }
 
@@ -648,6 +682,7 @@ function AnathemaDashboardInner() {
 
           {result && !scanning && (
             <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+              <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>← History</button>
               <button onClick={() => { setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); runScan() }} className="btn-ghost" style={{ fontSize: 12 }}>↺ Rescan</button>
               <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>New scan</button>
             </div>
