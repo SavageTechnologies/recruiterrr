@@ -21,18 +21,18 @@ const LOADING_STEPS = [
   'Scoring carrier fingerprint',
   'Running affiliation search',
   'Locating Facebook profile',
-  'Running pathogen analysis',
-  'Generating specimen report',
+  'Running affiliation analysis',
+  'Generating affiliation report',
 ]
 
 const STAGE_LOGS: Record<number, string[]> = {
-  0: ['[OK] Agent name received', '[OK] Initializing specimen scan'],
+  0: ['[OK] Agent name received', '[OK] Initializing affiliation scan'],
   1: ['[OK] Fetching website content', '[OK] Extracting visible text', '[FOUND] Website content indexed'],
   2: ['[OK] Checking carrier patterns', '[OK] Matching Integrity fingerprint', '[OK] Matching AmeriLife fingerprint', '[OK] Matching SMS fingerprint'],
   3: ['[OK] Querying affiliation directories', '[OK] Scanning partner indexes', '[FOUND] SERP intelligence compiled'],
   4: ['[OK] Searching for Facebook profile', '[OK] Probing profile content', '[FOUND] Social intelligence compiled'],
-  5: ['[OK] Sending to ANATHEMA analysis engine', '[OK] Weighing pathogen markers...', '[OK] Calculating infection stage...', '[OK] Assessing strain confidence...'],
-  6: ['[OK] Compiling specimen report', '[OK] Staging confirmed', '[OK] Report ready'],
+  5: ['[OK] Sending to ANATHEMA analysis engine', '[OK] Weighing affiliation markers...', '[OK] Calculating confidence stage...', '[OK] Assessing affiliation confidence...'],
+  6: ['[OK] Compiling affiliation report', '[OK] Staging confirmed', '[OK] Report ready'],
 }
 
 const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
@@ -135,7 +135,7 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: {
 function TerminalLog({ lines }: { lines: string[] }) {
   return (
     <div style={{ background: '#0f0f0f', border: '1px solid #2a2a2a', padding: '16px', height: 200, overflowY: 'auto', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, lineHeight: 2, borderRadius: 'var(--radius)' }}>
-      <div style={{ color: '#444', marginBottom: 4, fontSize: 10 }}>anathema@pathogen-intel:~$ ./scan</div>
+      <div style={{ color: '#444', marginBottom: 4, fontSize: 10 }}>anathema@analysis:~$ ./scan</div>
       {lines.map((line, i) => (
         <div key={i} style={{ color: line.startsWith('[OK]') ? '#00e676' : line.startsWith('[WARN]') ? '#ff9800' : line.startsWith('[ALERT]') ? '#ff1744' : line.startsWith('[FOUND]') ? 'rgba(0,230,118,0.6)' : '#444', animation: 'slideIn 0.2s ease both' }}>{line}</div>
       ))}
@@ -187,7 +187,7 @@ function ChainSection({ result }: { result: ScanResult }) {
   return (
     <div style={{ padding: '18px 0', borderTop: '1px solid var(--border)', marginTop: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 0.5, textTransform: 'uppercase' }}>Chain Intelligence</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 0.5, textTransform: 'uppercase' }}>Upline Intelligence</div>
         {visibleSignals.length > 0 && (
           <button onClick={() => setExpanded(v => !v)} className="btn-ghost" style={{ fontSize: 11 }}>
             {expanded ? 'Collapse' : `Show all signals (${visibleSignals.length})`}
@@ -196,7 +196,7 @@ function ChainSection({ result }: { result: ScanResult }) {
       </div>
       {result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 && (
         <div style={{ marginBottom: visibleSignals.length > 0 ? 14 : 0, padding: '14px 16px', background: result.prediction_source === 'chain_resolver' ? 'var(--sig-green-dim)' : 'var(--bg)', border: `1px solid ${result.prediction_source === 'chain_resolver' ? 'var(--sig-green-border)' : 'var(--border)'}`, borderLeft: `3px solid ${result.prediction_source === 'chain_resolver' ? 'var(--sig-green)' : 'var(--border-strong)'}`, borderRadius: '0 var(--radius) var(--radius) 0' }}>
-          <div style={{ fontSize: 11, color: result.prediction_source === 'chain_resolver' ? 'var(--sig-green)' : 'var(--text-3)', marginBottom: 6, fontWeight: 600 }}>{result.prediction_source === 'chain_resolver' ? '● CHAIN-SOURCED · THIS IS WHY WE KNOW' : 'PREDICTED SUB-IMO'}</div>
+          <div style={{ fontSize: 11, color: result.prediction_source === 'chain_resolver' ? 'var(--sig-green)' : 'var(--text-3)', marginBottom: 6, fontWeight: 600 }}>{result.prediction_source === 'chain_resolver' ? '● UPLINE-SOURCED · THIS IS WHY WE KNOW' : 'PREDICTED SUB-IMO'}</div>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: 'var(--sig-green)', letterSpacing: 2, marginBottom: partnerEvidence ? 8 : 0 }}>{result.predicted_sub_imo}</div>
           {partnerEvidence && <a href={partnerEvidence.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontSize: 12, color: 'var(--sig-green)', textDecoration: 'none', marginBottom: 8 }}>↗ {partnerEvidence.title.slice(0, 70)}</a>}
           {result.predicted_sub_imo_confidence != null && (
@@ -257,7 +257,7 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
   return (
     <div style={{ animation: 'slideIn 0.3s ease both' }}>
       <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12, fontWeight: 500 }}>
-        SPECIMEN: {agencyName.toUpperCase()}{city ? ` · ${city.toUpperCase()}, ${state.toUpperCase()}` : ''}
+        REPORT: {agencyName.toUpperCase()}{city ? ` · ${city.toUpperCase()}, ${state.toUpperCase()}` : ''}
       </div>
 
       {/* Verdict card */}
@@ -266,7 +266,7 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
         {/* Verdict header */}
         <div style={{ padding: '20px 24px', background: isUnknown ? 'transparent' : treeDim, borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' }}>Strain Detected</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' }}>Affiliation Detected</div>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isUnknown ? 28 : 44, color: treeColor, letterSpacing: 3, lineHeight: 1, marginBottom: 14 }}>{treeLabel}</div>
             {!isUnknown && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -278,7 +278,7 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
             )}
           </div>
           <div style={{ textAlign: 'center', padding: '0 8px' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>Infection Stage</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>Confidence Stage</div>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 64, color: isUnknown ? 'var(--text-4)' : treeColor, letterSpacing: 2, lineHeight: 1 }}>{stage?.roman || '—'}</div>
             <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, fontWeight: 500 }}>{stage?.label || 'INDETERMINATE'}</div>
           </div>
@@ -289,9 +289,9 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
           <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{result.reasoning}</div>
         )}
 
-        {/* Pathogen markers */}
+        {/* Affiliation signals */}
         <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 0.5, marginBottom: 12, textTransform: 'uppercase' }}>Pathogen Markers</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 0.5, marginBottom: 12, textTransform: 'uppercase' }}>Affiliation Signals</div>
           {(result.signals_used || []).length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {(result.signals_used || []).map((sig, i) => (
@@ -311,7 +311,7 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
           )}
         </div>
 
-        {/* Chain intel */}
+        {/* Upline intel */}
         <div style={{ padding: '0 24px' }}><ChainSection result={result} /></div>
 
         {/* Field observation */}
@@ -484,7 +484,7 @@ function AnathemaDashboardInner() {
       setCurrentStep(LOADING_STEPS.length - 1)
       const tree = TREE_LABELS[data.predicted_tree] || 'UNCLASSIFIED'
       addLog(`[OK] Scan complete — ${agencyName.trim()}`)
-      addLog(data.predicted_tree !== 'unknown' ? `[FOUND] STRAIN: ${tree} — CONFIDENCE: ${data.confidence}%` : `[WARN] STRAIN: UNCLASSIFIED — Insufficient markers`)
+      addLog(data.predicted_tree !== 'unknown' ? `[FOUND] AFFILIATION: ${tree} — CONFIDENCE: ${data.confidence}%` : `[WARN] AFFILIATION: UNCLASSIFIED — Insufficient markers`)
       if (data.facebook_profile_url) addLog(`[FOUND] Facebook profile located`)
       if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence`)
       else if (data.unresolved_upline) addLog(`[ALERT] UNRESOLVED UPLINE: ${data.unresolved_upline}`)
@@ -584,10 +584,10 @@ function AnathemaDashboardInner() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: showTwoCol ? '380px 1fr' : '1fr', gap: 0, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: showTwoCol ? '380px 1fr' : '1fr', gap: 0, alignItems: 'start', isolation: 'isolate' }}>
 
         {/* LEFT */}
-        <div style={{ paddingRight: showTwoCol ? 28 : 0, borderRight: showTwoCol ? '1px solid var(--border)' : 'none', minWidth: 0 }}>
+        <div style={{ width: showTwoCol ? 380 : '100%', flexShrink: 0, paddingRight: showTwoCol ? 28 : 0, borderRight: showTwoCol ? '1px solid var(--border)' : 'none', overflow: 'hidden' }}>
 
           {/* Scan input */}
           <div style={{ display: 'flex', gap: 0, border: `1.5px solid ${scanning ? 'var(--sig-green)' : 'var(--border-strong)'}`, background: 'var(--bg-card)', marginBottom: 6, transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: scanning ? '0 0 0 3px var(--sig-green-dim)' : '0 2px 6px var(--shadow-sm)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
@@ -604,7 +604,7 @@ function AnathemaDashboardInner() {
             {[
               { value: website, set: setWebsite,                                                   ph: 'Website (optional)' },
               { value: city,    set: setCity,                                                       ph: 'City' },
-              { value: state,   set: (v: string) => setState(v.toUpperCase().slice(0, 2)), ph: 'ST' },
+              { value: state,   set: (v: string) => setState(v.toUpperCase().slice(0, 2)), ph: 'State' },
             ].map((f, i) => (
               <input key={i} value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.ph} disabled={scanning}
                 style={{ padding: '10px 14px', fontSize: 13, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-2)', outline: 'none', borderRadius: 'var(--radius)' }} />
@@ -703,10 +703,10 @@ function AnathemaDashboardInner() {
 
         {/* RIGHT */}
         {showTwoCol && (
-          <div ref={resultRef} className="detail-scroll" style={{ paddingLeft: 28, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto', position: 'sticky', top: 16 }}>
+          <div ref={resultRef} className="detail-scroll" style={{ paddingLeft: 28, maxHeight: 'calc(100vh - 180px)', overflowY: 'auto', position: 'sticky', top: 0, alignSelf: 'start' }}>
             {scanning && !result && (
               <div style={{ paddingTop: 40 }}>
-                <div style={{ fontSize: 12, color: 'var(--text-3)', letterSpacing: 1, marginBottom: 16 }}>SCANNING · {agencyName.slice(0, 36).toUpperCase()}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', letterSpacing: 1, marginBottom: 16 }}>ANALYZING · {agencyName.slice(0, 36).toUpperCase()}</div>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--sig-green)', letterSpacing: 2, lineHeight: 1.1, marginBottom: 28, minHeight: 40 }}>{currentStep >= 0 ? LOADING_STEPS[currentStep] : ''}</div>
                 <TerminalLog lines={logLines} />
               </div>
