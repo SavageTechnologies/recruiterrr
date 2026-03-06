@@ -363,14 +363,35 @@ export default function DavidPage() {
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 57px)", background: "var(--bg)", overflow: "hidden" }}>
+      <style>{`
+        @keyframes betaSweep { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(100%); } }
+      `}</style>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* Topbar */}
         <div style={{ padding: "20px 32px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
           <div style={{ marginBottom: 16 }}>
-            <div className="page-eyebrow">Admin Tool</div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: "var(--text-1)", lineHeight: 1, marginBottom: 6 }}>
-              DAVID
+            <div className="page-eyebrow">Personal Intelligence</div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 16, marginBottom: 6 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: "var(--text-1)", lineHeight: 0.9 }}>
+                DAVID<span style={{ color: "var(--sig-purple, #7c5cbf)" }}>.</span>
+              </div>
+              <div style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: 9, letterSpacing: 3,
+                color: "var(--sig-purple, #7c5cbf)",
+                border: "1px solid rgba(124,92,191,0.45)",
+                background: "rgba(124,92,191,0.07)",
+                padding: "5px 10px", marginBottom: 6,
+                position: "relative", overflow: "hidden", whiteSpace: "nowrap",
+              }}>
+                <span style={{
+                  position: "absolute", inset: 0,
+                  background: "linear-gradient(90deg, transparent, rgba(124,92,191,0.14), transparent)",
+                  animation: "betaSweep 3s ease-in-out infinite",
+                }} />
+                BETA
+              </div>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "'DM Sans', sans-serif", maxWidth: 560, lineHeight: 1.6 }}>
               Personal intelligence built from Anathema scans. Each record is a dossier — facts you use to personalize outreach. Contact info and agentic automation coming soon.
