@@ -7,7 +7,7 @@ import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 
 import { scoreSMSCarriers, buildNetworkSignalIndex } from '@/lib/domain/anathema/signals'
-import { enrichWithApify, apifyToSerpSnippets } from '@/lib/domain/anathema/apify'
+import { apifyToSerpSnippets } from '@/lib/domain/anathema/apify'
 import { gatherEvidence, analyzeEvidence, enrichFromDB, subimoConfidenceToNumber } from '@/lib/domain/anathema/analyzer'
 import { extractDavidFacts } from '@/lib/domain/anathema/david-facts'
 import type { DavidFactsInput } from '@/lib/domain/anathema/david-facts'
@@ -242,53 +242,14 @@ export async function POST(req: NextRequest) {
     // Prometheus lookup failed — continue without it
   }
 
-  // ─── STEP 2: Apify social — runs in parallel before AI analysis ─────────────
-  // Facebook posts + YouTube videos feed into the primary analysis, not as fallback.
-  // Social often has more relationship signals than the consumer-facing website.
-  let apifyPostCount = 0
-  let apifyVideoCount = 0
-  let apifyUsed = false
-  let combinedEvidenceBlob = evidenceBlob
-
-  const hasApifyTargets = !!(facebookProfileUrl || agent.youtube_channel)
-  if (hasApifyTargets && process.env.APIFY_API_KEY) {
-    try {
-      const apifyEnrichment = await enrichWithApify({
-        facebookProfileUrl,
-        youtubeChannelUrl: agent.youtube_channel || null,
-      })
-
-      apifyPostCount = apifyEnrichment.facebookPosts.length
-      apifyVideoCount = apifyEnrichment.youtubeVideos.length
-
-      if (apifyPostCount > 0 || apifyVideoCount > 0) {
-        apifyUsed = true
-        const apifyText = [apifyEnrichment.facebookText, apifyEnrichment.youtubeText]
-          .filter(Boolean).join('\n')
-
-        // Add Apify snippets to debug trail
-        const apifySnippets = apifyToSerpSnippets(apifyEnrichment)
-        serpDebug.push({
-          query: `apify_social:${facebookProfileUrl || agent.youtube_channel || 'n/a'}`,
-          source: 'apify_social',
-          results: apifySnippets.slice(0, 8).map(s => ({
-            title: s.title, url: s.url, snippet: s.snippet.slice(0, 200), signals_matched: [],
-          })),
-        })
-
-        combinedEvidenceBlob = [evidenceBlob, `=== FACEBOOK POSTS + YOUTUBE (via Apify) ===\n${apifyText}`]
-          .join('\n\n')
-      }
-    } catch {
-      // Apify failed — continue with website + SERP evidence only
-    }
-  }
-
-  // ─── STEP 3: Analyze evidence — one Sonnet call ──────────────────────────────
+  // ─── STEP 2: Analyze evidence — one Sonnet call ─────────────────────────────
+  // Apify (Facebook/YouTube) is NOT awaited here — it runs as a background job
+  // for David enrichment after the response is returned. ANATHEMA uses website
+  // crawl + SERP only, which is faster and sufficient for relationship prediction.
   const analysis = await analyzeEvidence(
     agent.name,
     agent.state || '',
-    combinedEvidenceBlob,
+    evidenceBlob,
     networkSignals,
     extraSignals,
     ownerNames,
@@ -352,15 +313,17 @@ export async function POST(req: NextRequest) {
     agentWebsite: agent.website || null,
     agentNotes: agent.notes || null,
     agentAbout: agent.about || null,
-    apifyFacebookPostCount: apifyPostCount,
-    apifyYouTubeVideoCount: apifyVideoCount,
+    apifyFacebookPostCount: 0,
+    apifyYouTubeVideoCount: 0,
   }
 
   const davidFacts = await extractDavidFacts(davidFactsInput)
 
-  // ── Apify fire-and-forget for David enrichment — fast path only ──────────────
-  // intentional: fire-and-forget — Vercel worker handles this in its own function lifetime
-  if (!apifyUsed && hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET) {
+  // ── Apify fire-and-forget for David enrichment ───────────────────────────────
+  // intentional: fire-and-forget — David collects Facebook/YouTube in its own
+  // worker after ANATHEMA has already returned. Not ANATHEMA's job to wait for it.
+  const hasApifyTargets = !!(facebookProfileUrl || agent.youtube_channel)
+  if (hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET) {
     const baseUrl = `${req.nextUrl.protocol}//${req.nextUrl.host}`
     fetch(`${baseUrl}/api/david/enrich`, {
       method: 'POST',
@@ -406,7 +369,6 @@ export async function POST(req: NextRequest) {
     unresolved_upline_evidence: subimoIsNewDiscovery ? analysis.subimo_evidence : null,
     unresolved_upline_source_url: null,
     unresolved_upline_confidence: subimoIsNewDiscovery ? analysis.subimo_confidence : null,
-    apify_used_in_prediction: apifyUsed,
     serp_debug: serpDebug,
     david_facts: davidFacts,
   })
