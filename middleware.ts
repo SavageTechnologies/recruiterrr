@@ -1,25 +1,25 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import { hasFullAccess, isAdmin } from '@/lib/auth/access'
+import { isAdmin } from '@/lib/auth/access'
 
-const isProtectedRoute  = createRouteMatcher(['/dashboard(.*)'])
+const isProtectedRoute = createRouteMatcher(['/dashboard(.*)'])
 
-// David stays admin-only — not launched yet
+// Admin-only — not launched, blocked even if you know the URL
 // /api/david/enrich is exempt — internal server-to-server call, protected by ENRICHMENT_SECRET
 const isAdminRoute = createRouteMatcher([
   '/dashboard/david(.*)',
+  '/dashboard/anathema(.*)',
   '/api/david/network(.*)',
+  '/api/anathema(.*)',
 ])
 
 const isInternalRoute = createRouteMatcher([
   '/api/david/enrich(.*)',
 ])
 
-// Anathema and Prometheus open to all paying subscribers
+// Subscriber routes — login required, plan check handled in API handlers
 const isSubscriberRoute = createRouteMatcher([
-  '/dashboard/anathema(.*)',
   '/dashboard/prometheus(.*)',
-  '/api/anathema(.*)',
   '/api/prometheus(.*)',
 ])
 
@@ -32,7 +32,7 @@ export default clerkMiddleware(async (auth, req) => {
   // Internal server-to-server routes — protected by secret header, not Clerk
   if (isInternalRoute(req)) return NextResponse.next()
 
-  // David — admin only, hard block for everyone else
+  // Anathema + David — admin only, redirect everyone else
   if (isAdminRoute(req)) {
     if (!isAdmin(userId)) {
       if (req.nextUrl.pathname.startsWith('/api/')) {
@@ -43,18 +43,12 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.next()
   }
 
-  // Anathema + Prometheus — middleware just ensures they're logged in.
-  // The API handlers do the Supabase plan='pro' check so we avoid a DB
-  // call on every middleware invocation.
+  // Prometheus — middleware just ensures logged in, API handlers do plan check
   if (isSubscriberRoute(req)) {
     return NextResponse.next()
   }
 
-  // All other dashboard routes
-  if (hasFullAccess(userId)) {
-    return NextResponse.next()
-  }
-
+  // All other dashboard routes — just needs to be logged in
   return NextResponse.next()
 })
 
