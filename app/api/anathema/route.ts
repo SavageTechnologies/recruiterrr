@@ -24,6 +24,16 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!(await hasActiveSubscription(userId))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  // ─── CHECK EXISTING (moved from POST) ───────────────────────────────────────
+  // GET /api/anathema?name=...&city=...&state=...
+  const nameParam = req.nextUrl.searchParams.get('name')
+  if (nameParam !== null) {
+    const cityParam  = req.nextUrl.searchParams.get('city')  ?? ''
+    const stateParam = req.nextUrl.searchParams.get('state') ?? ''
+    const specimen = await checkExistingSpecimen(userId, nameParam, cityParam, stateParam)
+    return NextResponse.json({ specimen })
+  }
+
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
@@ -76,14 +86,11 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!(await hasActiveSubscription(userId))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(20, '1 h'), analytics: true })
-  const { success } = await ratelimit.limit(userId)
-  if (!success) return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
-
   const body = await req.json()
   const { action } = body
 
   // ─── SAVE OBSERVATION ───────────────────────────────────────────────────────
+  // These actions don't call external APIs — skip rate limiter
   if (action === 'log_observation') {
     const saved = await saveObservation({
       userId,
@@ -137,19 +144,21 @@ export async function POST(req: NextRequest) {
 
   // ─── SAVE DAVID FACTS ───────────────────────────────────────────────────────
   if (action === 'save_david_facts') {
+    let specimenId: string | null = null
     if (body.david_facts) {
       await saveDavidFacts(userId, body.agent_name, body.city, body.state, body.david_facts)
+      // Return the specimen id so the client can skip a follow-up check_existing call
+      const specimen = await checkExistingSpecimen(userId, body.agent_name, body.city, body.state)
+      specimenId = specimen?.id ?? null
     }
-    return NextResponse.json({ ok: true })
-  }
-
-  // ─── CHECK EXISTING ─────────────────────────────────────────────────────────
-  if (action === 'check_existing') {
-    const specimen = await checkExistingSpecimen(userId, body.agent_name, body.city, body.state)
-    return NextResponse.json({ specimen })
+    return NextResponse.json({ ok: true, id: specimenId })
   }
 
   // ─── RUN SCAN ───────────────────────────────────────────────────────────────
+  // Only scans hit external APIs — apply rate limit here
+  const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(20, '1 h'), analytics: true })
+  const { success } = await ratelimit.limit(userId)
+  if (!success) return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
   const { agent } = body
   if (!agent) return NextResponse.json({ error: 'Missing agent' }, { status: 400 })
 

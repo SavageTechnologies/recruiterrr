@@ -513,7 +513,8 @@ function AnathemaDashboardInner() {
           setDeepScanStatus('polling')
           setTimeout(async () => {
             try {
-              const checkRes  = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'check_existing', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() }) })
+              const checkParams = new URLSearchParams({ name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() })
+              const checkRes  = await fetch(`/api/anathema?${checkParams}`)
               const checkData = await checkRes.json()
               if (checkData.specimen?.id) { setSpecimenId(checkData.specimen.id); startDeepPolling(checkData.specimen.id) }
             } catch {}
@@ -523,7 +524,8 @@ function AnathemaDashboardInner() {
         setDeepScanStatus('polling')
         setTimeout(async () => {
           try {
-            const checkRes  = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'check_existing', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() }) })
+            const checkParams = new URLSearchParams({ name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() })
+            const checkRes  = await fetch(`/api/anathema?${checkParams}`)
             const checkData = await checkRes.json()
             if (checkData.specimen?.id) { setSpecimenId(checkData.specimen.id); startDeepPolling(checkData.specimen.id) }
           } catch {}
