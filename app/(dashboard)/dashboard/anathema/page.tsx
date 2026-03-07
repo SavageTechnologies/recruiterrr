@@ -2,108 +2,152 @@
 
 import { useState, useRef, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import type { AgentProfile, PersonalHook, AffiliationSignal } from '@/lib/domain/anathema/analyzer'
+import type { AgentSerpDebugEntry } from '@/lib/domain/anathema/serp'
 
-import {
-  type ChainSignal,
-  type SerpDebugEntry,
-  type ScanResult,
-  TREE_LABELS,
-  TIER_CONFIG,
-  getStage,
-  groupSignals,
-} from '@/lib/anathema-types'
-
-import type { DavidFact } from '@/lib/domain/anathema/david-facts'
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
 const LOADING_STEPS = [
   'Resolving agency identity',
   'Crawling website content',
-  'Scoring carrier fingerprint',
-  'Running affiliation search',
-  'Locating Facebook profile',
-  'Running affiliation analysis',
-  'Generating affiliation report',
+  'Scanning public record',
+  'Searching social presence',
+  'Pulling production signals',
+  'Analyzing community presence',
+  'Building intel brief',
 ]
 
-const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
-  FACEBOOK:      { label: 'FB',     color: '#4267B2' },
-  YOUTUBE:       { label: 'YT',     color: '#cc2200' },
-  GOOGLE_REVIEW: { label: 'REVIEW', color: 'var(--sig-yellow)' },
-  SERP:          { label: 'WEB',    color: 'var(--text-2)' },
-  WEBSITE:       { label: 'SITE',   color: 'var(--orange)' },
-  LINKEDIN:      { label: 'LI',     color: '#0077B5' },
-  OTHER:         { label: 'OTHER',  color: 'var(--text-2)' },
+const STAGE_LOGS: Record<number, string[]> = {
+  0: ['[OK] Agent record received', '[OK] Resolving identity'],
+  1: ['[OK] Fetching homepage', '[OK] Crawling about + team pages', '[FOUND] Website intel extracted'],
+  2: ['[OK] Querying reputation sources', '[OK] Scanning professional record', '[FOUND] Public record compiled'],
+  3: ['[OK] Searching Facebook', '[OK] Searching YouTube', '[FOUND] Social presence located'],
+  4: ['[OK] Scanning awards + rankings', '[OK] Checking credentials', '[FOUND] Production signals extracted'],
+  5: ['[OK] Pulling local presence', '[OK] Scanning press mentions', '[FOUND] Community data compiled'],
+  6: ['[OK] Sending to analysis engine', '[OK] Extracting facts...', '[OK] Building intel brief...', '[OK] Profile ready'],
 }
 
-const TREE_COLOR: Record<string, string> = {
-  integrity: 'var(--sig-green)',
-  amerilife: '#2196f3',
-  sms:       'var(--sig-yellow)',
-  unknown:   'var(--text-3)',
-}
-const TREE_BORDER: Record<string, string> = {
-  integrity: 'var(--sig-green-border)',
-  amerilife: 'rgba(33,150,243,0.3)',
-  sms:       'var(--sig-yellow-border)',
-  unknown:   'var(--border)',
-}
-const TREE_DIM: Record<string, string> = {
-  integrity: 'var(--sig-green-dim)',
-  amerilife: 'rgba(33,150,243,0.07)',
-  sms:       'var(--sig-yellow-dim)',
-  unknown:   'transparent',
+const SOURCE_CONFIG: Record<string, { label: string; color: string }> = {
+  FACEBOOK: { label: 'FB',     color: '#4267B2' },
+  YOUTUBE:  { label: 'YT',     color: '#cc2200' },
+  SERP:     { label: 'WEB',    color: 'var(--text-3)' },
+  WEBSITE:  { label: 'SITE',   color: 'var(--sig-green)' },
+  OTHER:    { label: 'OTHER',  color: 'var(--text-3)' },
 }
 
-// ── DAVID Facts Panel ─────────────────────────────────────────────────────────
+const TREE_DISPLAY: Record<string, { label: string; color: string; border: string; dim: string }> = {
+  integrity: { label: 'INTEGRITY MARKETING GROUP', color: 'var(--sig-green)',  border: 'var(--sig-green-border)',       dim: 'var(--sig-green-dim)' },
+  amerilife: { label: 'AMERILIFE',                 color: '#2196f3',           border: 'rgba(33,150,243,0.3)',          dim: 'rgba(33,150,243,0.07)' },
+  sms:       { label: 'SENIOR MARKET SALES',       color: 'var(--sig-yellow)', border: 'var(--sig-yellow-border)',      dim: 'var(--sig-yellow-dim)' },
+}
 
-function DavidFactsPanel({ facts, agentName, deepScanStatus }: {
-  facts: DavidFact[]
-  agentName: string
-  deepScanStatus?: 'idle' | 'polling' | 'complete' | 'timeout'
-}) {
-  const [showMed, setShowMed] = useState(false)
-  const high    = facts.filter(f => f.usability === 'HIGH')
-  const med     = facts.filter(f => f.usability === 'MED')
-  const visible = showMed ? [...high, ...med] : high
-  if (facts.length === 0) return null
+const SERP_KEY_LABELS: Record<string, string> = {
+  reputation:  'REPUTATION',
+  community:   'COMMUNITY',
+  professional:'PROFESSIONAL',
+  social:      'SOCIAL',
+  career:      'CAREER',
+  production:  'PRODUCTION',
+  press:       'PRESS',
+  recruiting:  'RECRUITING',
+}
+
+// ─── SMALL COMPONENTS ─────────────────────────────────────────────────────────
+
+function TerminalLog({ lines }: { lines: string[] }) {
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', marginBottom: 3, letterSpacing: 0.5 }}>DAVID — PERSONAL INTEL</div>
-          <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{high.length} high usability · {med.length} supporting · Use to personalize your opener</div>
-          {deepScanStatus === 'polling' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite' }} />
-              <span style={{ fontSize: 11, color: 'var(--orange)' }}>Deepening — pulling Facebook + YouTube</span>
-            </div>
-          )}
-          {deepScanStatus === 'complete' && (
-            <div style={{ fontSize: 11, color: 'var(--sig-green)', marginTop: 5 }}>● Deep scan complete · facts updated</div>
-          )}
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '16px', height: 200, overflowY: 'auto', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, lineHeight: 2 }}>
+      <div style={{ color: 'var(--text-2)', marginBottom: 4, fontSize: 10 }}>anathema@intel:~$ ./scan</div>
+      {lines.map((line, i) => (
+        <div key={i} style={{ color: line.startsWith('[OK]') ? 'var(--sig-green)' : line.startsWith('[FOUND]') ? 'var(--orange)' : line.startsWith('[ALERT]') ? 'var(--sig-red)' : 'var(--text-4)' }}>
+          {line}
+        </div>
+      ))}
+      <div style={{ display: 'inline-block', width: 8, height: 12, background: 'var(--orange)', animation: 'blink 1s step-end infinite', verticalAlign: 'middle' }} />
+    </div>
+  )
+}
+
+function ConfidenceBadge({ confidence }: { confidence: 'HIGH' | 'MEDIUM' | 'LOW' }) {
+  const map = {
+    HIGH:   { color: 'var(--sig-green)',  label: '● HIGH CONFIDENCE'   },
+    MEDIUM: { color: 'var(--sig-yellow)', label: '◐ MEDIUM CONFIDENCE' },
+    LOW:    { color: 'var(--text-3)',     label: '○ LOW CONFIDENCE'    },
+  }
+  const { color, label } = map[confidence]
+  return (
+    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 10px', border: `1px solid ${color}`, color, letterSpacing: 1 }}>
+      {label}
+    </div>
+  )
+}
+
+function Tags({ label, items, color }: { label: string; items: string[]; color?: string }) {
+  const filtered = (items || []).filter(Boolean)
+  if (!filtered.length) return null
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 16, marginBottom: 14, alignItems: 'start' }}>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 1, paddingTop: 5 }}>{label}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        {filtered.map((item, i) => (
+          <span key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, padding: '3px 10px', border: `1px solid ${color || 'var(--border)'}`, color: color || 'var(--text-1)', letterSpacing: 0.5 }}>{item}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value || value === 'Not found in scan' || value === 'Not found') return null
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 16, marginBottom: 14, alignItems: 'start' }}>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 1, paddingTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6 }}>{value}</div>
+    </div>
+  )
+}
+
+// ─── PERSONAL HOOKS (was DAVID) ───────────────────────────────────────────────
+
+function HooksSection({ hooks }: { hooks: PersonalHook[] }) {
+  const [showMed, setShowMed] = useState(false)
+  const high    = hooks.filter(h => h.usability === 'HIGH')
+  const med     = hooks.filter(h => h.usability === 'MED')
+  const visible = showMed ? [...high, ...med] : high
+
+  if (hooks.length === 0) return (
+    <div style={{ padding: '20px 0', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-4)' }}>
+      NO PERSONAL HOOKS FOUND — public record too sparse for outreach intelligence
+    </div>
+  )
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 1 }}>
+          {high.length} HIGH USABILITY · {med.length} SUPPORTING
         </div>
         {med.length > 0 && (
-          <button onClick={() => setShowMed(v => !v)} className="btn-ghost" style={{ fontSize: 11 }}>
-            {showMed ? 'Hide supporting' : `+${med.length} supporting`}
+          <button onClick={() => setShowMed(v => !v)}
+            style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-3)', fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, padding: '4px 10px', cursor: 'pointer' }}>
+            {showMed ? 'HIDE SUPPORTING ▲' : `+${med.length} SUPPORTING ▼`}
           </button>
         )}
       </div>
-      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flex: 1 }}>
-        {visible.length === 0 ? (
-          <div style={{ fontSize: 13, color: 'var(--text-3)' }}>No high-usability facts found.{med.length > 0 ? ' Show supporting to see context.' : ''}</div>
-        ) : visible.map((fact, i) => {
-          const src = SOURCE_LABELS[fact.source] || SOURCE_LABELS.OTHER
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {visible.map((hook, i) => {
+          const src = SOURCE_CONFIG[hook.source] || SOURCE_CONFIG.OTHER
           return (
-            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 13px', background: fact.usability === 'HIGH' ? 'var(--orange-dim)' : 'var(--bg)', borderLeft: `3px solid ${fact.usability === 'HIGH' ? 'var(--orange)' : 'var(--border)'}`, borderRadius: '0 var(--radius) var(--radius) 0', animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
+            <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 16px', background: hook.usability === 'HIGH' ? 'rgba(255,85,0,0.05)' : 'var(--bg)', border: `1px solid ${hook.usability === 'HIGH' ? 'rgba(255,85,0,0.25)' : 'var(--border)'}`, borderLeft: `3px solid ${hook.usability === 'HIGH' ? 'var(--orange)' : 'var(--border)'}`, animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0, alignItems: 'center', paddingTop: 2 }}>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '1px 5px', border: `1px solid ${src.color}40`, color: src.color, letterSpacing: 1, borderRadius: 2 }}>{src.label}</span>
-                {fact.recency === 'RECENT' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--sig-green)', letterSpacing: 1 }}>RECENT</span>}
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '1px 5px', border: `1px solid ${src.color}40`, color: src.color, letterSpacing: 1 }}>{src.label}</span>
+                {hook.recency === 'RECENT' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--sig-green)', letterSpacing: 1 }}>RECENT</span>}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6, marginBottom: fact.raw_quote ? 5 : 0 }}>{fact.fact}</div>
-                {fact.raw_quote && (
-                  <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, borderLeft: '2px solid var(--border)', paddingLeft: 10, fontStyle: 'italic' }}>
-                    "{fact.raw_quote.slice(0, 140)}{fact.raw_quote.length > 140 ? '...' : ''}"
+                <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6, marginBottom: hook.raw_quote ? 6 : 0 }}>{hook.fact}</div>
+                {hook.raw_quote && (
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.5, borderLeft: '2px solid var(--border)', paddingLeft: 10, fontStyle: 'italic' }}>
+                    &ldquo;{hook.raw_quote.slice(0, 150)}{hook.raw_quote.length > 150 ? '...' : ''}&rdquo;
                   </div>
                 )}
               </div>
@@ -112,654 +156,658 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: {
         })}
       </div>
       {high.length > 0 && (
-        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)', flexShrink: 0 }}>
-          Opener tip — lead with a HIGH fact: "I was looking at your profile and noticed..."
+        <div style={{ marginTop: 12, fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 0.5 }}>
+          OPENER TIP — lead with a HIGH fact: &ldquo;I was looking at your profile and noticed...&rdquo;
         </div>
       )}
     </div>
   )
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ─── AFFILIATION SIGNAL CARD ──────────────────────────────────────────────────
 
-function findSourceEvidence(entity: string, debugEntries: SerpDebugEntry[], directProofUrl?: string | null): { url: string; title: string } | null {
-  if (directProofUrl) return { url: directProofUrl, title: 'View source ↗' }
-  const entityLower = entity.toLowerCase()
-  for (const entry of debugEntries) {
-    for (const r of entry.results) {
-      if (!r.url) continue
-      if (`${r.title} ${r.snippet}`.toLowerCase().includes(entityLower)) return { url: r.url, title: r.title || 'View source' }
-    }
-  }
-  return null
-}
-
-// ── Chain Signal Row ──────────────────────────────────────────────────────────
-
-function ChainSignalRow({ signal, debugEntries }: { signal: ChainSignal; debugEntries?: SerpDebugEntry[] }) {
-  const cfg      = TIER_CONFIG[signal.tier]
-  const evidence = debugEntries ? findSourceEvidence(signal.entity, debugEntries) : null
+function AffiliationCard({ signal }: { signal: AffiliationSignal }) {
+  const t = TREE_DISPLAY[signal.tree]
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 12px', marginBottom: 4, background: signal.tier === 'HIGH' ? 'var(--sig-green-dim)' : 'var(--bg)', borderLeft: `2px solid ${signal.tier === 'HIGH' ? 'var(--sig-green)' : 'var(--border)'}`, borderRadius: '0 var(--radius) var(--radius) 0' }}>
-      <span style={{ flexShrink: 0, marginTop: 2, fontFamily: "'DM Mono', monospace", fontSize: 8, color: cfg.color, border: `1px solid ${cfg.borderColor}`, padding: '1px 5px', letterSpacing: 1.5, lineHeight: 1.8 }}>{cfg.label}</span>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 12, color: 'var(--text-1)', lineHeight: 1.5 }}>{signal.text}</div>
-        {evidence && <a href={evidence.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 3, fontSize: 11, color: 'var(--sig-green)', textDecoration: 'none' }}>↗ {evidence.title.slice(0, 70)}</a>}
+    <div style={{ padding: '20px 24px', background: `${t.dim}`, border: `1px solid ${t.border}`, borderLeft: `4px solid ${t.color}`, animation: 'slideIn 0.3s ease both' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: t.color, letterSpacing: 2 }}>⚑ AFFILIATION SIGNAL DETECTED</span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 8px', border: `1px solid ${t.border}`, color: 'var(--text-3)', letterSpacing: 1 }}>
+          FROM {signal.source.toUpperCase()}
+        </span>
+      </div>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: t.color, letterSpacing: 2, marginBottom: 12 }}>
+        {t.label}
+      </div>
+      <div style={{ padding: '10px 14px', background: 'var(--bg)', borderLeft: `2px solid ${t.border}`, marginBottom: 12 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--text-4)', letterSpacing: 2, marginBottom: 4 }}>MATCHED PHRASE</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: t.color, letterSpacing: 1 }}>&ldquo;{signal.matched_phrase}&rdquo;</div>
+      </div>
+      {signal.context && (
+        <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6, fontStyle: 'italic', marginBottom: 10 }}>
+          ...{signal.context}...
+        </div>
+      )}
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 0.5, lineHeight: 1.8 }}>
+        Explicit brand language found in verified evidence. This is not a prediction — this exact phrase appears in their public record.
       </div>
     </div>
   )
 }
 
-// ── Chain Section ─────────────────────────────────────────────────────────────
+// ─── SERP DEBUG ENTRY ─────────────────────────────────────────────────────────
 
-function ChainSection({ result }: { result: ScanResult }) {
-  const [expanded, setExpanded] = useState(false)
-  const signals        = result.predicted_sub_imo_signals || []
-  const grouped        = groupSignals(signals)
-  const visibleSignals = [...grouped.high, ...grouped.med]
-  const debugEntries   = result.serp_debug || undefined
-  if (visibleSignals.length === 0 && !result.predicted_sub_imo && !result.unresolved_upline) return null
-  const partnerEvidence = result.predicted_sub_imo && debugEntries ? findSourceEvidence(result.predicted_sub_imo, debugEntries, result.predicted_sub_imo_proof_url) : result.predicted_sub_imo_proof_url ? { url: result.predicted_sub_imo_proof_url, title: 'View source ↗' } : null
+function SerpEntry({ entry, agentName }: { entry: AgentSerpDebugEntry; agentName: string }) {
+  const [open, setOpen] = useState(false)
+  const hasResults = (entry.results || []).length > 0
+  const label = SERP_KEY_LABELS[entry.key] || entry.key.toUpperCase()
+
   return (
-    <div style={{ padding: '18px 0', borderTop: '1px solid var(--border)', marginTop: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 0.5, textTransform: 'uppercase' }}>Upline Intelligence</div>
-        {visibleSignals.length > 0 && (
-          <button onClick={() => setExpanded(v => !v)} className="btn-ghost" style={{ fontSize: 11 }}>
-            {expanded ? 'Collapse' : `Show all signals (${visibleSignals.length})`}
-          </button>
-        )}
+    <div style={{ border: '1px solid var(--border)', background: 'var(--bg)' }}>
+      <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer' }}>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: hasResults ? 'var(--sig-green)' : 'var(--text-4)', minWidth: 16 }}>{hasResults ? '●' : '○'}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)', minWidth: 140 }}>{label}</span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.query}</span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: hasResults ? 'var(--sig-green)' : 'var(--text-4)', minWidth: 80, textAlign: 'right' }}>
+          {entry.results.length} results
+        </span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', marginLeft: 8 }}>{open ? '▲' : '▼'}</span>
       </div>
-      {result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 && (
-        <div style={{ marginBottom: visibleSignals.length > 0 ? 14 : 0, padding: '14px 16px', background: result.prediction_source === 'chain_resolver' ? 'var(--sig-green-dim)' : 'var(--bg)', border: `1px solid ${result.prediction_source === 'chain_resolver' ? 'var(--sig-green-border)' : 'var(--border)'}`, borderLeft: `3px solid ${result.prediction_source === 'chain_resolver' ? 'var(--sig-green)' : 'var(--border-strong)'}`, borderRadius: '0 var(--radius) var(--radius) 0' }}>
-          <div style={{ fontSize: 11, color: result.prediction_source === 'chain_resolver' ? 'var(--sig-green)' : 'var(--text-3)', marginBottom: 6, fontWeight: 600 }}>{result.prediction_source === 'chain_resolver' ? '● UPLINE-SOURCED · THIS IS WHY WE KNOW' : 'PREDICTED SUB-IMO'}</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: 'var(--sig-green)', letterSpacing: 2, marginBottom: partnerEvidence ? 8 : 0 }}>{result.predicted_sub_imo}</div>
-          {partnerEvidence && <a href={partnerEvidence.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontSize: 12, color: 'var(--sig-green)', textDecoration: 'none', marginBottom: 8 }}>↗ {partnerEvidence.title.slice(0, 70)}</a>}
-          {result.predicted_sub_imo_confidence != null && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-              <div style={{ width: 120, height: 4, background: 'var(--border)', borderRadius: 2, position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${result.predicted_sub_imo_confidence}%`, background: 'var(--sig-green)', borderRadius: 2, transition: 'width 0.8s ease' }} />
+      {open && (
+        <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {hasResults ? entry.results.map((r, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '16px 1fr', gap: 10 }}>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--sig-green)', paddingTop: 2 }}>◈</span>
+              <div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 3, alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{r.title}</span>
+                  {r.link && <a href={r.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 12, color: 'var(--orange)', textDecoration: 'none' }}>↗</a>}
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', lineHeight: 1.6 }}>{r.snippet}</div>
               </div>
-              <span style={{ fontSize: 13, color: 'var(--sig-green)', fontWeight: 600 }}>{result.predicted_sub_imo_confidence}%</span>
+            </div>
+          )) : (
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-4)' }}>
+              {(entry.signals_fired || []).join(' · ') || 'No results'}
             </div>
           )}
         </div>
       )}
-      {result.unresolved_upline && (
-        <div style={{ marginBottom: visibleSignals.length > 0 ? 12 : 0, padding: '14px 16px', background: 'var(--sig-yellow-dim)', border: '1px solid var(--sig-yellow-border)', borderLeft: '3px solid var(--sig-yellow)', borderRadius: '0 var(--radius) var(--radius) 0' }}>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 6, fontWeight: 600 }}>UNRESOLVED UPLINE · NOT IN NETWORK MAP</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: 'var(--sig-yellow)', letterSpacing: 2, marginBottom: 6 }}>{result.unresolved_upline}</div>
-          {result.unresolved_upline_evidence && <div style={{ fontSize: 12, color: 'var(--text-2)', fontStyle: 'italic', marginBottom: 6, lineHeight: 1.6 }}>"{result.unresolved_upline_evidence}"</div>}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {result.unresolved_upline_source_url && <a href={result.unresolved_upline_source_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--sig-yellow)', textDecoration: 'none' }}>↗ View source</a>}
-            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{result.unresolved_upline_confidence} confidence</span>
-          </div>
-        </div>
-      )}
-      {visibleSignals.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: expanded ? 12 : 0, flexWrap: 'wrap' }}>
-          {grouped.high.length > 0 && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.HIGH.borderColor}`, color: TIER_CONFIG.HIGH.color, letterSpacing: 1, borderRadius: 2 }}>{grouped.high.length} HIGH</div>}
-          {grouped.med.length > 0  && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, padding: '3px 10px', border: `1px solid ${TIER_CONFIG.MED.borderColor}`,  color: TIER_CONFIG.MED.color,  letterSpacing: 1, borderRadius: 2 }}>{grouped.med.length} MED</div>}
-        </div>
-      )}
-      {expanded && visibleSignals.length > 0 && (
-        <div style={{ marginTop: 8 }}>
-          {grouped.high.map((s, i) => <ChainSignalRow key={`h${i}`} signal={s} debugEntries={debugEntries} />)}
-          {grouped.med.map((s, i)  => <ChainSignalRow key={`m${i}`} signal={s} debugEntries={debugEntries} />)}
-        </div>
-      )}
     </div>
   )
 }
 
-// ── Scan Progress ─────────────────────────────────────────────────────────────
+// ─── RESULT CARD ──────────────────────────────────────────────────────────────
 
-function ScanProgress({ currentStep, agencyName }: { currentStep: number; agencyName: string }) {
-  return (
-    <div style={{ padding: '32px 28px', animation: 'slideIn 0.3s ease both' }}>
-      <div style={{ fontSize: 11, color: 'var(--text-4)', letterSpacing: 2, marginBottom: 6, textTransform: 'uppercase' }}>Analyzing</div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: 'var(--text-1)', letterSpacing: 1, marginBottom: 28 }}>{agencyName}</div>
-
-      {/* Progress bar */}
-      <div style={{ height: 2, background: 'var(--border)', borderRadius: 1, overflow: 'hidden', marginBottom: 28 }}>
-        <div style={{ height: '100%', background: 'var(--sig-green)', borderRadius: 1, transition: 'width 0.5s ease', width: `${Math.round(((currentStep + 1) / LOADING_STEPS.length) * 100)}%` }} />
-      </div>
-
-      {/* Steps */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {LOADING_STEPS.map((step, i) => {
-          const done    = i < currentStep
-          const active  = i === currentStep
-          return (
-            <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.3s' }}>
-              <div style={{
-                width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: done ? 'var(--sig-green-dim)' : active ? 'var(--bg-card)' : 'transparent',
-                border: `1px solid ${done ? 'var(--sig-green-border)' : active ? 'var(--border-strong)' : 'var(--border)'}`,
-                transition: 'all 0.3s',
-              }}>
-                {done
-                  ? <span style={{ fontSize: 10, color: 'var(--sig-green)' }}>✓</span>
-                  : active
-                  ? <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite' }} />
-                  : <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--border-strong)' }} />
-                }
-              </div>
-              <span style={{
-                fontSize: 13,
-                color: done ? 'var(--sig-green)' : active ? 'var(--text-1)' : 'var(--text-4)',
-                fontWeight: active ? 500 : 400,
-                transition: 'color 0.3s',
-              }}>{step}</span>
-              {done && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--sig-green)', opacity: 0.7 }}>done</span>}
-              {active && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--orange)' }}>running...</span>}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── DAVID Waiting State ───────────────────────────────────────────────────────
-
-function DavidWaiting({ deepScanStatus }: { deepScanStatus: 'idle' | 'polling' | 'complete' | 'timeout' }) {
-  return (
-    <div style={{ padding: '32px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, opacity: 0.6 }}>
-      <div style={{ fontSize: 32, color: 'var(--orange)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2 }}>DAVID</div>
-      {deepScanStatus === 'polling' ? (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite' }} />
-            <span style={{ fontSize: 13, color: 'var(--orange)' }}>Pulling social data...</span>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', maxWidth: 200, lineHeight: 1.6 }}>Facebook + YouTube enrichment in progress. Facts will appear when ready.</div>
-        </>
-      ) : (
-        <div style={{ fontSize: 13, color: 'var(--text-3)', textAlign: 'center', maxWidth: 200, lineHeight: 1.6 }}>Personal intel will appear here after the scan completes.</div>
-      )}
-    </div>
-  )
-}
-
-// ── Result Panel ──────────────────────────────────────────────────────────────
-
-function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfirmedTrees, confirmedOther, setConfirmedOther, subImo, setSubImo, recruiterNotes, setRecruiterNotes, saveState, onSave }: {
-  result: ScanResult; agencyName: string; city: string; state: string
-  confirmedTrees: string[]; setConfirmedTrees: (v: string[]) => void
-  confirmedOther: string; setConfirmedOther: (v: string) => void
-  subImo: string; setSubImo: (v: string) => void
-  recruiterNotes: string; setRecruiterNotes: (v: string) => void
-  saveState: 'idle' | 'saving' | 'saved'; onSave: () => void
+function ResultCard({
+  profile, affiliationSignal, agentName, city, state,
+  recruiterNotes, setRecruiterNotes, saveState, onSave,
+}: {
+  profile: AgentProfile
+  affiliationSignal: AffiliationSignal | null
+  agentName: string
+  city: string
+  state: string
+  recruiterNotes: string
+  setRecruiterNotes: (v: string) => void
+  saveState: 'idle' | 'saving' | 'saved'
+  onSave: () => void
 }) {
-  const confirmedKey  = confirmedTrees.length > 0 && confirmedTrees[0] !== 'other' ? confirmedTrees[0] : null
-  const displayTree   = confirmedKey || result.predicted_tree
-  const isConfirmed   = confirmedTrees.length > 0
-  const stage         = getStage(result.confidence, displayTree)
-  const treeLabel     = confirmedKey
-    ? (TREE_LABELS[confirmedKey] || confirmedKey.toUpperCase())
-    : confirmedTrees.includes('other') && confirmedOther
-    ? confirmedOther.toUpperCase()
-    : TREE_LABELS[result.predicted_tree] || 'UNCLASSIFIED'
-  const treeColor  = TREE_COLOR[displayTree]  || 'var(--text-3)'
-  const treeBorder = TREE_BORDER[displayTree] || 'var(--border)'
-  const treeDim    = TREE_DIM[displayTree]    || 'transparent'
-  const isUnknown  = displayTree === 'unknown' && !isConfirmed
+  const [activeTab, setActiveTab] = useState<'brief' | 'hooks' | 'community' | 'recruiting' | 'career' | 'sources'>('brief')
+
+  const hasProduction = (profile.production.awards.length + profile.production.recognitions.length + profile.production.credentials.length) > 0
+  const hasHooks      = profile.personal_hooks.length > 0
+  const hasCommunity  = (profile.community.local_ties.length + profile.community.press_mentions.length) > 0 || profile.community.reputation_notes
+  const hasCareer     = profile.career.background || profile.career.notable_history.length > 0
+
+  const TABS = [
+    { key: 'brief',      label: 'INTEL BRIEF' },
+    { key: 'hooks',      label: `PERSONAL HOOKS${hasHooks ? ` (${profile.personal_hooks.filter(h => h.usability === 'HIGH').length} HIGH)` : ''}` },
+    { key: 'community',  label: 'COMMUNITY' },
+    { key: 'recruiting', label: profile.recruiting.actively_recruiting ? '● RECRUITING' : 'RECRUITING' },
+    { key: 'career',     label: 'CAREER' },
+    { key: 'sources',    label: 'SOURCES' },
+  ] as const
 
   return (
     <div style={{ animation: 'slideIn 0.3s ease both' }}>
-      <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 10, fontWeight: 500, letterSpacing: 0.3 }}>
-        REPORT: {agencyName.toUpperCase()}{city ? ` · ${city.toUpperCase()}, ${state.toUpperCase()}` : ''}
+
+      {/* Identity header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--text-1)', letterSpacing: 2, lineHeight: 1 }}>
+            {profile.display_name || agentName}
+          </div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 1, marginTop: 5, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {city && state && <span>{city.toUpperCase()}, {state.toUpperCase()}</span>}
+            {profile.owner_name && <span>· {profile.owner_name}</span>}
+            {profile.years_in_business && <span>· {profile.years_in_business}</span>}
+            {profile.website && <a href={`https://${profile.website}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--orange)', textDecoration: 'none' }}>· {profile.website} ↗</a>}
+            {profile.facebook_profile_url && <a href={profile.facebook_profile_url} target="_blank" rel="noopener noreferrer" style={{ color: '#4267B2', textDecoration: 'none' }}>· Facebook ↗</a>}
+          </div>
+        </div>
+        <ConfidenceBadge confidence={profile.data_confidence} />
       </div>
 
-      {/* Verdict card */}
-      <div style={{ background: 'var(--bg-card)', border: `1px solid ${treeBorder}`, borderLeft: `4px solid ${treeColor}`, borderRadius: 'var(--radius)' }}>
+      {/* Overview */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: '3px solid var(--sig-green)', padding: '20px 28px', marginBottom: 2 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 10 }}>OVERVIEW</div>
+        <p style={{ fontSize: 14, color: 'var(--text-1)', lineHeight: 1.7, margin: 0 }}>{profile.overview}</p>
+      </div>
 
-        {/* Verdict header */}
-        <div style={{ padding: '20px 24px', background: isUnknown ? 'transparent' : treeDim, borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' }}>Affiliation Detected</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isUnknown ? 28 : 44, color: treeColor, letterSpacing: 3, lineHeight: 1 }}>{treeLabel}</div>
-              {isConfirmed && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--sig-green)', border: '1px solid var(--sig-green-border)', background: 'var(--sig-green-dim)', padding: '2px 8px', letterSpacing: 1, borderRadius: 3 }}>✓ CONFIRMED</span>}
-              {!isConfirmed && result.predicted_tree !== 'unknown' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', border: '1px solid var(--border)', padding: '2px 8px', letterSpacing: 1, borderRadius: 3 }}>PREDICTED</span>}
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 2, marginTop: 2, flexWrap: 'wrap' }}>
+        {TABS.map(tab => (
+          <div key={tab.key} onClick={() => setActiveTab(tab.key)}
+            style={{ padding: '10px 16px', background: activeTab === tab.key ? 'var(--bg-card)' : 'transparent', border: `1px solid ${activeTab === tab.key ? 'var(--sig-green)' : 'var(--border)'}`, fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: activeTab === tab.key ? 600 : 400, letterSpacing: 0.5, cursor: 'pointer', color: activeTab === tab.key ? 'var(--sig-green)' : tab.key === 'recruiting' && profile.recruiting.actively_recruiting ? 'var(--sig-green)' : 'var(--text-2)', transition: 'all 0.15s', whiteSpace: 'nowrap', borderRadius: 'var(--radius)' }}>
+            {tab.label}
+          </div>
+        ))}
+      </div>
+
+      {/* ── INTEL BRIEF ── */}
+      {activeTab === 'brief' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 20 }}>INTEL BRIEF</div>
+
+          {/* Production highlight */}
+          {hasProduction && (
+            <div style={{ marginBottom: 20, padding: '16px 20px', background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.15)' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--sig-green)', letterSpacing: 2, marginBottom: 10 }}>PRODUCTION RECORD</div>
+              {profile.production.awards.length > 0 && <Tags label="Awards" items={profile.production.awards} color="var(--sig-green)" />}
+              {profile.production.recognitions.length > 0 && <Tags label="Recognitions" items={profile.production.recognitions} />}
+              {profile.production.credentials.length > 0 && <Tags label="Credentials" items={profile.production.credentials} />}
             </div>
-            {!isUnknown && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 200, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${result.confidence}%`, background: treeColor, borderRadius: 3, transition: 'width 0.8s ease' }} />
+          )}
+
+          {/* Recruiting status */}
+          <div style={{ marginBottom: 20, padding: '14px 18px', background: profile.recruiting.actively_recruiting ? 'rgba(0,230,118,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${profile.recruiting.actively_recruiting ? 'var(--sig-green-border)' : 'var(--border)'}` }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: profile.recruiting.actively_recruiting ? 'var(--sig-green)' : 'var(--text-4)' }}>
+              {profile.recruiting.actively_recruiting ? '● Actively building a downline' : '○ No active recruiting signals'}
+            </span>
+          </div>
+
+          {/* Community snapshot */}
+          {hasCommunity && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 10 }}>COMMUNITY PRESENCE</div>
+              {profile.community.local_ties.slice(0, 3).map((tie, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                  <span style={{ color: 'var(--orange)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>→</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.5 }}>{tie}</span>
                 </div>
-                <span style={{ fontSize: 14, color: treeColor, fontWeight: 700 }}>{result.confidence}% confidence</span>
+              ))}
+            </div>
+          )}
+
+          <Row label="Confidence Note" value={profile.confidence_note} />
+          <Row label="Pages Crawled"   value={profile.pages_crawled.join(', ') || null} />
+
+          {/* Affiliation signal card — last, visually distinct */}
+          {affiliationSignal && (
+            <div style={{ marginTop: 24 }}>
+              <AffiliationCard signal={affiliationSignal} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── PERSONAL HOOKS ── */}
+      {activeTab === 'hooks' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 4 }}>PERSONAL HOOKS</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 0.5, marginBottom: 20 }}>
+            Facts to open a conversation that feels like research, not a cold call
+          </div>
+          <HooksSection hooks={profile.personal_hooks} />
+        </div>
+      )}
+
+      {/* ── COMMUNITY ── */}
+      {activeTab === 'community' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 20 }}>COMMUNITY PRESENCE</div>
+          {profile.community.local_ties.length > 0 ? (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>LOCAL TIES</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {profile.community.local_ties.map((tie, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderLeft: '2px solid var(--orange)' }}>
+                    <span style={{ color: 'var(--orange)', flexShrink: 0, marginTop: 2, fontSize: 10 }}>→</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.5 }}>{tie}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {profile.community.press_mentions.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>PRESS MENTIONS</div>
+              {profile.community.press_mentions.map((p, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <span style={{ color: 'var(--sig-green)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>◈</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.5 }}>{p}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <Row label="Reputation" value={profile.community.reputation_notes} />
+          {!hasCommunity && (
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-4)', padding: '20px 0' }}>
+              No community presence found in public record.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── RECRUITING ── */}
+      {activeTab === 'recruiting' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 20 }}>RECRUITING POSTURE</div>
+          <div style={{ marginBottom: 20, padding: '14px 18px', background: profile.recruiting.actively_recruiting ? 'rgba(0,230,118,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${profile.recruiting.actively_recruiting ? 'var(--sig-green-border)' : 'var(--border)'}` }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: profile.recruiting.actively_recruiting ? 'var(--sig-green)' : 'var(--text-3)' }}>
+              {profile.recruiting.actively_recruiting ? '● Actively building a downline' : '○ No active recruiting signals found'}
+            </span>
+          </div>
+          {profile.recruiting.signals.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>EVIDENCE</div>
+              {profile.recruiting.signals.map((s, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                  <span style={{ color: 'var(--sig-green)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>→</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.5 }}>{s}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <Row label="Target Profile" value={profile.recruiting.target_profile} />
+        </div>
+      )}
+
+      {/* ── CAREER ── */}
+      {activeTab === 'career' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 20 }}>CAREER CONTEXT</div>
+          <Row label="Background" value={profile.career.background} />
+          {profile.career.notable_history.length > 0 && (
+            <div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>NOTABLE HISTORY</div>
+              {profile.career.notable_history.map((h, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <span style={{ color: 'var(--text-3)', flexShrink: 0, fontSize: 10, marginTop: 3 }}>→</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.5 }}>{h}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {!hasCareer && (
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-4)', padding: '20px 0' }}>
+              No career history found in public record.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── SOURCES ── */}
+      {activeTab === 'sources' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '28px 32px' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 20 }}>EVIDENCE TRAIL</div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>WEBSITE</div>
+            {profile.pages_crawled.length > 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(0,230,118,0.04)', border: '1px solid rgba(0,230,118,0.15)', padding: '10px 16px' }}>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--sig-green)' }}>● FOUND</span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-2)' }}>{profile.pages_crawled.length} pages: {profile.pages_crawled.join(', ')}</span>
+              </div>
+            ) : (
+              <div style={{ background: 'rgba(255,23,68,0.04)', border: '1px solid rgba(255,23,68,0.15)', padding: '10px 16px', fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)' }}>
+                ○ NO SITE CRAWLED — Intel is SERP-only
               </div>
             )}
           </div>
-          <div style={{ textAlign: 'center', padding: '0 8px' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>Confidence Stage</div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 64, color: isUnknown ? 'var(--text-4)' : treeColor, letterSpacing: 2, lineHeight: 1 }}>{stage?.roman || '—'}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, fontWeight: 500 }}>{stage?.label || 'INDETERMINATE'}</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>SERP QUERIES</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {(profile.serp_debug || []).map((entry, ei) => (
+              <SerpEntry key={ei} entry={entry} agentName={agentName} />
+            ))}
           </div>
         </div>
+      )}
 
-        {/* Reasoning */}
-        {result.reasoning && !isUnknown && (
-          <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{result.reasoning}</div>
-        )}
-
-        {/* Affiliation signals */}
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 0.5, marginBottom: 12, textTransform: 'uppercase' }}>Affiliation Signals</div>
-          {(result.signals_used || []).length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {(result.signals_used || []).map((sig, i) => (
-                <div key={i} style={{ fontSize: 13, color: 'var(--text-1)', display: 'flex', gap: 10, lineHeight: 1.5 }}>
-                  <span style={{ color: treeColor, flexShrink: 0 }}>▸</span><span>{sig}</span>
-                </div>
-              ))}
-              {result.facebook_profile_url && (
-                <div style={{ fontSize: 13, color: 'var(--text-1)', display: 'flex', gap: 10 }}>
-                  <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>▸</span>
-                  <a href={result.facebook_profile_url} target="_blank" rel="noopener noreferrer" style={{ color: '#4267B2', textDecoration: 'none' }}>Facebook profile ↗</a>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div style={{ fontSize: 13, color: 'var(--text-3)' }}>No strong markers detected.</div>
-          )}
-        </div>
-
-        {/* Upline intel */}
-        <div style={{ padding: '0 24px' }}><ChainSection result={result} /></div>
-
-        {/* Field observation */}
-        <div style={{ padding: '18px 24px', background: 'var(--bg)', borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 14 }}>Field Observation Log</div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5 }}>Confirm tree — select all that apply</div>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-            {(['integrity', 'amerilife', 'sms', 'other'] as const).map(t => {
-              const active = confirmedTrees.includes(t)
-              const c = TREE_COLOR[t] || 'var(--text-2)'
-              const b = TREE_BORDER[t] || 'var(--border)'
-              const d = TREE_DIM[t] || 'transparent'
-              return (
-                <button key={t} onClick={() => setConfirmedTrees(confirmedTrees.includes(t) ? confirmedTrees.filter(x => x !== t) : [...confirmedTrees, t])}
-                  style={{ background: active ? d : 'transparent', border: `1px solid ${active ? c : 'var(--border-strong)'}`, color: active ? c : 'var(--text-2)', fontSize: 12, fontWeight: active ? 600 : 400, padding: '8px 16px', cursor: 'pointer', transition: 'all 0.12s', textTransform: 'uppercase', borderRadius: 'var(--radius)' }}>
-                  {active && '✓ '}{t === 'integrity' ? 'Integrity' : t === 'amerilife' ? 'AmeriLife' : t === 'sms' ? 'SMS' : 'Other'}
-                </button>
-              )
-            })}
-          </div>
-          {confirmedTrees.includes('other') && (
-            <input value={confirmedOther} onChange={e => setConfirmedOther(e.target.value)} placeholder="FMO name..."
-              style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '10px 14px', marginBottom: 10, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-1)', fontSize: 13, outline: 'none', borderRadius: 'var(--radius)' }} />
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-            <input value={subImo} onChange={e => setSubImo(e.target.value)}
-              placeholder={result.predicted_sub_imo && (result.predicted_sub_imo_confidence ?? 0) >= 45 ? `Confirm: ${result.predicted_sub_imo}` : 'Sub-IMO / affiliate...'}
-              style={{ padding: '10px 14px', fontSize: 13, background: 'var(--bg-card)', border: `1px solid ${result.predicted_sub_imo && !subImo ? 'var(--sig-green-border)' : 'var(--border)'}`, color: 'var(--text-1)', outline: 'none', borderRadius: 'var(--radius)' }} />
-            <input value={recruiterNotes} onChange={e => setRecruiterNotes(e.target.value)} placeholder="Field notes..."
-              style={{ padding: '10px 14px', fontSize: 13, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-1)', outline: 'none', borderRadius: 'var(--radius)' }} />
-          </div>
-          <button onClick={onSave} disabled={saveState === 'saving'}
-            style={{ padding: '10px 22px', background: saveState === 'saved' ? 'var(--sig-green-dim)' : 'var(--bg-card)', border: `1px solid ${saveState === 'saved' ? 'var(--sig-green-border)' : 'var(--border-strong)'}`, color: saveState === 'saved' ? 'var(--sig-green)' : 'var(--text-1)', fontSize: 13, fontWeight: 600, cursor: saveState === 'saving' ? 'default' : 'pointer', transition: 'all 0.2s', borderRadius: 'var(--radius)' }}>
-            {saveState === 'saved' ? '✓ Observation logged · click to update' : saveState === 'saving' ? 'Logging...' : 'Log observation'}
-          </button>
-        </div>
+      {/* Field notes */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '20px 28px', marginTop: 2 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 12 }}>FIELD NOTES</div>
+        <textarea
+          value={recruiterNotes}
+          onChange={e => setRecruiterNotes(e.target.value)}
+          placeholder="Log what you know about this agent — call notes, what you heard from the field, confirmed details..."
+          rows={3}
+          style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', marginBottom: 10, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-1)', fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6, borderRadius: 'var(--radius)' }}
+        />
+        <button onClick={onSave} disabled={saveState === 'saving'}
+          style={{ padding: '10px 22px', background: saveState === 'saved' ? 'var(--sig-green-dim)' : 'var(--bg)', border: `1px solid ${saveState === 'saved' ? 'var(--sig-green-border)' : 'var(--border-strong)'}`, color: saveState === 'saved' ? 'var(--sig-green)' : 'var(--text-1)', fontSize: 13, fontWeight: 600, cursor: saveState === 'saving' ? 'default' : 'pointer', transition: 'all 0.2s', borderRadius: 'var(--radius)' }}>
+          {saveState === 'saved' ? '✓ Notes saved · click to update' : saveState === 'saving' ? 'Saving...' : 'Save notes'}
+        </button>
       </div>
     </div>
   )
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-
-export default function AnathemaDashboardPage() {
-  return (
-    <Suspense fallback={<div style={{ padding: '60px 40px', color: 'var(--text-3)', fontSize: 13 }}>Loading...</div>}>
-      <AnathemaDashboardInner />
-    </Suspense>
-  )
-}
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 function AnathemaDashboardInner() {
-  const [agencyName, setAgencyName]         = useState('')
+  const searchParams = useSearchParams()
+
+  const [agentName, setAgentName]           = useState('')
   const [website, setWebsite]               = useState('')
   const [city, setCity]                     = useState('')
   const [state, setState]                   = useState('')
   const [scanning, setScanning]             = useState(false)
   const [currentStep, setCurrentStep]       = useState(-1)
-  const [result, setResult]                 = useState<ScanResult | null>(null)
+  const [logLines, setLogLines]             = useState<string[]>([])
+  const [profile, setProfile]               = useState<AgentProfile | null>(null)
+  const [affiliationSignal, setAffiliation] = useState<AffiliationSignal | null>(null)
   const [error, setError]                   = useState('')
-  const [confirmedTrees, setConfirmedTrees] = useState<string[]>([])
-  const [confirmedOther, setConfirmedOther] = useState('')
-  const [subImo, setSubImo]                 = useState('')
   const [recruiterNotes, setRecruiterNotes] = useState('')
   const [saveState, setSaveState]           = useState<'idle' | 'saving' | 'saved'>('idle')
-  const [davidFacts, setDavidFacts]         = useState<DavidFact[] | null>(null)
-  const [deepScanStatus, setDeepScanStatus] = useState<'idle' | 'polling' | 'complete' | 'timeout'>('idle')
   const [specimenId, setSpecimenId]         = useState<string | null>(null)
   const [specimens, setSpecimens]           = useState<any[]>([])
   const [specimenPage, setSpecimenPage]     = useState(0)
-  const SPECIMENS_PER_PAGE = 5
+  const SPECIMENS_PER_PAGE = 6
 
-  const timerRef     = useRef<NodeJS.Timeout | null>(null)
-  const pollRef      = useRef<NodeJS.Timeout | null>(null)
-  const searchParams = useSearchParams()
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  function addLog(line: string) { setLogLines(prev => [...prev.slice(-50), line]) }
 
   useEffect(() => {
     const name = searchParams.get('name')
-    if (!name) return
-    setAgencyName(decodeURIComponent(name))
-    const c = searchParams.get('city'); const s = searchParams.get('state'); const u = searchParams.get('url')
-    if (c) setCity(decodeURIComponent(c))
-    if (s) setState(decodeURIComponent(s).toUpperCase().slice(0, 2))
-    if (u) setWebsite(decodeURIComponent(u))
+    if (name) setAgentName(decodeURIComponent(name))
+    const c = searchParams.get('city');  if (c) setCity(decodeURIComponent(c))
+    const s = searchParams.get('state'); if (s) setState(decodeURIComponent(s).toUpperCase().slice(0, 2))
+    const u = searchParams.get('url');   if (u) setWebsite(decodeURIComponent(u))
   }, [])
 
   useEffect(() => {
     const id = searchParams.get('id')
-    if (!id) return
-    async function loadScan() {
-      const res = await fetch(`/api/anathema?id=${id}`)
-      if (!res.ok) return
+    if (id) loadScan(id)
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/anathema')
+      .then(r => r.json())
+      .then(d => setSpecimens(d.specimens || []))
+      .catch(() => {})
+  }, [])
+
+  async function loadScan(id: string) {
+    try {
+      const res  = await fetch(`/api/anathema?id=${id}`)
       const data = await res.json()
       if (data.scan) {
         const s = data.scan
-        setAgencyName(s.agent_name || ''); setWebsite(s.url || ''); setCity(s.city || ''); setState(s.state || '')
-        if (s.analysis_json) setResult(s.analysis_json)
-        if (s.confirmed_tree) setConfirmedTrees(Array.isArray(s.confirmed_tree) ? s.confirmed_tree : s.confirmed_tree ? [s.confirmed_tree] : [])
-        if (s.confirmed_tree_other) setConfirmedOther(s.confirmed_tree_other)
-        if (s.sub_imo) setSubImo(s.sub_imo)
+        setAgentName(s.agent_name || '')
+        setCity(s.city || '')
+        setState(s.state || '')
+        setWebsite(s.agent_website || '')
+        if (s.analysis_json) setProfile({ ...s.analysis_json, serp_debug: s.serp_debug || [] })
+        if (s.affiliation_signal) setAffiliation(s.affiliation_signal)
         if (s.recruiter_notes) setRecruiterNotes(s.recruiter_notes)
-        if (s.david_facts?.facts) setDavidFacts(s.david_facts.facts)
+        setSpecimenId(id)
         setSaveState('saved')
       }
-    }
-    loadScan()
-  }, [searchParams])
-
-  useEffect(() => {
-    fetch('/api/specimens').then(r => r.json()).then(d => setSpecimens(d.specimens || [])).catch(() => {})
-  }, [])
-
-  function startDeepPolling(id: string) {
-    if (pollRef.current) clearInterval(pollRef.current)
-    setDeepScanStatus('polling')
-    const started = Date.now()
-    pollRef.current = setInterval(async () => {
-      if (Date.now() - started > 3 * 60 * 1000) { clearInterval(pollRef.current!); setDeepScanStatus('timeout'); return }
-      try {
-        const res = await fetch(`/api/anathema?id=${id}`); const data = await res.json()
-        const facts = data.scan?.david_facts?.facts ?? null
-        const sources: string[] = data.scan?.david_facts?.scan_sources_used || []
-        if (sources.some((s: string) => s.startsWith('APIFY_')) && facts) {
-          clearInterval(pollRef.current!); setDeepScanStatus('complete'); setDavidFacts(facts)
-        }
-      } catch {}
-    }, 5000)
-  }
-
-  async function runScan() {
-    if (!agencyName.trim() || scanning) return
-    setScanning(true); setResult(null); setError(''); setCurrentStep(0); setDavidFacts(null); setDeepScanStatus('idle'); setSpecimenId(null)
-    if (pollRef.current) clearInterval(pollRef.current)
-    if (saveState !== 'saved') { setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes('') }
-    setSaveState('idle')
-    let si = 0, li = 0
-    const STAGE_DELAYS = [300, 260, 260, 320, 260, 260, 260]
-    function tick() {
-      if (si >= LOADING_STEPS.length) return
-      setCurrentStep(si)
-      li = 0; si++
-      if (si < LOADING_STEPS.length) timerRef.current = setTimeout(tick, STAGE_DELAYS[si] || 300)
-    }
-    tick()
-    try {
-      const res  = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agent: { name: agencyName.trim(), website: website.trim() || null, city: city.trim(), state: state.trim().toUpperCase(), address: city && state ? `${city}, ${state}` : '', carriers: [], notes: '', about: null } }) })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      if (timerRef.current) clearTimeout(timerRef.current)
-      setCurrentStep(LOADING_STEPS.length - 1)
-      const davidFactsList: DavidFact[] = data.david_facts?.facts || []
-      setResult(data); setSaveState('idle')
-      if (data.predicted_sub_imo) setSubImo(data.predicted_sub_imo)
-      if (davidFactsList.length > 0) {
-        setDavidFacts(davidFactsList)
-        const savedRes  = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save_david_facts', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase(), david_facts: data.david_facts }) })
-        const savedData = await savedRes.json().catch(() => ({}))
-        if (savedData.id) { setSpecimenId(savedData.id); startDeepPolling(savedData.id) }
-        else {
-          setDeepScanStatus('polling')
-          setTimeout(async () => {
-            try {
-              const checkParams = new URLSearchParams({ name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() })
-              const checkRes  = await fetch(`/api/anathema?${checkParams}`)
-              const checkData = await checkRes.json()
-              if (checkData.specimen?.id) { setSpecimenId(checkData.specimen.id); startDeepPolling(checkData.specimen.id) }
-            } catch {}
-          }, 3000)
-        }
-      } else if (data.facebook_profile_url) {
-        setDeepScanStatus('polling')
-        setTimeout(async () => {
-          try {
-            const checkParams = new URLSearchParams({ name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase() })
-            const checkRes  = await fetch(`/api/anathema?${checkParams}`)
-            const checkData = await checkRes.json()
-            if (checkData.specimen?.id) { setSpecimenId(checkData.specimen.id); startDeepPolling(checkData.specimen.id) }
-          } catch {}
-        }, 3000)
-      }
-    } catch (err: any) {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      setError(err.message || 'Scan failed. Please try again.')
-    }
-    setScanning(false); setCurrentStep(-1)
-  }
-
-  async function logObservation() {
-    if (!result || saveState === 'saving') return
-    setSaveState('saving')
-    try {
-      const res = await fetch('/api/anathema', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'log_observation', agent_name: agencyName.trim(), city: city.trim(), state: state.trim().toUpperCase(), agent_website: website.trim() || null, agent_address: city && state ? `${city}, ${state}` : '', predicted_tree: result.predicted_tree, predicted_confidence: result.confidence, prediction_signals: result.signals_used, prediction_reasoning: result.reasoning, prediction_source: result.prediction_source || null, facebook_profile_url: result.facebook_profile_url, facebook_about: result.facebook_about, predicted_sub_imo: result.predicted_sub_imo || null, predicted_sub_imo_confidence: result.predicted_sub_imo_confidence || null, predicted_sub_imo_signals: result.predicted_sub_imo_signals || [], predicted_sub_imo_partner_id: result.predicted_sub_imo_partner_id || null, predicted_sub_imo_proof_url: result.predicted_sub_imo_proof_url || null, serp_debug: result.serp_debug || null, unresolved_upline: result.unresolved_upline || null, unresolved_upline_evidence: result.unresolved_upline_evidence || null, unresolved_upline_source_url: result.unresolved_upline_source_url || null, unresolved_upline_confidence: result.unresolved_upline_confidence || null, confirmed_tree: confirmedTrees.length === 1 ? confirmedTrees[0] : confirmedTrees.length > 1 ? confirmedTrees.join(',') : null, confirmed_tree_other: confirmedOther || null, confirmed_sub_imo: subImo || null, recruiter_notes: recruiterNotes || null, david_facts: davidFacts ? { facts: davidFacts } : null }) })
-      const data = await res.json()
-      if (!res.ok || !data.ok) { setSaveState('idle'); setError('Failed to save. Please try again.'); return }
-      setSaveState('saved')
-      fetch('/api/specimens').then(r => r.json()).then(d => setSpecimens(d.specimens || [])).catch(() => {})
-    } catch { setSaveState('idle'); setError('Failed to save. Please try again.') }
-  }
-
-  async function loadSpecimen(s: any) {
-    setAgencyName(s.agent_name || ''); setWebsite(s.agent_website || ''); setCity(s.city || ''); setState(s.state || '')
-    setError('')
-    const trees = s.confirmed_tree ? s.confirmed_tree.split(',').map((t: string) => t.trim()) : []
-    setConfirmedTrees(trees)
-    setConfirmedOther(s.confirmed_tree_other || ''); setSubImo(s.confirmed_sub_imo || ''); setRecruiterNotes(s.recruiter_notes || ''); setSaveState('saved'); setDavidFacts(null)
-    const syntheticResult = {
-      predicted_tree: s.predicted_tree || 'unknown', confidence: s.predicted_confidence || 0, signals_used: [], reasoning: '',
-      facebook_profile_url: null, facebook_about: null, predicted_sub_imo: s.confirmed_sub_imo || null,
-      predicted_sub_imo_confidence: null, predicted_sub_imo_signals: [], predicted_sub_imo_partner_id: null,
-      predicted_sub_imo_proof_url: null, prediction_source: null, serp_debug: null,
-      unresolved_upline: null, unresolved_upline_evidence: null, unresolved_upline_source_url: null, unresolved_upline_confidence: null,
-    }
-    setResult(syntheticResult)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-    try {
-      const res = await fetch(`/api/anathema?id=${s.id}`)
-      if (!res.ok) return
-      const data = await res.json()
-      if (data.scan?.analysis_json) {
-        setResult(data.scan.analysis_json)
-        if (data.scan.analysis_json.predicted_sub_imo && !s.confirmed_sub_imo) setSubImo(data.scan.analysis_json.predicted_sub_imo)
-        if (data.scan.david_facts?.facts) setDavidFacts(data.scan.david_facts.facts)
-      }
-      if (data.scan?.confirmed_tree) setConfirmedTrees(Array.isArray(data.scan.confirmed_tree) ? data.scan.confirmed_tree : data.scan.confirmed_tree.split(',').map((t: string) => t.trim()))
-      if (data.scan?.confirmed_tree_other) setConfirmedOther(data.scan.confirmed_tree_other)
-      if (data.scan?.sub_imo) setSubImo(data.scan.sub_imo)
-      if (data.scan?.recruiter_notes) setRecruiterNotes(data.scan.recruiter_notes)
     } catch {}
   }
 
-  const hasResult = !!(result || scanning)
+  async function runScan() {
+    if (!agentName.trim() || scanning) return
+    setScanning(true); setProfile(null); setAffiliation(null); setError('')
+    setCurrentStep(0); setLogLines([]); setRecruiterNotes(''); setSaveState('idle')
+    if (timerRef.current) clearTimeout(timerRef.current)
+
+    let si = 0, li = 0
+    function tick() {
+      if (si >= LOADING_STEPS.length) return
+      setCurrentStep(si)
+      const stageLogs = STAGE_LOGS[si] || []
+      if (li < stageLogs.length) { addLog(stageLogs[li]); li++; timerRef.current = setTimeout(tick, 300) }
+      else { li = 0; si++; if (si < LOADING_STEPS.length) timerRef.current = setTimeout(tick, 400) }
+    }
+    tick()
+
+    try {
+      const res = await fetch('/api/anathema', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent: {
+            name: agentName.trim(), website: website.trim() || null,
+            city: city.trim(), state: state.trim().toUpperCase(),
+            social_links: [], notes: '', about: null,
+          },
+        }),
+      })
+
+      if (res.status === 429) {
+        addLog('[ALERT] Rate limit — try again later')
+        setError('RATE LIMIT — Too many scans. Try again in a few minutes.')
+        setScanning(false); setCurrentStep(-1); return
+      }
+
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+
+      if (timerRef.current) clearTimeout(timerRef.current)
+      setCurrentStep(LOADING_STEPS.length - 1)
+      addLog(`[OK] Scan complete — ${agentName.trim()}`)
+      addLog(`[FOUND] ${data.profile?.pages_crawled?.length || 0} pages · ${data.profile?.data_confidence || 'LOW'} confidence`)
+      if (data.affiliation_signal) addLog(`[FOUND] Affiliation signal: ${data.affiliation_signal.matched_phrase}`)
+      if ((data.profile?.personal_hooks || []).filter((h: any) => h.usability === 'HIGH').length > 0)
+        addLog(`[FOUND] ${data.profile.personal_hooks.filter((h: any) => h.usability === 'HIGH').length} HIGH-usability personal hooks`)
+
+      setProfile({ ...data.profile, serp_debug: data.serp_debug || [] })
+      setAffiliation(data.affiliation_signal || null)
+      setSpecimenId(data.id || null)
+      setSaveState('idle')
+
+      fetch('/api/anathema').then(r => r.json()).then(d => setSpecimens(d.specimens || [])).catch(() => {})
+    } catch (err: any) {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      addLog(`[ALERT] Scan failed: ${err.message}`)
+      setError(err.message || 'Scan failed. Please try again.')
+    }
+
+    setScanning(false); setCurrentStep(-1)
+  }
+
+  async function saveNotes() {
+    if (!specimenId || saveState === 'saving') return
+    setSaveState('saving')
+    try {
+      await fetch('/api/anathema', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_notes', id: specimenId, recruiter_notes: recruiterNotes }),
+      })
+      setSaveState('saved')
+    } catch { setSaveState('idle') }
+  }
+
+  const hasResult = !!(profile || scanning)
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 1400, display: 'flex', flexDirection: 'column', gap: 0 }}>
+    <div style={{ padding: '40px 40px', maxWidth: 1100 }}>
       <style>{`
         @keyframes slideIn   { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes loadSlide { 0% { left: -40%; } 100% { left: 100%; } }
         @keyframes blink     { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
         @keyframes betaSweep { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(100%); } }
-        .panel-scroll::-webkit-scrollbar { width: 3px; }
-        .panel-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); }
       `}</style>
 
-      {/* ── TOP: Header + Input bar ── */}
-      <div style={{ marginBottom: 24 }}>
-        {/* Header */}
-        <div style={{ marginBottom: 20 }}>
-          <div className="page-eyebrow">Relationship Analysis System</div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16 }}>
-            <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: 'var(--text-1)', lineHeight: 0.9 }}>
-              ANATHEMA<span style={{ color: 'var(--sig-green)' }}>.</span>
-            </h1>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 3, color: 'var(--sig-green)', border: '1px solid var(--sig-green-border)', background: 'var(--sig-green-dim)', padding: '5px 10px', marginBottom: 8, position: 'relative', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-              <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(26,158,92,0.18), transparent)', animation: 'betaSweep 3s ease-in-out infinite' }} />
-              ⚡ BETA
-            </div>
-            {hasResult && (
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, paddingBottom: 8 }}>
-                <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>← History</button>
-                <button onClick={() => { setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); runScan() }} className="btn-ghost" style={{ fontSize: 12 }}>↺ Rescan</button>
-                <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>New scan</button>
-              </div>
-            )}
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <div className="page-eyebrow">Agent Intelligence System</div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--text-1)', lineHeight: 0.9 }}>
+            ANATHEMA<span style={{ color: 'var(--sig-green)' }}>.</span>
+          </h1>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 3, color: 'var(--sig-green)', border: '1px solid var(--sig-green-border)', background: 'var(--sig-green-dim)', padding: '5px 10px', marginBottom: 6, position: 'relative', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+            <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(26,158,92,0.18), transparent)', animation: 'betaSweep 3s ease-in-out infinite' }} />
+            ⚡ REBUILT
           </div>
-        </div>
-
-        {/* Input bar — full width */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', gap: 0, border: `1.5px solid ${scanning ? 'var(--sig-green)' : 'var(--border-strong)'}`, background: 'var(--bg-card)', transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: scanning ? '0 0 0 3px var(--sig-green-dim)' : '0 2px 6px var(--shadow-sm)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 6 }}>
-              <input value={agencyName} onChange={e => setAgencyName(e.target.value)} onKeyDown={e => e.key === 'Enter' && runScan()} placeholder="Agency or agent name" disabled={scanning}
-                style={{ flex: 1, padding: '14px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-1)', fontSize: 15 }} />
-              <button onClick={runScan} disabled={scanning || !agencyName.trim()}
-                style={{ padding: '12px 28px', background: scanning ? 'var(--sig-green-dim)' : 'var(--sig-green)', border: 'none', cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 3, color: scanning ? 'var(--sig-green)' : 'white', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {scanning ? 'SCANNING...' : 'SCAN'}
-              </button>
+          {hasResult && (
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, paddingBottom: 6 }}>
+              <button onClick={() => { setProfile(null); setAffiliation(null); setAgentName(''); setWebsite(''); setCity(''); setState(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>← History</button>
+              <button onClick={() => { setProfile(null); setAffiliation(null); setSaveState('idle'); runScan() }} className="btn-ghost" style={{ fontSize: 12 }}>↺ Rescan</button>
+              <button onClick={() => { setProfile(null); setAffiliation(null); setAgentName(''); setWebsite(''); setCity(''); setState(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>New scan</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 6 }}>
-              {[
-                { value: website, set: setWebsite, ph: 'Website (optional)' },
-                { value: city,    set: setCity,    ph: 'City' },
-                { value: state,   set: (v: string) => setState(v.toUpperCase().slice(0, 2)), ph: 'State' },
-              ].map((f, i) => (
-                <input key={i} value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.ph} disabled={scanning}
-                  style={{ padding: '9px 14px', fontSize: 13, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-2)', outline: 'none', borderRadius: 'var(--radius)' }} />
-              ))}
-            </div>
-          </div>
+          )}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>Website + location optional but improve signal quality</div>
-        {error && (
-          <div style={{ padding: '12px 16px', border: '1px solid var(--sig-red-border)', background: 'var(--sig-red-dim)', color: 'var(--sig-red)', fontSize: 13, marginTop: 10, borderRadius: 'var(--radius)' }}>{error}</div>
-        )}
       </div>
 
-      {/* ── BOTTOM: Two panels ── */}
-      {hasResult ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start', gridAutoRows: 'auto' }}>
+      {/* Input */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 2, border: `1px solid ${scanning ? 'var(--sig-green)' : 'var(--border-light)'}`, background: 'var(--bg-card)', transition: 'border-color 0.2s', boxShadow: scanning ? '0 0 0 1px var(--sig-green)' : 'none' }}>
+        <input value={agentName} onChange={e => setAgentName(e.target.value)} onKeyDown={e => e.key === 'Enter' && runScan()}
+          placeholder="Agency or agent name"
+          disabled={scanning}
+          style={{ flex: 1, padding: '18px 24px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-1)', fontFamily: "'DM Mono', monospace", fontSize: 14, letterSpacing: 1 }} />
+        <button onClick={runScan} disabled={scanning || !agentName.trim()}
+          style={{ padding: '18px 32px', background: scanning ? 'var(--sig-green-dim)' : 'var(--sig-green)', border: 'none', cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 2, color: scanning ? 'var(--sig-green)' : 'white', whiteSpace: 'nowrap' }}>
+          {scanning ? 'SCANNING...' : 'SCAN'}
+        </button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 4, marginBottom: 2 }}>
+        {[
+          { value: website, set: setWebsite, ph: 'Website (optional)' },
+          { value: city,    set: setCity,    ph: 'City' },
+          { value: state,   set: (v: string) => setState(v.toUpperCase().slice(0, 2)), ph: 'State' },
+        ].map((f, i) => (
+          <input key={i} value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.ph} disabled={scanning}
+            style={{ padding: '11px 16px', fontSize: 13, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-2)', outline: 'none', fontFamily: "'DM Mono', monospace" }} />
+        ))}
+      </div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-4)', letterSpacing: 1, marginBottom: 32 }}>
+        WEBSITE + LOCATION OPTIONAL BUT IMPROVE SIGNAL QUALITY
+      </div>
 
-          {/* LEFT — ANATHEMA result */}
-          <div className="panel-scroll" style={{ maxHeight: 'calc(100vh - 240px)', overflowY: 'auto' }}>
-            {scanning && !result ? (
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-                <ScanProgress currentStep={currentStep} agencyName={agencyName} />
-              </div>
-            ) : result ? (
-              <ResultPanel
-                result={result} agencyName={agencyName} city={city} state={state}
-                confirmedTrees={confirmedTrees} setConfirmedTrees={setConfirmedTrees}
-                confirmedOther={confirmedOther} setConfirmedOther={setConfirmedOther}
-                subImo={subImo} setSubImo={setSubImo}
-                recruiterNotes={recruiterNotes} setRecruiterNotes={setRecruiterNotes}
-                saveState={saveState} onSave={logObservation}
-              />
-            ) : null}
-          </div>
+      {/* Error */}
+      {error && (
+        <div style={{ padding: '14px 18px', border: '1px solid var(--sig-red-border)', background: 'var(--sig-red-dim)', color: 'var(--sig-red)', fontSize: 13, marginBottom: 24 }}>{error}</div>
+      )}
 
-          {/* RIGHT — DAVID */}
-          <div className="panel-scroll" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: '2px solid var(--orange)', borderRadius: 'var(--radius)', maxHeight: 'calc(100vh - 240px)', overflowY: 'auto' }}>
-            {davidFacts && davidFacts.length > 0 ? (
-              <DavidFactsPanel facts={davidFacts} agentName={agencyName} deepScanStatus={deepScanStatus} />
-            ) : (
-              <DavidWaiting deepScanStatus={scanning ? 'idle' : deepScanStatus} />
-            )}
+      {/* Loading */}
+      {scanning && currentStep >= 0 && (
+        <div style={{ marginBottom: 48 }}>
+          <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 20 }}>
+            <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--sig-green)', animation: 'loadSlide 1s ease-in-out infinite' }} />
           </div>
-        </div>
-      ) : (
-        /* ── Empty state — full width ── */
-        <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 28 }}>
-          {/* Recent scans */}
-          <div>
-            {specimens.length > 0 && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>Recent scans</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-4)' }}>{specimenPage * SPECIMENS_PER_PAGE + 1}–{Math.min((specimenPage + 1) * SPECIMENS_PER_PAGE, specimens.length)} of {specimens.length}</div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {specimens.slice(specimenPage * SPECIMENS_PER_PAGE, (specimenPage + 1) * SPECIMENS_PER_PAGE).map((s: any) => {
-                    const tree = TREE_LABELS[s.predicted_tree] || 'Unclassified'
-                    const tc   = TREE_COLOR[s.predicted_tree]  || 'var(--text-3)'
-                    return (
-                      <button key={s.id} onClick={() => loadSpecimen(s)}
-                        style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, alignItems: 'center', padding: '12px 16px', background: 'var(--bg-card)', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', borderRadius: 'var(--radius)' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-strong)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover)' }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-card)' }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>{s.agent_name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{[s.city, s.state].filter(Boolean).join(', ')}{s.confirmed_sub_imo && <span style={{ color: 'var(--text-2)' }}> · {s.confirmed_sub_imo}</span>}</div>
-                        </div>
-                        <div style={{ fontSize: 12, color: tc, fontWeight: 600 }}>{tree}</div>
-                        <div style={{ fontSize: 12 }}>{s.confirmed_tree ? <span style={{ color: 'var(--sig-green)' }}>✓</span> : s.predicted_confidence ? <span style={{ color: 'var(--text-3)' }}>{s.predicted_confidence}%</span> : <span style={{ color: 'var(--text-4)' }}>—</span>}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-4)', whiteSpace: 'nowrap' }}>{new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                      </button>
-                    )
-                  })}
-                </div>
-                {specimens.length > SPECIMENS_PER_PAGE && (
-                  <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-                    <button onClick={() => setSpecimenPage(p => Math.max(0, p - 1))} disabled={specimenPage === 0} className="btn-ghost" style={{ flex: 1, fontSize: 12, opacity: specimenPage === 0 ? 0.4 : 1 }}>← Prev</button>
-                    <button onClick={() => setSpecimenPage(p => Math.min(Math.ceil(specimens.length / SPECIMENS_PER_PAGE) - 1, p + 1))} disabled={(specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length} className="btn-ghost" style={{ flex: 1, fontSize: 12, opacity: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? 0.4 : 1 }}>Next →</button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* What ANATHEMA detects */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 10 }}>What Anathema detects</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {[
-                { n: '01', title: 'Carrier analysis',     tip: 'Identifies which carriers an agent is actively writing with — a strong indicator of how they operate and where their loyalties are.' },
-                { n: '02', title: 'Language patterns',     tip: "Scans the agent's own words — website copy, bios, job posts — for affiliation signals they didn't know they were broadcasting." },
-                { n: '03', title: 'Web intelligence',      tip: 'Cross-references the agency across public directories, partner pages, and indexed content to build an affiliation picture.' },
-                { n: '04', title: 'Social presence scan',  tip: "Facebook and YouTube reveal what agents won't say on a call — trip photos, events, and brand associations tell the real story." },
-                { n: '05', title: 'Confidence staging',    tip: 'Results are staged I through IV based on signal strength. STAGE I means early indicators. STAGE IV means confirmed affiliation.' },
-                { n: '06', title: 'Personal intel',        tip: 'Surfaces personal facts — hobbies, family, recent milestones — so you can open a conversation that feels like research, not a cold call.' },
-              ].map(c => (
-                <div key={c.n} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '16px', borderRadius: 'var(--radius)', transition: 'border-color 0.12s' }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--sig-green-border)')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--sig-green)', letterSpacing: 2, marginBottom: 6 }}>{c.n}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 5 }}>{c.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>{c.tip}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {LOADING_STEPS.map((step, i) => (
+                <div key={step} style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 10, color: i < currentStep ? 'var(--sig-green)' : i === currentStep ? 'var(--text-1)' : 'var(--text-4)', transition: 'color 0.3s' }}>
+                  <span style={{ fontSize: 9, color: i < currentStep ? 'var(--sig-green)' : i === currentStep ? 'var(--sig-green)' : 'var(--text-4)', flexShrink: 0 }}>{i < currentStep ? '●' : i === currentStep ? '◐' : '○'}</span>
+                  {step}
                 </div>
               ))}
             </div>
+            <TerminalLog lines={logLines} />
+          </div>
+        </div>
+      )}
+
+      {/* Results */}
+      {profile && !scanning && (
+        <div style={{ animation: 'slideIn 0.3s ease both' }}>
+          <ResultCard
+            profile={profile}
+            affiliationSignal={affiliationSignal}
+            agentName={agentName}
+            city={city}
+            state={state}
+            recruiterNotes={recruiterNotes}
+            setRecruiterNotes={setRecruiterNotes}
+            saveState={saveState}
+            onSave={saveNotes}
+          />
+          <div style={{ marginTop: 16 }}>
+            <button onClick={() => { setProfile(null); setAffiliation(null); setAgentName(''); setWebsite(''); setCity(''); setState('') }}
+              style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 2, padding: '8px 16px', cursor: 'pointer' }}>
+              ← RUN NEW SCAN
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!scanning && !profile && (
+        <div style={{ marginTop: 8 }}>
+          {specimens.length > 0 && (
+            <div style={{ marginBottom: 48 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 2 }}>RECENT SCANS</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)', letterSpacing: 1 }}>
+                  {specimenPage * SPECIMENS_PER_PAGE + 1}–{Math.min((specimenPage + 1) * SPECIMENS_PER_PAGE, specimens.length)} of {specimens.length}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {specimens.slice(specimenPage * SPECIMENS_PER_PAGE, (specimenPage + 1) * SPECIMENS_PER_PAGE).map((s: any) => (
+                  <button key={s.id} onClick={() => loadScan(s.id)}
+                    style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 16, alignItems: 'center', padding: '14px 18px', background: 'var(--bg-card)', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--sig-green-border)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)' }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>{s.agent_name}</div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-4)' }}>
+                        {[s.city, s.state].filter(Boolean).join(', ')}
+                        {s.agent_website && <span style={{ color: 'var(--text-3)' }}> · {s.agent_website}</span>}
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-4)' }}>
+                      {s.analysis_json?.data_confidence && <ConfidenceBadge confidence={s.analysis_json.data_confidence} />}
+                    </div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-4)', whiteSpace: 'nowrap' }}>
+                      {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {specimens.length > SPECIMENS_PER_PAGE && (
+                <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                  <button onClick={() => setSpecimenPage(p => Math.max(0, p - 1))} disabled={specimenPage === 0} className="btn-ghost" style={{ flex: 1, fontSize: 12, opacity: specimenPage === 0 ? 0.4 : 1 }}>← Prev</button>
+                  <button onClick={() => setSpecimenPage(p => Math.min(Math.ceil(specimens.length / SPECIMENS_PER_PAGE) - 1, p + 1))} disabled={(specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length} className="btn-ghost" style={{ flex: 1, fontSize: 12, opacity: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? 0.4 : 1 }}>Next →</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', letterSpacing: 2, marginBottom: 14 }}>WHAT ANATHEMA EXTRACTS</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {[
+              { n: '01', title: 'Agent Profile',       tip: 'Who they are, how long in the business, what market they serve. Pulled from their website and public record.' },
+              { n: '02', title: 'Personal Hooks',       tip: 'Community events, awards, unusual bio details, recent accomplishments — facts that open a conversation that feels like research.' },
+              { n: '03', title: 'Production Record',    tip: 'Awards, rankings, leaderboard appearances, credentials. What the public record says about their output.' },
+              { n: '04', title: 'Community Presence',   tip: 'Local sponsorships, press mentions, charity work, chamber ties. How embedded they are in their market.' },
+              { n: '05', title: 'Recruiting Posture',   tip: 'Are they building a downline? Job postings, "join my team" language, and downline-building signals.' },
+              { n: '06', title: 'Affiliation Signal',   tip: 'If their public record explicitly mentions Integrity Marketing Group, AmeriLife, or Senior Market Sales — it surfaces here. Not a guess. Exact phrase only.' },
+            ].map(c => (
+              <div key={c.n} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '20px 24px', transition: 'border-color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--sig-green-border)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--sig-green)', letterSpacing: 2, marginBottom: 10 }}>{c.n}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)', marginBottom: 6 }}>{c.title}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>{c.tip}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
     </div>
+  )
+}
+
+export default function AnathemaDashboardPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: '60px 40px', color: 'var(--text-2)', fontFamily: "'DM Mono', monospace", fontSize: 12 }}>Loading...</div>}>
+      <AnathemaDashboardInner />
+    </Suspense>
   )
 }
