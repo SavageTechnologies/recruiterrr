@@ -2,15 +2,11 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import dynamic from 'next/dynamic'
-
 import type { Agent, CitySuggestion }            from '@/components/search/types'
 import { CompactAgentCard }                      from '@/components/search/CompactAgentCard'
 import { DetailPanel }                           from '@/components/search/DetailPanel'
 import { MarketSummary }                         from '@/components/search/MarketSummary'
 import { MODES, LOADING_PHASES, OPERATOR_TIPS, ANNUITY_TIPS } from '@/components/search/searchData'
-
-const GuyAnimation = dynamic(() => import('@/components/search/GuyAnimation'), { ssr: false })
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -182,7 +178,6 @@ function SearchPageInner() {
                 </div>
               </div>
             </div>
-            <GuyAnimation />
           </div>
         )}
 
