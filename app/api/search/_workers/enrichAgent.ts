@@ -2,6 +2,12 @@
 // Main enrichment pipeline for a single agent.
 // Orchestrates: preScore → crawl → enrichment deltas → Sonnet scoring.
 // Fast-paths cold agents (captive or <40) before any network calls.
+//
+// Flag logic:
+//   captive:true   → cold, "Captive brand — not recruitable."
+//   wrongLine:true → cold, "Wrong line of business — confirmed [X], not [mode]."
+//   score < 40     → cold, low signal (no penalty for unknown)
+//   otherwise      → hot/warm/cold by score threshold
 
 import { MODE_CONFIG } from './config'
 import { preScore } from './preScore'
@@ -26,7 +32,7 @@ export async function enrichAgent(
       phone: raw.phone || '', address: raw.address || '',
       rating: raw.rating || 0, reviews: raw.reviews || 0,
       website: raw.website || null,
-      carriers: ['Unknown'], captive: isCaptive, years: null,
+      carriers: ['Unknown'], captive: isCaptive, wrongLine: false, years: null,
       score: ps, flag: 'cold',
       notes: isCaptive ? 'Captive brand — not recruitable.' : 'Low signal — insufficient data to qualify.',
       about: null, contact_email: null, social_links: [],
@@ -41,19 +47,44 @@ export async function enrichAgent(
     : { fullText: '', email: null, socialLinks: [], youtubeLink: null }
 
   // ── ENRICHMENT DELTAS ─────────────────────────────────────────────────────
-  // Applied to preScore BEFORE Sonnet sees it — Sonnet anchors on an already-enriched score.
-  // Jobs/YouTube bonuses are NOT here — they run in backgroundEnrich.ts after response.
   let enrichmentDelta = 0
-  if (intel.fullText.length > 200) enrichmentDelta += 3  // Real website content found
-  if (intel.email)                 enrichmentDelta += 2  // Contact email found
-  if (intel.socialLinks.length)    enrichmentDelta += 2  // Social presence confirmed
-  if (intel.youtubeLink)           enrichmentDelta += 5  // YouTube found on site
+  if (intel.fullText.length > 200) enrichmentDelta += 3
+  if (intel.email)                 enrichmentDelta += 2
+  if (intel.socialLinks.length)    enrichmentDelta += 2
+  if (intel.youtubeLink)           enrichmentDelta += 5
 
   const anchorScore = Math.min(100, ps + enrichmentDelta)
 
   // ── SONNET: writes the recruiter snippet + adjusts score ±15 ─────────────
-  // Only cold agents (<40) skip this — everything else gets the writeup.
   const sonnetResult = await sonnetScore(raw, intel, anchorScore, mode)
+
+  // ── WRONG LINE: confirmed mismatch → hard cold, bypass score threshold ────
+  // This is not a score penalty — it's a known fact. Treat it the same as captive.
+  if (sonnetResult.wrongLine) {
+    return {
+      name: raw.title || 'Unknown',
+      type: raw.type || cfg.typeFallback,
+      phone: raw.phone || '', address: raw.address || '',
+      rating: raw.rating || 0, reviews: raw.reviews || 0,
+      website: raw.website || null,
+      carriers: sonnetResult.carriers,
+      captive: sonnetResult.captive,
+      wrongLine: true,
+      years: sonnetResult.years,
+      score: Math.min(39, anchorScore), // cap below warm threshold for consistency
+      flag: 'cold',
+      notes: sonnetResult.notes,
+      about: sonnetResult.about,
+      contact_email: sonnetResult.contact_email || intel.email || null,
+      social_links: intel.socialLinks,
+      _preScore: ps,
+      _enrichmentDelta: enrichmentDelta,
+      _sonnetDelta: sonnetResult.scoreDelta,
+      _youtubeLink: intel.youtubeLink,
+    }
+  }
+
+  // ── NORMAL PATH: score determines flag ───────────────────────────────────
   const finalScore = Math.min(100, Math.max(0, anchorScore + sonnetResult.scoreDelta))
 
   return {
@@ -64,6 +95,7 @@ export async function enrichAgent(
     website: raw.website || null,
     carriers: sonnetResult.carriers,
     captive: sonnetResult.captive,
+    wrongLine: false,
     years: sonnetResult.years,
     score: finalScore,
     flag: finalScore >= 75 ? 'hot' : finalScore >= 50 ? 'warm' : 'cold',

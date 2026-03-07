@@ -5,7 +5,7 @@
 export type AgentResult = {
   name: string; type: string; phone: string; address: string
   rating: number; reviews: number; website: string | null
-  carriers: string[]; captive: boolean; score: number
+  carriers: string[]; captive: boolean; wrongLine: boolean; score: number
   flag: 'hot' | 'warm' | 'cold'; notes: string; years: number | null
   hiring: boolean; hiring_roles: string[]
   youtube_channel: string | null; youtube_subscribers: string | null; youtube_video_count: number
