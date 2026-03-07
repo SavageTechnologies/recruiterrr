@@ -705,8 +705,9 @@ export async function POST(req: NextRequest) {
       if (jobData.hiring) adjustedPreScore = Math.min(100, adjustedPreScore + 8)
       if (ytData.channel) adjustedPreScore = Math.min(100, adjustedPreScore + 7)
 
-      // Fast path: clear HOT (80+) or clear COLD (below 40) — skip Sonnet
-      if (adjustedPreScore >= 80 || adjustedPreScore < 40) {
+      // Fast path: only skip Sonnet for clear COLDs (captive/low signal).
+      // HOTs always go to Sonnet — the AI intel writeup is the product.
+      if (adjustedPreScore < 40) {
         const reviews = raw.reviews || 0
         const type = raw.type || ''
         const modeTypeFallback: Record<string, string> = {
