@@ -638,17 +638,15 @@ async function upsertAgentProfiles(
       ignoreDuplicates: false,
     })
 
-  // Increment search_count for any that already existed
+  // Increment search_count for any that already existed.
   // (Supabase upsert doesn't support expressions like search_count + 1 directly)
-  // We do a separate update for records that just got upserted and already had data
-  Promise.resolve(
-    supabase.rpc('increment_agent_search_count', {
-      p_clerk_id: clerkId,
-      p_names: agents.map(a => a.name),
-      p_city: city,
-      p_state: state,
-    })
-  ).catch(() => {})
+  // intentional: best-effort counter — dropping it is acceptable, never blocks response
+  void supabase.rpc('increment_agent_search_count', {
+    p_clerk_id: clerkId,
+    p_names: agents.map(a => a.name),
+    p_city: city,
+    p_state: state,
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -777,9 +775,9 @@ export async function POST(req: NextRequest) {
     const sorted = scored.sort((a, b) => b.score - a.score)
 
     // ── Persist to agent_profiles database ───────────────────────────────────
-    // Fire and forget — don't block the response. Every enriched agent gets a
-    // permanent record. Same agent searched twice = upsert, search_count++.
-    upsertAgentProfiles(userId, city, state, sorted).catch(err =>
+    // CRITICAL write — awaited because it affects what users see in search history.
+    // Same agent searched twice = upsert, search_count++.
+    await upsertAgentProfiles(userId, city, state, sorted).catch(err =>
       console.error('[/api/search] upsert error:', err)
     )
 

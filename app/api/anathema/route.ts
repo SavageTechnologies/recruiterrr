@@ -366,6 +366,7 @@ export async function POST(req: NextRequest) {
   const davidFacts = await extractDavidFacts(davidFactsInput)
 
   // ── Apify fire-and-forget for David enrichment — fast path only ──────────────
+  // intentional: fire-and-forget — Vercel worker handles this in its own function lifetime
   if (!apifyUsed && hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET) {
     const baseUrl = `${req.nextUrl.protocol}//${req.nextUrl.host}`
     fetch(`${baseUrl}/api/david/enrich`, {
