@@ -666,9 +666,8 @@ export async function POST(req: NextRequest) {
       return s
     }
 
-    // ENRICH = pre-score must clear 55 — baseline (50) + website (3) = 53, still skips.
-    // Must have actual reviews or signals to reach warm and get enriched.
-    const ENRICH_THRESHOLD = 55
+    // ENRICH = hot or warm pre-flag (>= 50). PASS (< 50) skips LLM entirely.
+    const ENRICH_THRESHOLD = 50
     const ENRICH_MAX = 12
 
     const ranked = rawAgents
