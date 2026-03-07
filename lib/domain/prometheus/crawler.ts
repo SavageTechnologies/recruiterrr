@@ -2,7 +2,7 @@
 // FMO site crawler for Prometheus scans.
 // Strategy: sitemap → nav links → slug fallback. Fetches up to 10 pages.
 
-import { fetchPageText } from '@/lib/fetch'
+import { fetchPageText, safeFetch, extractPageText } from '@/lib/fetch'
 
 // Slug fallback when sitemap + nav yield fewer than 3 slugs
 export const SLUG_FALLBACK = [
@@ -36,10 +36,7 @@ export async function parseSitemap(baseUrl: string): Promise<string[]> {
   const candidates = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap']
   for (const path of candidates) {
     try {
-      const res = await fetch(baseUrl + path, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruiterrr/1.0)' },
-        signal: AbortSignal.timeout(5000),
-      })
+      const res = await safeFetch(baseUrl + path, { timeoutMs: 5000 })
       if (!res.ok) continue
       const xml = await res.text()
       const locs = [...xml.matchAll(/<loc>\s*(https?:\/\/[^<]+)\s*<\/loc>/gi)]
@@ -87,17 +84,11 @@ export async function crawlFMOSite(baseUrl: string): Promise<{ pages: Record<str
   const MAX_PAGES = 10
 
   // Always grab homepage first — needed for nav link extraction
-  const homepageHtml = await fetch(baseUrl + '/', {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruiterrr/1.0)' },
-    signal: AbortSignal.timeout(7000),
-  }).then(r => r.ok ? r.text() : '').catch(() => '')
+  const homepageHtml = await safeFetch(baseUrl + '/', { timeoutMs: 7000 })
+    .then(r => r.ok ? r.text() : '').catch(() => '')
 
   if (homepageHtml.length > 300) {
-    const text = homepageHtml
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ').trim().slice(0, 6000)
+    const text = extractPageText(homepageHtml, 6000)
     pages['/'] = text
     foundPages.push('/')
   }

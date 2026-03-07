@@ -14,7 +14,7 @@ import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 
 import { ALLOWED_ORIGINS } from '@/lib/config'
-const BLOCKED_HOSTS   = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', '::1']
+import { fetchPageText } from '@/lib/fetch'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -137,36 +137,6 @@ async function findAgentWebsite(
 
 // ─── WEBSITE CRAWL (shared logic mirrored from /api/search) ──────────────────
 
-async function fetchPageText(rawUrl: string, maxChars = 3000): Promise<string> {
-  try {
-    const parsed = new URL(rawUrl)
-    if (!['http:', 'https:'].includes(parsed.protocol)) return ''
-    if (BLOCKED_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith('.local'))) return ''
-    const res = await fetch(rawUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruiterrr/1.0)' },
-      signal: AbortSignal.timeout(5000),
-      redirect: 'follow',
-    })
-    if (!res.ok) return ''
-    const reader = res.body?.getReader()
-    if (!reader) return ''
-    let html = ''; let bytes = 0
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      bytes += value.length
-      html += new TextDecoder().decode(value)
-      if (bytes > 400_000) { reader.cancel(); break }
-    }
-    return html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, maxChars)
-  } catch { return '' }
-}
 
 function extractEmails(text: string): string[] {
   const matches = text.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || []

@@ -8,7 +8,7 @@ import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 
 import { ALLOWED_ORIGINS } from '@/lib/config'
-const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', '::1']
+import { fetchPageText } from '@/lib/fetch'
 
 type AgentResult = {
   name: string; type: string; phone: string; address: string
@@ -138,41 +138,6 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
   return results
 }
 
-// Fetch and clean a single URL, returning up to maxChars of text
-async function fetchPageText(rawUrl: string, maxChars = 3000): Promise<string> {
-  try {
-    const parsed = new URL(rawUrl)
-    if (!['http:', 'https:'].includes(parsed.protocol)) return ''
-    if (BLOCKED_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith('.local'))) return ''
-    if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(parsed.hostname)) return ''
-
-    const res = await fetch(rawUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruiterrr/1.0)' },
-      signal: AbortSignal.timeout(5000),
-      redirect: 'follow',
-    })
-    if (!res.ok) return ''
-
-    const reader = res.body?.getReader()
-    if (!reader) return ''
-    let html = ''; let bytes = 0
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      bytes += value.length
-      html += new TextDecoder().decode(value)
-      if (bytes > 400_000) { reader.cancel(); break }
-    }
-
-    return html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, maxChars)
-  } catch { return '' }
-}
 
 // Extract emails from text
 function extractEmails(text: string): string[] {
@@ -690,8 +655,8 @@ export async function POST(req: NextRequest) {
       }
       const captiveNames = modeCapt[mode] || modeCapt['medicare']
       const isCaptive = captiveNames.some(c => {
-        const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, '\$&')
-        return new RegExp(`\b${escaped}\b`, 'i').test(raw.title || '')
+        const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, '$$&')
+        return new RegExp('\\b' + escaped + '\\b', 'i').test(raw.title || '')
       })
       if (isCaptive) return 20
       if (reviews >= 200) s = 82
@@ -709,7 +674,8 @@ export async function POST(req: NextRequest) {
       .map((raw: any) => ({ raw, preScore: preScore(raw) }))
       .sort((a: any, b: any) => b.preScore - a.preScore)
 
-    const topCandidates = ranked.slice(0, ENRICH_CAP).map((r: any) => r.raw)
+    const topCandidates  = ranked.slice(0, ENRICH_CAP)
+    const tailCandidates = ranked.slice(ENRICH_CAP)
 
     // ── Phase 2: Deep enrich top N — capped concurrency, Sonnet only when needed ─
     // p-limit keeps us from spawning 10-20 simultaneous fetch + LLM calls.
@@ -719,7 +685,7 @@ export async function POST(req: NextRequest) {
     // 4.3: Deterministic fast-path: skip Sonnet when pre-score is very high or very low.
     // Only send to Sonnet when heuristics are ambiguous (score 40-79).
     async function deepEnrich(raw: any): Promise<AgentResult> {
-      const preSc = preScore(raw)
+      const preSc = preScore(raw)  // raw is the unwrapped agent object
       const intel = raw.website ? await fetchWebsiteText(raw.website) : { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], youtubeLink: null, fullText: '' }
       const jobData = await fetchJobPostings(raw.title, city, state, mode)
       let ytData: { channel: string | null; subscribers: string | null; videoCount: number }
@@ -768,11 +734,32 @@ export async function POST(req: NextRequest) {
       return scoreAgent(raw, intel, jobData, ytData, mode)
     }
 
-    const scored = await Promise.all(
-      topCandidates.map(raw => limit(() => deepEnrich(raw)))
+    // Enrich top candidates
+    const enriched = await Promise.all(
+      topCandidates.map(({ raw }) => limit(() => deepEnrich(raw)))
     )
 
-    const sorted = scored.sort((a, b) => b.score - a.score)
+    // Tail candidates: return with pre-score only — no crawl, no LLM, no drops
+    const modeTypeFallback2: Record<string, string> = {
+      medicare: 'Insurance Agency', life: 'Insurance Agency',
+      annuities: 'Financial Services', financial: 'Financial Advisory',
+    }
+    const tailScored: AgentResult[] = tailCandidates.map(({ raw, preScore: ps }) => ({
+      name: raw.title || 'Unknown',
+      type: raw.type || modeTypeFallback2[mode] || 'Insurance Agency',
+      phone: raw.phone || '', address: raw.address || '',
+      rating: raw.rating || 0, reviews: raw.reviews || 0,
+      website: raw.website || null,
+      carriers: ['Unknown'], captive: ps < 40, years: null,
+      score: ps,
+      flag: ps >= 75 ? 'hot' : ps >= 50 ? 'warm' : ('cold' as const),
+      notes: 'Pre-scored from listing signals only.',
+      hiring: false, hiring_roles: [],
+      youtube_channel: null, youtube_subscribers: null, youtube_video_count: 0,
+      about: null, contact_email: null, social_links: [],
+    }))
+
+    const sorted = [...enriched, ...tailScored].sort((a, b) => b.score - a.score)
 
     // ── Persist to agent_profiles database ───────────────────────────────────
     // CRITICAL write — awaited because it affects what users see in search history.
