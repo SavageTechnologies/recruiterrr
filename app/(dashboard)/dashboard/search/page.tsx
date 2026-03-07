@@ -2,11 +2,40 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import type { Agent, CitySuggestion }            from '@/components/search/types'
-import { CompactAgentCard }                      from '@/components/search/CompactAgentCard'
-import { DetailPanel }                           from '@/components/search/DetailPanel'
-import { MarketSummary }                         from '@/components/search/MarketSummary'
-import { MODES, LOADING_PHASES, OPERATOR_TIPS, ANNUITY_TIPS } from '@/components/search/searchData'
+import type { Agent, CitySuggestion }  from '@/components/search/types'
+import { CompactAgentCard }            from '@/components/search/CompactAgentCard'
+import { DetailPanel }                 from '@/components/search/DetailPanel'
+import { MarketSummary }               from '@/components/search/MarketSummary'
+import { MODES, LOADING_PHASES }       from '@/components/search/searchData'
+
+// Minimal static list — just abbr + name, no city data. Cities come from the DB.
+const US_STATES = [
+  { abbr: 'AL', name: 'Alabama' },       { abbr: 'AK', name: 'Alaska' },
+  { abbr: 'AZ', name: 'Arizona' },       { abbr: 'AR', name: 'Arkansas' },
+  { abbr: 'CA', name: 'California' },    { abbr: 'CO', name: 'Colorado' },
+  { abbr: 'CT', name: 'Connecticut' },   { abbr: 'DE', name: 'Delaware' },
+  { abbr: 'FL', name: 'Florida' },       { abbr: 'GA', name: 'Georgia' },
+  { abbr: 'HI', name: 'Hawaii' },        { abbr: 'ID', name: 'Idaho' },
+  { abbr: 'IL', name: 'Illinois' },      { abbr: 'IN', name: 'Indiana' },
+  { abbr: 'IA', name: 'Iowa' },          { abbr: 'KS', name: 'Kansas' },
+  { abbr: 'KY', name: 'Kentucky' },      { abbr: 'LA', name: 'Louisiana' },
+  { abbr: 'ME', name: 'Maine' },         { abbr: 'MD', name: 'Maryland' },
+  { abbr: 'MA', name: 'Massachusetts' }, { abbr: 'MI', name: 'Michigan' },
+  { abbr: 'MN', name: 'Minnesota' },     { abbr: 'MS', name: 'Mississippi' },
+  { abbr: 'MO', name: 'Missouri' },      { abbr: 'MT', name: 'Montana' },
+  { abbr: 'NE', name: 'Nebraska' },      { abbr: 'NV', name: 'Nevada' },
+  { abbr: 'NH', name: 'New Hampshire' }, { abbr: 'NJ', name: 'New Jersey' },
+  { abbr: 'NM', name: 'New Mexico' },    { abbr: 'NY', name: 'New York' },
+  { abbr: 'NC', name: 'North Carolina' },{ abbr: 'ND', name: 'North Dakota' },
+  { abbr: 'OH', name: 'Ohio' },          { abbr: 'OK', name: 'Oklahoma' },
+  { abbr: 'OR', name: 'Oregon' },        { abbr: 'PA', name: 'Pennsylvania' },
+  { abbr: 'RI', name: 'Rhode Island' },  { abbr: 'SC', name: 'South Carolina' },
+  { abbr: 'SD', name: 'South Dakota' },  { abbr: 'TN', name: 'Tennessee' },
+  { abbr: 'TX', name: 'Texas' },         { abbr: 'UT', name: 'Utah' },
+  { abbr: 'VT', name: 'Vermont' },       { abbr: 'VA', name: 'Virginia' },
+  { abbr: 'WA', name: 'Washington' },    { abbr: 'WV', name: 'West Virginia' },
+  { abbr: 'WI', name: 'Wisconsin' },     { abbr: 'WY', name: 'Wyoming' },
+]
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -27,6 +56,14 @@ function SearchPageInner() {
   const [suggestions, setSuggestions]         = useState<CitySuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [acLoading, setAcLoading]             = useState(false)
+
+  // Browse drawer state
+  const [browseOpen, setBrowseOpen]           = useState(false)
+  const [browseState, setBrowseState]         = useState<string | null>(null)
+  const [browseStateName, setBrowseStateName] = useState('')
+  const [browseCities, setBrowseCities]       = useState<{ city: string; county: string }[]>([])
+  const [browseCitiesLoading, setBrowseCitiesLoading] = useState(false)
+  const [cityFilter, setCityFilter]           = useState('')
 
   const acRef     = useRef<HTMLDivElement>(null)
   const acTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -66,8 +103,43 @@ function SearchPageInner() {
   }
 
   function selectSuggestion(s: CitySuggestion) {
-    setCity(s.city); setState(s.state)
-    setSuggestions([]); setShowSuggestions(false)
+    setCity(s.city)
+    setState(s.state)
+    setSuggestions([])
+    setShowSuggestions(false)
+  }
+
+  // Called from the browse drawer — selects a city and closes everything
+  function selectBrowseCity(c: string, st: string) {
+    setCity(c)
+    setState(st)
+    setBrowseOpen(false)
+    setBrowseState(null)
+    setBrowseCities([])
+    setCityFilter('')
+  }
+
+  // Fetch cities for a state from the DB when user drills in
+  async function openBrowseState(abbr: string, name: string) {
+    setBrowseState(abbr)
+    setBrowseStateName(name)
+    setCityFilter('')
+    setBrowseCitiesLoading(true)
+    try {
+      const res = await fetch(`/api/autocomplete?state=${abbr}`)
+      const data = await res.json()
+      setBrowseCities(data.cities || [])
+    } catch {
+      setBrowseCities([])
+    }
+    setBrowseCitiesLoading(false)
+  }
+
+  function closeBrowse() {
+    setBrowseOpen(false)
+    setBrowseState(null)
+    setBrowseCities([])
+    setCityFilter('')
   }
 
   async function loadSavedSearch(id: string) {
@@ -123,6 +195,10 @@ function SearchPageInner() {
   const hotCount      = agents.filter(a => a.flag === 'hot').length
   const warmCount     = agents.filter(a => a.flag === 'warm').length
 
+  const filteredBrowseCities = cityFilter.trim()
+    ? browseCities.filter(c => c.city.toLowerCase().includes(cityFilter.toLowerCase()))
+    : browseCities
+
   return (
     <div style={{ padding: '32px 36px', maxWidth: 1400 }}>
 
@@ -145,7 +221,7 @@ function SearchPageInner() {
         ) : (
           <>
             <SearchForm
-              city={city} mode={mode} loading={loading}
+              city={city} state={state} mode={mode} loading={loading}
               acRef={acRef} acLoading={acLoading}
               suggestions={suggestions} showSuggestions={showSuggestions}
               onCityChange={handleCityChange}
@@ -155,7 +231,180 @@ function SearchPageInner() {
               onSelectSuggestion={selectSuggestion}
               onSearch={() => runSearch()}
             />
-            {!searched && !loading && <OperatorTips mode={mode} />}
+
+            {/* ── Browse toggle ── */}
+            <div style={{ marginBottom: 24, marginTop: 2 }}>
+              <button
+                onClick={() => { browseOpen ? closeBrowse() : setBrowseOpen(true) }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 11, letterSpacing: 1,
+                  color: browseOpen ? 'var(--orange)' : 'var(--text-3)',
+                  transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--orange)')}
+                onMouseLeave={e => (e.currentTarget.style.color = browseOpen ? 'var(--orange)' : 'var(--text-3)')}
+              >
+                <span style={{
+                  fontSize: 8, display: 'inline-block',
+                  transition: 'transform 0.2s',
+                  transform: browseOpen ? 'rotate(90deg)' : 'none',
+                }}>▶</span>
+                {browseOpen ? 'CLOSE MARKET BROWSER' : 'BROWSE BY STATE → CITY'}
+              </button>
+            </div>
+
+            {/* ── Browse drawer ── */}
+            {browseOpen && (
+              <div style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                overflow: 'hidden',
+                marginBottom: 28,
+                boxShadow: '0 2px 12px var(--shadow-sm)',
+                animation: 'slideDown 0.18s ease both',
+              }}>
+
+                {/* Drawer header */}
+                <div style={{
+                  padding: '11px 16px',
+                  borderBottom: '1px solid var(--border)',
+                  background: 'var(--bg)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  gap: 12,
+                }}>
+                  {!browseState ? (
+                    <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--text-3)', letterSpacing: 2 }}>
+                      SELECT A STATE
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <button
+                        onClick={() => { setBrowseState(null); setBrowseCities([]); setCityFilter('') }}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                          fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--text-3)',
+                          letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 5,
+                          transition: 'color 0.12s',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-1)')}
+                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
+                      >
+                        ← ALL STATES
+                      </button>
+                      <div style={{ width: 1, height: 12, background: 'var(--border)' }} />
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 17, color: 'var(--text-1)', letterSpacing: 1.5 }}>
+                        {browseStateName.toUpperCase()}
+                      </div>
+                      {!browseCitiesLoading && (
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'var(--text-4)', letterSpacing: 1 }}>
+                          {browseCities.length} markets
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* City filter — only shown inside a state */}
+                  {browseState && (
+                    <input
+                      autoFocus
+                      value={cityFilter}
+                      onChange={e => setCityFilter(e.target.value)}
+                      placeholder="Filter..."
+                      style={{
+                        padding: '4px 11px', border: '1px solid var(--border)',
+                        borderRadius: 100, fontFamily: "'DM Sans', sans-serif",
+                        fontSize: 11, background: '#fff', color: 'var(--text-1)',
+                        outline: 'none', width: 160,
+                      }}
+                    />
+                  )}
+                </div>
+
+                {/* State grid */}
+                {!browseState && (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+                    gap: 0,
+                  }}>
+                    {US_STATES.map((s, i) => (
+                      <div
+                        key={s.abbr}
+                        onClick={() => openBrowseState(s.abbr, s.name)}
+                        style={{
+                          padding: '12px 8px', cursor: 'pointer',
+                          borderRight: '1px solid var(--border)',
+                          borderBottom: '1px solid var(--border)',
+                          textAlign: 'center',
+                          transition: 'background 0.1s',
+                          animation: `fadeIn 0.2s ease ${i * 0.005}s both`,
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 17, color: 'var(--text-1)', letterSpacing: 1, lineHeight: 1 }}>{s.abbr}</div>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 8, color: 'var(--text-4)', marginTop: 3, lineHeight: 1.3 }}>{s.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* City list */}
+                {browseState && (
+                  <div style={{
+                    padding: '14px 16px',
+                    display: 'flex', flexWrap: 'wrap', gap: 6,
+                    maxHeight: 260, overflowY: 'auto',
+                    minHeight: 80,
+                  }}>
+                    {browseCitiesLoading && (
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-3)', padding: '20px 0', width: '100%', textAlign: 'center' }}>
+                        Loading...
+                      </div>
+                    )}
+                    {!browseCitiesLoading && filteredBrowseCities.length === 0 && (
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-3)', padding: '20px 0' }}>
+                        {cityFilter ? `No cities match "${cityFilter}"` : 'No cities found.'}
+                      </div>
+                    )}
+                    {!browseCitiesLoading && filteredBrowseCities.map((c, i) => (
+                      <button
+                        key={c.city}
+                        onClick={() => selectBrowseCity(c.city, browseState)}
+                        style={{
+                          padding: '7px 13px',
+                          background: 'var(--bg)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--radius)',
+                          cursor: 'pointer',
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: 13, fontWeight: 500,
+                          color: 'var(--text-1)',
+                          transition: 'all 0.1s',
+                          animation: `slideIn 0.14s ease ${i * 0.012}s both`,
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'var(--orange-dim)'
+                          e.currentTarget.style.borderColor = 'var(--orange-border)'
+                          e.currentTarget.style.color = 'var(--orange)'
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'var(--bg)'
+                          e.currentTarget.style.borderColor = 'var(--border)'
+                          e.currentTarget.style.color = 'var(--text-1)'
+                        }}
+                      >
+                        {c.city}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
@@ -234,9 +483,9 @@ function CollapsedBar({ searchLabel, agents, hotCount, warmCount, onReset }: {
 
 // ── SearchForm ────────────────────────────────────────────────────────────────
 
-function SearchForm({ city, mode, loading, acRef, acLoading, suggestions, showSuggestions,
+function SearchForm({ city, state, mode, loading, acRef, acLoading, suggestions, showSuggestions,
   onCityChange, onKeyDown, onFocus, onModeChange, onSelectSuggestion, onSearch }: {
-  city: string; mode: string; loading: boolean
+  city: string; state: string; mode: string; loading: boolean
   acRef: React.RefObject<HTMLDivElement | null>; acLoading: boolean
   suggestions: CitySuggestion[]; showSuggestions: boolean
   onCityChange: (v: string) => void
@@ -264,18 +513,39 @@ function SearchForm({ city, mode, loading, acRef, acLoading, suggestions, showSu
         {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
       </select>
 
-      <div ref={acRef} style={{ position: 'relative', flex: 1 }}>
+      <div ref={acRef} style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
         <input value={city} onChange={e => onCityChange(e.target.value)}
           onKeyDown={onKeyDown} onFocus={onFocus}
           placeholder="City" disabled={loading} autoComplete="off"
           style={{
-            width: '100%', padding: '16px 20px', background: 'transparent',
+            flex: 1, padding: '16px 20px', background: 'transparent',
             border: 'none', outline: 'none', color: 'var(--text-1)',
             fontFamily: "'DM Sans', sans-serif", fontSize: 'var(--text-base)',
           }} />
 
+        {/* ── State pill ── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 0,
+          marginRight: 12, flexShrink: 0,
+        }}>
+          <div style={{ width: 1, height: 18, background: 'var(--border)', marginRight: 10 }} />
+          <div style={{
+            padding: '3px 9px',
+            background: city ? 'var(--orange-dim)' : 'var(--bg-hover)',
+            border: `1px solid ${city ? 'var(--orange-border)' : 'var(--border)'}`,
+            borderRadius: 100,
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 10, fontWeight: 600, letterSpacing: 1.5,
+            color: city ? 'var(--orange)' : 'var(--text-3)',
+            transition: 'all 0.2s',
+            whiteSpace: 'nowrap',
+          }}>
+            {state}
+          </div>
+        </div>
+
         {acLoading && (
-          <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+          <div style={{ position: 'absolute', right: 60, top: '50%', transform: 'translateY(-50%)' }}>
             <div style={{ width: 10, height: 10, border: '2px solid var(--border)', borderTopColor: 'var(--orange)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
           </div>
         )}
@@ -318,35 +588,6 @@ function SearchForm({ city, mode, loading, acRef, acLoading, suggestions, showSu
         }}>
         {loading ? 'SCANNING...' : 'SEARCH'}
       </button>
-    </div>
-  )
-}
-
-// ── OperatorTips ──────────────────────────────────────────────────────────────
-
-function OperatorTips({ mode }: { mode: string }) {
-  const tips = mode === 'annuities' ? ANNUITY_TIPS : OPERATOR_TIPS
-  return (
-    <div style={{ marginTop: 28, marginBottom: 36 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
-        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--text-2)', letterSpacing: 2, textTransform: 'uppercase' }}>Operator Intelligence</div>
-        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-          — {mode === 'annuities' ? 'how to find FIA & MYGA producers' : 'how to get the most out of every search'}
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-        {tips.map((tip, i) => (
-          <div key={i} style={{
-            background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderTop: `2px solid ${tip.color}`, padding: '18px',
-            borderRadius: 'var(--radius)', boxShadow: '0 1px 3px var(--shadow-sm)',
-          }}>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: tip.color, letterSpacing: 2, marginBottom: 8, fontWeight: 600 }}>{tip.tag}</div>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 7, lineHeight: 1.3 }}>{tip.headline}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7 }}>{tip.body}</div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

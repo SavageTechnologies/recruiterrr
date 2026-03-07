@@ -6,22 +6,51 @@ export async function GET(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const q = req.nextUrl.searchParams.get('q')?.trim()
+  const q     = req.nextUrl.searchParams.get('q')?.trim()
+  const state = req.nextUrl.searchParams.get('state')?.trim().toUpperCase()
+
+  // ── Branch 1: state drill-down — return cities for a given state ───────────
+  if (state) {
+    try {
+      const { data, error } = await supabase
+        .from('us_cities')
+        .select('city, state_id, county_name, population')
+        .eq('state_id', state)
+        .order('population', { ascending: false })
+        .limit(200) // fetch enough to dedup down to ~40 distinct cities
+
+      if (error || !data) return NextResponse.json({ cities: [] })
+
+      const seen = new Set<string>()
+      const cities: { city: string; county: string }[] = []
+
+      for (const row of data) {
+        const key = row.city.toLowerCase()
+        if (seen.has(key)) continue
+        seen.add(key)
+        cities.push({ city: row.city, county: row.county_name })
+        if (cities.length >= 40) break
+      }
+
+      return NextResponse.json({ cities })
+    } catch {
+      return NextResponse.json({ cities: [] })
+    }
+  }
+
+  // ── Branch 2: city prefix autocomplete (existing behaviour) ────────────────
   if (!q || q.length < 2) return NextResponse.json({ suggestions: [] })
 
   try {
-    // Prefix match on city name, ordered by population so bigger cities surface first.
-    // Deduplicate by city+state — multiple zips can share the same city name.
     const { data, error } = await supabase
       .from('us_cities')
       .select('city, state_id, state_name, county_name, population')
       .ilike('city', `${q}%`)
       .order('population', { ascending: false })
-      .limit(50) // fetch more than we need so dedup has enough to work with
+      .limit(50)
 
     if (error || !data) return NextResponse.json({ suggestions: [] })
 
-    // Deduplicate by city+state, keep highest-population row for each
     const seen = new Set<string>()
     const suggestions: { city: string; state: string; state_name: string; county: string; label: string }[] = []
 
