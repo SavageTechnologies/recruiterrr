@@ -514,7 +514,8 @@ function DetailPanel({ agent, city, state }: { agent: Agent | null; city: string
         </div>
       )}
 
-      {/* Anathema CTA */}
+      {/* Anathema CTA — only shown for hot agents */}
+      {agent.flag === 'hot' && (
       <div style={{ padding: '15px 22px', marginTop: 'auto' }}>
         <a
           href={`/dashboard/anathema?name=${encodeURIComponent(agent.name)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}${agent.website ? `&url=${encodeURIComponent(agent.website)}` : ''}`}
@@ -534,6 +535,7 @@ function DetailPanel({ agent, city, state }: { agent: Agent | null; city: string
           <span style={{ color: 'var(--sig-green)', fontSize: 16 }}>→</span>
         </a>
       </div>
+      )}
     </div>
   )
 }
