@@ -229,11 +229,16 @@ async function fetchWebsiteText(rawUrl: string): Promise<WebsiteIntel> {
           return html
         } catch { return '' }
       })(),
-      fetchPageText(`${base}/about`, 2000)
-        .then(t => t || fetchPageText(`${base}/about-us`, 2000))
-        .then(t => t || fetchPageText(`${base}/our-story`, 1500)),
-      fetchPageText(`${base}/contact`, 1500)
-        .then(t => t || fetchPageText(`${base}/contact-us`, 1500)),
+      // Race all about/contact variants simultaneously — take first non-empty
+      Promise.all([
+        fetchPageText(`${base}/about`, 2000),
+        fetchPageText(`${base}/about-us`, 2000),
+        fetchPageText(`${base}/our-story`, 1500),
+      ]).then(([a, b, c]) => a || b || c || ''),
+      Promise.all([
+        fetchPageText(`${base}/contact`, 1500),
+        fetchPageText(`${base}/contact-us`, 1500),
+      ]).then(([a, b]) => a || b || ''),
     ])
 
     const homeText = homeHtml
@@ -670,35 +675,35 @@ export async function POST(req: NextRequest) {
 
     // ENRICH = hot or warm pre-flag (>= 50). PASS (< 50) skips LLM entirely.
     const ENRICH_THRESHOLD = 50
-    const ENRICH_MAX = 12
 
     const ranked = rawAgents
       .slice(0, clampedLimit)
       .map((raw: any) => ({ raw, preScore: preScore(raw) }))
       .sort((a: any, b: any) => b.preScore - a.preScore)
 
-    const topCandidates  = ranked.filter(r => r.preScore >= ENRICH_THRESHOLD).slice(0, ENRICH_MAX)
+    const topCandidates  = ranked.filter(r => r.preScore >= ENRICH_THRESHOLD)
     const tailCandidates = ranked.filter(r => r.preScore < ENRICH_THRESHOLD)
 
-    // ── Phase 2: Deep enrich top N — capped concurrency, Sonnet only when needed ─
-    // p-limit keeps us from spawning 10-20 simultaneous fetch + LLM calls.
+    // ── Phase 2: Deep enrich all qualifying candidates — concurrency 6
     const { default: pLimit } = await import('p-limit')
-    const limit = pLimit(3)
+    const limit = pLimit(6)
 
     // 4.3: Deterministic fast-path: skip Sonnet when pre-score is very high or very low.
     // Only send to Sonnet when heuristics are ambiguous (score 40-79).
     async function deepEnrich(raw: any): Promise<AgentResult> {
-      const preSc = preScore(raw)  // raw is the unwrapped agent object
-      const intel = raw.website ? await fetchWebsiteText(raw.website) : { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], youtubeLink: null, fullText: '' }
-      const jobData = await fetchJobPostings(raw.title, city, state, mode)
-      let ytData: { channel: string | null; subscribers: string | null; videoCount: number }
-      if (intel.youtubeLink) {
-        ytData = await validateYouTubeLink(intel.youtubeLink, raw.title)
-      } else if (raw.website) {
-        ytData = await fetchYouTube(raw.title)
-      } else {
-        ytData = { channel: null, subscribers: null, videoCount: 0 }
-      }
+      const preSc = preScore(raw)
+      const emptyIntel = { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], youtubeLink: null, fullText: '' }
+      // Website crawl + job postings fire in parallel — biggest single speedup
+      const [intel, jobData] = await Promise.all([
+        raw.website ? fetchWebsiteText(raw.website) : Promise.resolve(emptyIntel),
+        fetchJobPostings(raw.title, city, state, mode),
+      ])
+      // YouTube depends on intel.youtubeLink so runs after, but is still non-blocking
+      const ytData = await (
+        intel.youtubeLink ? validateYouTubeLink(intel.youtubeLink, raw.title) :
+        raw.website        ? fetchYouTube(raw.title) :
+        Promise.resolve({ channel: null as string | null, subscribers: null as string | null, videoCount: 0 })
+      )
 
       // Apply enrichment bonuses to pre-score for the fast path
       let adjustedPreScore = preSc
@@ -765,21 +770,20 @@ export async function POST(req: NextRequest) {
 
     const sorted = [...enriched, ...tailScored].sort((a, b) => b.score - a.score)
 
-    // ── Persist to agent_profiles database ───────────────────────────────────
-    // CRITICAL write — awaited because it affects what users see in search history.
-    // Same agent searched twice = upsert, search_count++.
-    await upsertAgentProfiles(userId, city, state, sorted).catch(err =>
-      console.error('[/api/search] upsert error:', err)
-    )
-
-    await supabase.from('searches').insert({
-      clerk_id: userId, city, state,
-      results_count: sorted.length,
-      hot_count: sorted.filter(a => a.flag === 'hot').length,
-      warm_count: sorted.filter(a => a.flag === 'warm').length,
-      cold_count: sorted.filter(a => a.flag === 'cold').length,
-      agents_json: sorted,
-    })
+    // ── Persist async — don't block the response ─────────────────────────────
+    void Promise.all([
+      upsertAgentProfiles(userId, city, state, sorted).catch(err =>
+        console.error('[/api/search] upsert error:', err)
+      ),
+      Promise.resolve(supabase.from('searches').insert({
+        clerk_id: userId, city, state,
+        results_count: sorted.length,
+        hot_count: sorted.filter(a => a.flag === 'hot').length,
+        warm_count: sorted.filter(a => a.flag === 'warm').length,
+        cold_count: sorted.filter(a => a.flag === 'cold').length,
+        agents_json: sorted,
+      })).catch((err: unknown) => console.error('[/api/search] searches insert error:', err)),
+    ])
 
     return NextResponse.json({ agents: sorted })
   } catch (err) {

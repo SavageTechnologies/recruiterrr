@@ -75,12 +75,13 @@ const ANNUITY_TIPS = [
   },
 ]
 
-const LOADING_STEPS = [
-  'Querying Google local listings',
-  'Deep crawling agent websites',
-  'Checking job postings',
-  'Scanning YouTube presence',
-  'Scoring recruitability',
+const LOADING_PHASES = [
+  { label: 'Scanning Google local listings',     detail: 'Pulling every agent in the market'         },
+  { label: 'Crawling agent websites',            detail: 'Reading homepages, about pages, contact'   },
+  { label: 'Checking job boards',                detail: 'Flagging agencies actively hiring'          },
+  { label: 'Scanning YouTube presence',          detail: 'Finding agents building personal brands'   },
+  { label: 'Running AI recruiter scoring',       detail: 'Writing intel briefs on every HOT target'  },
+  { label: 'Preparing your results',             detail: 'Almost there — sorting by recruitability'  },
 ]
 
 type Agent = {
@@ -601,9 +602,14 @@ function SearchPageInner() {
     if (!searchCity.trim()) return
     setLoading(true); setSearched(false); setAgents([])
     setError(''); setCurrentStep(0); setSelectedIndex(null); setShowAll(false)
-    const stepInterval = setInterval(() => {
-      setCurrentStep(prev => prev < LOADING_STEPS.length - 1 ? prev + 1 : prev)
-    }, 1800)
+
+    // Phase timing (ms) — matches the real pipeline order
+    const PHASE_TIMINGS = [2000, 5000, 9000, 13000, 17000, 23000]
+    const timers: ReturnType<typeof setTimeout>[] = []
+    PHASE_TIMINGS.forEach((ms, i) => {
+      timers.push(setTimeout(() => setCurrentStep(i), ms))
+    })
+
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
@@ -619,7 +625,7 @@ function SearchPageInner() {
     } catch (err: any) {
       setError(err.message || 'Search failed. Try again.')
     }
-    clearInterval(stepInterval); setCurrentStep(-1)
+    timers.forEach(clearTimeout); setCurrentStep(-1)
     setLoading(false); setSearched(true)
   }
 
@@ -769,23 +775,68 @@ function SearchPageInner() {
           {/* Loading */}
           {loading && currentStep >= 0 && (
             <div style={{ marginBottom: 36 }}>
-              <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 18, borderRadius: 1 }}>
-                <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--orange)', animation: 'loadSlide 1s ease-in-out infinite' }} />
+              {/* Progress bar */}
+              <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 20, borderRadius: 1 }}>
+                <div style={{
+                  position: 'absolute', left: 0, height: '100%', background: 'var(--orange)',
+                  width: `${Math.round(((currentStep + 1) / LOADING_PHASES.length) * 100)}%`,
+                  transition: 'width 1.2s ease',
+                }} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {LOADING_STEPS.map((step, i) => (
-                  <div key={step} style={{
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 12, letterSpacing: 1,
+
+              {/* Active phase callout */}
+              {LOADING_PHASES[currentStep] && (
+                <div style={{
+                  padding: '14px 18px', marginBottom: 18,
+                  background: 'var(--bg-card)', border: '1px solid var(--orange-border)',
+                  borderLeft: '3px solid var(--orange)', borderRadius: 'var(--radius)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ color: 'var(--orange)', fontSize: 9, animation: 'pulse 1s infinite' }}>◐</span>
+                    <div>
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
+                        {LOADING_PHASES[currentStep].label}
+                      </div>
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-3)', letterSpacing: 0.5 }}>
+                        {LOADING_PHASES[currentStep].detail}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step list */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {LOADING_PHASES.map((phase, i) => (
+                  <div key={phase.label} style={{
+                    fontFamily: "'DM Sans', sans-serif", fontSize: 11, letterSpacing: 0.5,
                     display: 'flex', alignItems: 'center', gap: 10,
                     color: i < currentStep ? 'var(--sig-green)' : i === currentStep ? 'var(--orange)' : 'var(--text-4)',
-                    transition: 'color 0.3s',
+                    transition: 'color 0.4s',
                   }}>
-                    <span style={{ fontSize: 9 }}>{i < currentStep ? '●' : i === currentStep ? '◐' : '○'}</span>
-                    {step}
-                    {i === currentStep && <span style={{ animation: 'pulse 1s infinite', fontSize: 9 }}>...</span>}
+                    <span style={{ fontSize: 8, flexShrink: 0 }}>
+                      {i < currentStep ? '●' : i === currentStep ? '◐' : '○'}
+                    </span>
+                    <span>{phase.label}</span>
+                    {i < currentStep && (
+                      <span style={{ fontSize: 9, color: 'var(--sig-green)', marginLeft: 'auto' }}>DONE</span>
+                    )}
                   </div>
                 ))}
               </div>
+
+              {/* Honest time warning — shows after 10s */}
+              {currentStep >= 2 && (
+                <div style={{
+                  marginTop: 20, padding: '10px 14px',
+                  background: 'var(--bg)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-3)', letterSpacing: 0.5,
+                  lineHeight: 1.6,
+                }}>
+                  ⚡ Crawling websites and running AI scoring takes 20–40 seconds. Every HOT result comes with a full intel brief — worth the wait.
+                </div>
+              )}
             </div>
           )}
 
