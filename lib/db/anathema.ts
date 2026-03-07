@@ -116,8 +116,8 @@ export async function saveObservation(input: SaveObservationInput): Promise<{ ok
     predicted_tree, predicted_confidence,
   })
 
-  // Back-fill agent_profiles — non-blocking
-  void supabase
+  // Back-fill agent_profiles — awaited because scan results appear in the database view
+  await supabase
     .from('agent_profiles')
     .update({
       anathema_run:         true,

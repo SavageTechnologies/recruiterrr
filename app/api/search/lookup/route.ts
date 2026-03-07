@@ -14,7 +14,7 @@ import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 
 import { ALLOWED_ORIGINS } from '@/lib/config'
-import { fetchPageText } from '@/lib/fetch'
+import { fetchPageText, safeFetch, extractPageText } from '@/lib/fetch'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -177,23 +177,20 @@ async function fetchWebsiteIntel(rawUrl: string) {
     const parsed = new URL(rawUrl)
     const base = `${parsed.protocol}//${parsed.hostname}`
     const [homeHtml, aboutText] = await Promise.all([
-      (async () => {
-        try {
-          const res = await fetch(rawUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Recruiterrr/1.0)' }, signal: AbortSignal.timeout(5000), redirect: 'follow' })
-          if (!res.ok) return ''
-          const reader = res.body?.getReader(); if (!reader) return ''
-          let html = ''; let bytes = 0
-          while (true) {
-            const { done, value } = await reader.read(); if (done) break
-            bytes += value.length; html += new TextDecoder().decode(value)
-            if (bytes > 400_000) { reader.cancel(); break }
-          }
-          return html
-        } catch { return '' }
-      })(),
+      safeFetch(rawUrl, { timeoutMs: 5000 }).then(async r => {
+        if (!r.ok) return ''
+        const reader = r.body?.getReader(); if (!reader) return ''
+        let html = ''; let bytes = 0
+        while (true) {
+          const { done, value } = await reader.read(); if (done) break
+          bytes += value.length; html += new TextDecoder().decode(value)
+          if (bytes > 400_000) { reader.cancel(); break }
+        }
+        return html
+      }).catch(() => ''),
       fetchPageText(`${base}/about`, 2000).then(t => t || fetchPageText(`${base}/about-us`, 2000)),
     ])
-    const homeText = homeHtml.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000)
+    const homeText = extractPageText(homeHtml, 2000)
     const allText = homeText + ' ' + aboutText
     const emails = extractEmails(allText)
     const fullText = [homeText ? `HOMEPAGE: ${homeText}` : '', aboutText ? `ABOUT PAGE: ${aboutText}` : ''].filter(Boolean).join('\n\n').slice(0, 5000)
