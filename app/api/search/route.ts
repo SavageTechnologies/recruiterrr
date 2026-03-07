@@ -122,8 +122,10 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
           addr.includes(`, ${stateAbbr.toLowerCase()}`) ||
           addr.match(new RegExp(`\\b${stateAbbr.toLowerCase()}\\b`)) ||
           addr.match(new RegExp(`,\\s*${stateAbbr.toLowerCase()}\\s*(\\d{5})?$`))
-        // Only drop if address is present AND clearly wrong state — be permissive
-        if (item.address && item.address.length > 5 && !stateMatch) return
+        // Drop if address is missing/unverifiable — can't confirm locality
+        if (!item.address || item.address.length <= 5) return
+        // Drop if address is present but clearly wrong state
+        if (!stateMatch) return
 
         const key = item.title + item.address
         if (!seen.has(key)) {
