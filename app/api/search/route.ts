@@ -231,35 +231,46 @@ function preScore(raw: any, mode: string): PreScoreResult {
   })
   if (captive) return { score: 20, captive: true }
 
-  // ── Bucket 1: Volume signal (review count) — 0 to 35 pts ─────────────────
-  let volumeScore = 0
-  if (reviews >= 200)     volumeScore = 35
-  else if (reviews >= 100) volumeScore = 28
-  else if (reviews >= 50)  volumeScore = 22
-  else if (reviews >= 20)  volumeScore = 16
-  else if (reviews >= 5)   volumeScore = 10
-  else                     volumeScore = 5
+  // ── Bucket 1: Relevance/specialty signal — 0 to 30 pts ─────────────────
+  // Primary gate: does this agent do what we're looking for?
+  // Absence of specialty signals is neutral — they still get the default 15.
+  // We never punish unknown — unknown means crawl and find out.
+  const specialtyMatches = cfg.specialtyKeywords.filter(kw => allText.includes(kw)).length
+  const specialtyScore = specialtyMatches >= 3 ? 30
+    : specialtyMatches === 2 ? 24
+    : specialtyMatches === 1 ? 18
+    : 15 // default: no signals but not disqualified — assume relevant until proven otherwise
 
-  // ── Bucket 2: Independence signal — 0 to 25 pts ──────────────────────────
-  let independenceScore = 15 // default: assume independent
+  // ── Bucket 2: Independence signal — 0 to 30 pts ──────────────────────────
+  // Explicit independence signals are the strongest positive. Default assumes independent.
+  // Only penalize on explicit negative signals (fee-only, AUM, etc.)
+  let independenceScore = 18 // default: assume independent, worth a call
   if (cfg.independenceKeywords.some(kw => allText.includes(kw))) {
-    independenceScore = 25 // explicit independence signal
+    independenceScore = 30 // explicit broker/independent/multi-carrier language
   }
   if (cfg.negativeKeywords?.some(kw => allText.includes(kw))) {
-    independenceScore = 5  // explicit negative signal
+    independenceScore = 5  // explicit anti-recruit signal
   }
 
-  // ── Bucket 3: Specialty/relevance signal — 0 to 25 pts ───────────────────
-  const specialtyMatches = cfg.specialtyKeywords.filter(kw => allText.includes(kw)).length
-  const specialtyScore = Math.min(25, specialtyMatches * 8)
+  // ── Bucket 3: Volume signal (review count) — 0 to 25 pts ─────────────────
+  // Reviews amplify a good score — they are NOT a prerequisite.
+  // 0 reviews = neutral 12, not a penalty. High reviews = strong amplifier.
+  let volumeScore = 12 // neutral baseline — no reviews doesn't mean bad
+  if (reviews >= 200)      volumeScore = 25
+  else if (reviews >= 100) volumeScore = 21
+  else if (reviews >= 50)  volumeScore = 18
+  else if (reviews >= 20)  volumeScore = 15
+  else if (reviews >= 5)   volumeScore = 13
 
   // ── Bucket 4: Presence signal — 0 to 15 pts ──────────────────────────────
-  let presenceScore = 0
-  if (hasWebsite)         presenceScore += 8
-  if (raw.rating >= 4.0)  presenceScore += 4
-  if (raw.phone)          presenceScore += 3
+  // Website/phone/rating are nice-to-have amplifiers, not requirements.
+  // No website = still gets crawled — absence of a site isn't a disqualifier.
+  let presenceScore = 5 // baseline: even no-website agents get something
+  if (hasWebsite)         presenceScore += 5
+  if (raw.rating >= 4.0)  presenceScore += 3
+  if (raw.phone)          presenceScore += 2
 
-  const total = volumeScore + independenceScore + specialtyScore + presenceScore
+  const total = specialtyScore + independenceScore + volumeScore + presenceScore
   return { score: Math.min(100, total), captive: false }
 }
 
@@ -564,7 +575,7 @@ async function enrichAgent(raw: any, mode: string): Promise<Omit<AgentResult, 'h
   const { score: ps, captive: isCaptive } = preScore(raw, mode)
 
   // ── FAST PATH: clear cold (captive or very low signal) ───────────────────
-  if (ps < 40) {
+  if (ps < 35) {
     return {
       name: raw.title || 'Unknown',
       type: raw.type || cfg.typeFallback,
@@ -722,8 +733,8 @@ export async function POST(req: NextRequest) {
     const { default: pLimit } = await import('p-limit')
     const limiter = pLimit(6)
 
-    const toEnrich = prescored.filter(x => !x.ps.captive && x.ps.score >= 40)
-    const coldTail  = prescored.filter(x => x.ps.captive || x.ps.score < 40)
+    const toEnrich = prescored.filter(x => !x.ps.captive && x.ps.score >= 35)
+    const coldTail  = prescored.filter(x => x.ps.captive || x.ps.score < 35)
 
     const enrichedRaw = await Promise.all(
       toEnrich.map(({ raw }) => limiter(() => enrichAgent(raw, mode)))
