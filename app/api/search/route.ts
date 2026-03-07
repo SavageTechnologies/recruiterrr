@@ -54,7 +54,19 @@ const MODE_CONFIG: Record<string, {
       'independent insurance agent',
       'Medicare broker',
     ],
-    captiveBrands: ['Bankers Life', 'State Farm', 'Farmers', 'Allstate', 'GEICO', 'New York Life', 'Northwestern'],
+    captiveBrands: [
+      // P&C / multi-line captives
+      'State Farm', 'Farmers', 'Allstate', 'GEICO', 'American Family',
+      'Shelter Insurance', 'Shelter Mutual', 'Auto-Owners', 'Erie Insurance',
+      'Country Financial', 'Farm Bureau', 'USAA',
+      // Life/health captives
+      'Bankers Life', 'HealthMarkets', 'New York Life', 'Northwestern Mutual', 'Northwestern',
+      'Mass Mutual', 'MassMutual', 'Guardian Life', 'Pacific Life',
+      'Mutual of Omaha', 'Transamerica', 'Globe Life', 'Liberty National',
+      'Aflac', 'Colonial Life', 'Combined Insurance', 'Primerica',
+      // Supplemental/worksite
+      'Unum', 'MetLife', 'Principal Financial',
+    ],
     independenceKeywords: ['independent', 'broker', 'agency', 'multi-carrier', 'multi carrier'],
     specialtyKeywords: ['medicare', 'supplement', 'advantage', 'medigap', 'pdp', 'senior', 'health'],
     typeFallback: 'Insurance Agency',
@@ -70,7 +82,13 @@ const MODE_CONFIG: Record<string, {
       'life insurance agency',
       'whole life insurance agent',
     ],
-    captiveBrands: ['New York Life', 'Northwestern', 'Mass Mutual', 'Bankers Life', 'Globe Life'],
+    captiveBrands: [
+      'New York Life', 'Northwestern Mutual', 'Northwestern', 'Mass Mutual', 'MassMutual',
+      'Bankers Life', 'HealthMarkets', 'Globe Life', 'Liberty National', 'Aflac', 'Colonial Life',
+      'Combined Insurance', 'Primerica', 'Transamerica', 'Guardian Life',
+      'Mutual of Omaha', 'Principal Financial', 'State Farm', 'Farmers', 'Allstate',
+      'American Family', 'Shelter Insurance', 'Farm Bureau', 'Country Financial',
+    ],
     independenceKeywords: ['independent', 'broker', 'agency', 'multi-carrier'],
     specialtyKeywords: ['life', 'final expense', 'burial', 'legacy', 'term', 'whole life', 'family protection'],
     typeFallback: 'Insurance Agency',
@@ -87,7 +105,18 @@ const MODE_CONFIG: Record<string, {
       'annuity advisor',
       'insurance and financial services',
     ],
-    captiveBrands: ['Edward Jones', 'Ameriprise', 'Raymond James', 'Merrill Lynch', 'Morgan Stanley', 'Wells Fargo Advisors', 'Fidelity', 'Vanguard', 'Schwab', 'LPL Financial', 'Northwestern Mutual', 'New York Life'],
+    captiveBrands: [
+      // Wirehouses / broker-dealers
+      'Edward Jones', 'Ameriprise', 'Raymond James', 'Merrill Lynch', 'Merrill',
+      'Morgan Stanley', 'Wells Fargo Advisors', 'Wells Fargo', 'UBS',
+      // Custodians / RIA platforms
+      'Fidelity', 'Vanguard', 'Schwab', 'Charles Schwab', 'TD Ameritrade',
+      // Insurance captives
+      'Northwestern Mutual', 'Northwestern', 'New York Life', 'Mass Mutual', 'MassMutual',
+      'Guardian Life', 'Principal Financial', 'Transamerica',
+      // IBDs often anti-annuity
+      'LPL Financial', 'Cetera', 'Commonwealth Financial',
+    ],
     independenceKeywords: ['independent', 'fixed annuity', 'fixed index', 'fia', 'myga', 'safe money', 'principal protection', 'guaranteed income'],
     specialtyKeywords: ['annuity', 'annuities', 'retirement income', 'indexed', 'myga', 'safe money', 'no market risk'],
     negativeKeywords: ['fee-only', 'assets under management', 'aum', 'investment management', 'registered investment advisor'],
@@ -102,7 +131,13 @@ const MODE_CONFIG: Record<string, {
       'financial planner',
       'retirement planning advisor',
     ],
-    captiveBrands: ['Edward Jones', 'Ameriprise', 'Raymond James', 'Merrill', 'Morgan Stanley', 'Wells Fargo Advisors'],
+    captiveBrands: [
+      'Edward Jones', 'Ameriprise', 'Raymond James', 'Merrill Lynch', 'Merrill',
+      'Morgan Stanley', 'Wells Fargo Advisors', 'Wells Fargo', 'UBS',
+      'Northwestern Mutual', 'Northwestern', 'New York Life', 'Mass Mutual', 'MassMutual',
+      'Fidelity', 'Vanguard', 'Schwab', 'Charles Schwab',
+      'LPL Financial', 'Cetera', 'Commonwealth Financial',
+    ],
     independenceKeywords: ['independent', 'ria', 'fee-only', 'cfp', 'fiduciary', 'wealth management'],
     specialtyKeywords: ['financial', 'wealth', 'retirement', 'planning', 'investment', 'advisor', 'cfp'],
     typeFallback: 'Financial Advisory',
@@ -683,12 +718,12 @@ export async function POST(req: NextRequest) {
       .sort((a, b) => b.ps.score - a.ps.score)
 
     // ── Enrich hot/warm (≥40) with concurrency 6 ─────────────────────────────
-    // Cold (<40) get returned as-is — no crawl, no LLM.
+    // Captives + low signal (<40): no crawl, no LLM, ever.
     const { default: pLimit } = await import('p-limit')
     const limiter = pLimit(6)
 
-    const toEnrich = prescored.filter(x => x.ps.score >= 40)
-    const coldTail  = prescored.filter(x => x.ps.score < 40)
+    const toEnrich = prescored.filter(x => !x.ps.captive && x.ps.score >= 40)
+    const coldTail  = prescored.filter(x => x.ps.captive || x.ps.score < 40)
 
     const enrichedRaw = await Promise.all(
       toEnrich.map(({ raw }) => limiter(() => enrichAgent(raw, mode)))
