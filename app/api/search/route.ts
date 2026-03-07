@@ -667,11 +667,10 @@ export async function POST(req: NextRequest) {
       return s
     }
 
-    // Phase 1: rank all candidates, split by potential HOT threshold
-    // Anyone pre-scoring 70+ is a potential HOT and gets full enrichment.
-    // The rest get pre-scores only. Hard cap at 8 to bound cost on dense markets.
-    const ENRICH_THRESHOLD = 70
-    const ENRICH_MAX = 8
+    // Phase 1: rank all candidates — anyone pre-scoring 50+ (warm or hot) gets
+    // full enrichment. Cold (< 50) gets pre-score only. Hard cap at 12.
+    const ENRICH_THRESHOLD = 50
+    const ENRICH_MAX = 12
     const ranked = rawAgents
       .slice(0, clampedLimit)
       .map((raw: any) => ({ raw, preScore: preScore(raw) }))

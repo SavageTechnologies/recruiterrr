@@ -514,28 +514,7 @@ function DetailPanel({ agent, city, state }: { agent: Agent | null; city: string
         </div>
       )}
 
-      {/* Anathema CTA — only shown for hot agents */}
-      {agent.flag === 'hot' && (
-      <div style={{ padding: '15px 22px', marginTop: 'auto' }}>
-        <a
-          href={`/dashboard/anathema?name=${encodeURIComponent(agent.name)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}${agent.website ? `&url=${encodeURIComponent(agent.website)}` : ''}`}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '13px 15px', background: 'var(--sig-green-dim)',
-            border: '1px solid var(--sig-green-border)',
-            textDecoration: 'none', borderRadius: 'var(--radius)', transition: 'background 0.15s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sig-green-hover)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'var(--sig-green-dim)')}
-        >
-          <div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--sig-green)', letterSpacing: 1, fontWeight: 600 }}>● RUN ANATHEMA SCAN</div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--text-3)', letterSpacing: 0.5, marginTop: 3 }}>Deep-scan for upline affiliation & captive contract signals</div>
-          </div>
-          <span style={{ color: 'var(--sig-green)', fontSize: 16 }}>→</span>
-        </a>
-      </div>
-      )}
+
     </div>
   )
 }
