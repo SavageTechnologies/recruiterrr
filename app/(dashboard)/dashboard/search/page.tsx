@@ -773,70 +773,25 @@ function SearchPageInner() {
           )}
 
           {/* Loading */}
-          {loading && currentStep >= 0 && (
+          {loading && currentStep >= 0 && LOADING_PHASES[currentStep] && (
             <div style={{ marginBottom: 36 }}>
-              {/* Progress bar */}
-              <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 20, borderRadius: 1 }}>
-                <div style={{
-                  position: 'absolute', left: 0, height: '100%', background: 'var(--orange)',
-                  width: `${Math.round(((currentStep + 1) / LOADING_PHASES.length) * 100)}%`,
-                  transition: 'width 1.2s ease',
-                }} />
-              </div>
-
-              {/* Active phase callout */}
-              {LOADING_PHASES[currentStep] && (
-                <div style={{
-                  padding: '14px 18px', marginBottom: 18,
-                  background: 'var(--bg-card)', border: '1px solid var(--orange-border)',
-                  borderLeft: '3px solid var(--orange)', borderRadius: 'var(--radius)',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ color: 'var(--orange)', fontSize: 9, animation: 'pulse 1s infinite' }}>◐</span>
-                    <div>
-                      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
-                        {LOADING_PHASES[currentStep].label}
-                      </div>
-                      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-3)', letterSpacing: 0.5 }}>
-                        {LOADING_PHASES[currentStep].detail}
-                      </div>
+              <div style={{
+                padding: '14px 18px',
+                background: 'var(--bg-card)', border: '1px solid var(--orange-border)',
+                borderLeft: '3px solid var(--orange)', borderRadius: 'var(--radius)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ color: 'var(--orange)', fontSize: 9, animation: 'pulse 1s infinite' }}>◐</span>
+                  <div>
+                    <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
+                      {LOADING_PHASES[currentStep].label}
+                    </div>
+                    <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-3)', letterSpacing: 0.5 }}>
+                      {LOADING_PHASES[currentStep].detail}
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* Step list */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                {LOADING_PHASES.map((phase, i) => (
-                  <div key={phase.label} style={{
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 11, letterSpacing: 0.5,
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    color: i < currentStep ? 'var(--sig-green)' : i === currentStep ? 'var(--orange)' : 'var(--text-4)',
-                    transition: 'color 0.4s',
-                  }}>
-                    <span style={{ fontSize: 8, flexShrink: 0 }}>
-                      {i < currentStep ? '●' : i === currentStep ? '◐' : '○'}
-                    </span>
-                    <span>{phase.label}</span>
-                    {i < currentStep && (
-                      <span style={{ fontSize: 9, color: 'var(--sig-green)', marginLeft: 'auto' }}>DONE</span>
-                    )}
-                  </div>
-                ))}
               </div>
-
-              {/* Honest time warning — shows after 10s */}
-              {currentStep >= 2 && (
-                <div style={{
-                  marginTop: 20, padding: '10px 14px',
-                  background: 'var(--bg)', border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-3)', letterSpacing: 0.5,
-                  lineHeight: 1.6,
-                }}>
-                  ⚡ Crawling websites and running AI scoring takes 20–40 seconds. Every HOT result comes with a full intel brief — worth the wait.
-                </div>
-              )}
             </div>
           )}
 
