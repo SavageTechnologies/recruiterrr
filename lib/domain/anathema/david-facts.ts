@@ -12,7 +12,7 @@
 // separate field (david_facts on anathema_specimens), and sits dormant until
 // DAVID is ready to query it.
 
-import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropicClient } from '@/lib/ai'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ export async function extractDavidFacts(
   const allContent = sections.join('\n\n')
 
   try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const anthropic = getAnthropicClient()
     const res = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1200,

@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import Stripe from 'stripe'
 import { supabase } from '@/lib/supabase.server'
 
-const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
+import { ALLOWED_ORIGINS } from '@/lib/config'
 
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin')

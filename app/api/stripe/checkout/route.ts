@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
-const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
+import { ALLOWED_ORIGINS } from '@/lib/config'
 
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin')

@@ -8,12 +8,12 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropicClient } from '@/lib/ai'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 
-const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
+import { ALLOWED_ORIGINS } from '@/lib/config'
 const BLOCKED_HOSTS   = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', '::1']
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
@@ -245,7 +245,7 @@ async function scoreLookupAgent(
   state: string,
   mode: string
 ): Promise<Omit<LookupResult, 'source_url' | 'source_title' | 'confidence' | 'confidence_note'>> {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const anthropic = getAnthropicClient()
 
   const modeContext: Record<string, { analyst: string; captive: string[]; coreAssumption: string; signals: string }> = {
     medicare: {

@@ -2,12 +2,12 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropicClient } from '@/lib/ai'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 
-const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
+import { ALLOWED_ORIGINS } from '@/lib/config'
 const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', '::1']
 
 type AgentResult = {
@@ -403,7 +403,7 @@ async function fetchYouTube(name: string): Promise<{ channel: string | null; sub
 }
 
 async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: boolean; roles: string[] }, ytData: { channel: string | null; subscribers: string | null; videoCount: number }, mode: string = 'medicare'): Promise<AgentResult> {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const anthropic = getAnthropicClient()
   const name = raw.title || 'Unknown'
   const type = raw.type || ''
   const reviews = raw.reviews || 0

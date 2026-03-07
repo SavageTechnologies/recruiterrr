@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabase } from '@/lib/supabase.server'
 
-const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
+import { ALLOWED_ORIGINS } from '@/lib/config'
 
 export async function GET(req: NextRequest) {
   // CSRF check

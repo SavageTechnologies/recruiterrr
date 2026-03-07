@@ -10,7 +10,7 @@
 //
 // The DB never votes on the answer. It only recognizes it afterward.
 
-import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropicClient } from '@/lib/ai'
 import { supabase } from '@/lib/supabase.server'
 import type { NetworkSignal } from './signals'
 
@@ -293,7 +293,7 @@ SUB-IMO RULES:
 }`
 
   try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const anthropic = getAnthropicClient()
     const res = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 600,

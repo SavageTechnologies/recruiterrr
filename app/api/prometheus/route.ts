@@ -3,11 +3,12 @@ export const maxDuration = 120  // crawl + SERP + Sonnet analysis
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropicClient } from '@/lib/ai'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
 import { isAdmin, hasActiveSubscription } from '@/lib/auth/access'
+import { ALLOWED_ORIGINS } from '@/lib/config'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -510,7 +511,7 @@ Return ONLY valid JSON, no markdown, no backticks:
   "confidence_note": "<honest summary of what data was and wasn't available>"
 }`
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const anthropic = getAnthropicClient()
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 5000,
@@ -559,7 +560,6 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin')
-  const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
   if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

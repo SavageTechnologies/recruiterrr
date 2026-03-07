@@ -15,7 +15,7 @@ import { saveObservation, checkExistingSpecimen, getSpecimen, getScan, saveDavid
 import { hasActiveSubscription } from '@/lib/auth/access'
 import { supabase } from '@/lib/supabase.server'
 
-const ALLOWED_ORIGINS = ['https://recruiterrr.com', 'http://localhost:3000']
+import { ALLOWED_ORIGINS } from '@/lib/config'
 
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
