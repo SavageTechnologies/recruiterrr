@@ -6,9 +6,10 @@ import { getAnthropicClient } from '@/lib/ai'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 import { supabase } from '@/lib/supabase.server'
-
 import { ALLOWED_ORIGINS } from '@/lib/config'
 import { fetchPageText } from '@/lib/fetch'
+
+// ─── TYPES ────────────────────────────────────────────────────────────────────
 
 type AgentResult = {
   name: string; type: string; phone: string; address: string
@@ -18,115 +19,147 @@ type AgentResult = {
   hiring: boolean; hiring_roles: string[]
   youtube_channel: string | null; youtube_subscribers: string | null; youtube_video_count: number
   about: string | null; contact_email: string | null; social_links: string[]
+  // Score breakdown for transparency
+  _preScore: number
+  _enrichmentDelta: number
+  _sonnetDelta: number
 }
 
-async function fetchAgentsFromSerp(city: string, state: string, limit: number, mode: string, query: string = ''): Promise<any[]> {
-  const base: string[] = []
+type WebsiteIntel = {
+  fullText: string
+  email: string | null
+  socialLinks: string[]
+  youtubeLink: string | null
+}
 
-  // Mode controls WHAT type of agent we're looking for.
-  // IMPORTANT: google_local engine needs the city IN the query string to produce local results.
-  // Using only the `location` param is not sufficient — Google local search requires the
-  // geographic context in `q` as well, or it returns zero/sparse results for smaller markets.
-  // We still use the `location` param for radius targeting, but always include city in q.
-  //
-  // If the user typed a free-text query (e.g. "Medicare supplement", "final expense"),
-  // use that directly as the first and primary search term instead of the mode defaults.
-  const prefix = query.trim()
-  // cityPrefix is appended to every query so SerpAPI google_local finds results
+// ─── MODE CONFIG ──────────────────────────────────────────────────────────────
+
+const MODE_CONFIG: Record<string, {
+  analyst: string
+  queries: string[]
+  captiveBrands: string[]
+  independenceKeywords: string[]
+  specialtyKeywords: string[]
+  negativeKeywords?: string[]
+  typeFallback: string
+}> = {
+  medicare: {
+    analyst: 'Medicare/senior insurance FMO recruiter',
+    queries: [
+      'Medicare insurance agent',
+      'Medicare supplement broker',
+      'Medicare advantage agent',
+      'senior health insurance agent',
+      'health insurance broker',
+      'independent insurance agent',
+      'Medicare broker',
+    ],
+    captiveBrands: ['Bankers Life', 'State Farm', 'Farmers', 'Allstate', 'GEICO', 'New York Life', 'Northwestern'],
+    independenceKeywords: ['independent', 'broker', 'agency', 'multi-carrier', 'multi carrier'],
+    specialtyKeywords: ['medicare', 'supplement', 'advantage', 'medigap', 'pdp', 'senior', 'health'],
+    typeFallback: 'Insurance Agency',
+  },
+  life: {
+    analyst: 'life and final expense insurance FMO recruiter',
+    queries: [
+      'life insurance agent',
+      'final expense insurance agent',
+      'term life insurance broker',
+      'burial insurance agent',
+      'independent life insurance broker',
+      'life insurance agency',
+      'whole life insurance agent',
+    ],
+    captiveBrands: ['New York Life', 'Northwestern', 'Mass Mutual', 'Bankers Life', 'Globe Life'],
+    independenceKeywords: ['independent', 'broker', 'agency', 'multi-carrier'],
+    specialtyKeywords: ['life', 'final expense', 'burial', 'legacy', 'term', 'whole life', 'family protection'],
+    typeFallback: 'Insurance Agency',
+  },
+  annuities: {
+    analyst: 'fixed index annuity and MYGA specialist FMO recruiter',
+    queries: [
+      'fixed index annuity agent',
+      'MYGA annuity specialist',
+      'safe money advisor',
+      'retirement income specialist',
+      'independent annuity broker',
+      'fixed annuity broker',
+      'annuity advisor',
+      'insurance and financial services',
+    ],
+    captiveBrands: ['Edward Jones', 'Ameriprise', 'Raymond James', 'Merrill Lynch', 'Morgan Stanley', 'Wells Fargo Advisors', 'Fidelity', 'Vanguard', 'Schwab', 'LPL Financial', 'Northwestern Mutual', 'New York Life'],
+    independenceKeywords: ['independent', 'fixed annuity', 'fixed index', 'fia', 'myga', 'safe money', 'principal protection', 'guaranteed income'],
+    specialtyKeywords: ['annuity', 'annuities', 'retirement income', 'indexed', 'myga', 'safe money', 'no market risk'],
+    negativeKeywords: ['fee-only', 'assets under management', 'aum', 'investment management', 'registered investment advisor'],
+    typeFallback: 'Financial Services',
+  },
+  financial: {
+    analyst: 'financial advisory and wealth management recruiter',
+    queries: [
+      'financial advisor',
+      'independent financial advisor',
+      'wealth management advisor',
+      'financial planner',
+      'retirement planning advisor',
+    ],
+    captiveBrands: ['Edward Jones', 'Ameriprise', 'Raymond James', 'Merrill', 'Morgan Stanley', 'Wells Fargo Advisors'],
+    independenceKeywords: ['independent', 'ria', 'fee-only', 'cfp', 'fiduciary', 'wealth management'],
+    specialtyKeywords: ['financial', 'wealth', 'retirement', 'planning', 'investment', 'advisor', 'cfp'],
+    typeFallback: 'Financial Advisory',
+  },
+}
+
+// ─── SERP FETCH ───────────────────────────────────────────────────────────────
+
+async function fetchAgentsFromSerp(city: string, state: string, limit: number, mode: string, query: string = ''): Promise<any[]> {
+  const cfg = MODE_CONFIG[mode] || MODE_CONFIG.medicare
   const cityPrefix = city.trim()
 
-  if (prefix) {
-    base.push(`${prefix} ${cityPrefix}`)
-    base.push(`${prefix} insurance agent ${cityPrefix}`)
-    base.push(`${prefix} broker ${cityPrefix}`)
-    base.push(`${prefix} independent agent ${cityPrefix}`)
-  } else {
-    if (mode === 'medicare') {
-      base.push(`Medicare insurance agent ${cityPrefix}`)
-      base.push(`Medicare supplement broker ${cityPrefix}`)
-      base.push(`Medicare advantage agent ${cityPrefix}`)
-      base.push(`senior health insurance agent ${cityPrefix}`)
-      base.push(`health insurance broker ${cityPrefix}`)
-      base.push(`independent insurance agent ${cityPrefix}`)
-      base.push(`Medicare broker ${cityPrefix}`)
-    }
-    if (mode === 'life') {
-      base.push(`life insurance agent ${cityPrefix}`)
-      base.push(`final expense insurance agent ${cityPrefix}`)
-      base.push(`term life insurance broker ${cityPrefix}`)
-      base.push(`burial insurance agent ${cityPrefix}`)
-      base.push(`independent life insurance broker ${cityPrefix}`)
-      base.push(`life insurance agency ${cityPrefix}`)
-      base.push(`whole life insurance agent ${cityPrefix}`)
-    }
-    if (mode === 'annuities') {
-      base.push(`fixed index annuity agent ${cityPrefix}`)
-      base.push(`MYGA annuity specialist ${cityPrefix}`)
-      base.push(`safe money advisor ${cityPrefix}`)
-      base.push(`retirement income specialist ${cityPrefix}`)
-      base.push(`independent annuity broker ${cityPrefix}`)
-      base.push(`fixed annuity broker ${cityPrefix}`)
-      base.push(`annuity advisor ${cityPrefix}`)
-      base.push(`insurance and financial services ${cityPrefix}`)
-    }
-    if (mode === 'financial') {
-      base.push(`financial advisor ${cityPrefix}`)
-      base.push(`independent financial advisor ${cityPrefix}`)
-      base.push(`wealth management advisor ${cityPrefix}`)
-      base.push(`financial planner ${cityPrefix}`)
-      base.push(`retirement planning advisor ${cityPrefix}`)
-    }
-  }
-
-  // Run all queries — don't scale down based on limit, let dedup handle it
-  const queries = base
+  const baseQueries = query.trim()
+    ? [
+      `${query.trim()} ${cityPrefix}`,
+      `${query.trim()} insurance agent ${cityPrefix}`,
+      `${query.trim()} broker ${cityPrefix}`,
+      `${query.trim()} independent agent ${cityPrefix}`,
+    ]
+    : cfg.queries.map(q => `${q} ${cityPrefix}`)
 
   const STATE_FULL: Record<string, string> = {
-    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
-    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
-    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
-    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
-    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
-    'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
-    'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
-    'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
-    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
-    'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
-    'DC': 'District of Columbia',
+    'AL':'Alabama','AK':'Alaska','AZ':'Arizona','AR':'Arkansas','CA':'California',
+    'CO':'Colorado','CT':'Connecticut','DE':'Delaware','FL':'Florida','GA':'Georgia',
+    'HI':'Hawaii','ID':'Idaho','IL':'Illinois','IN':'Indiana','IA':'Iowa',
+    'KS':'Kansas','KY':'Kentucky','LA':'Louisiana','ME':'Maine','MD':'Maryland',
+    'MA':'Massachusetts','MI':'Michigan','MN':'Minnesota','MS':'Mississippi','MO':'Missouri',
+    'MT':'Montana','NE':'Nebraska','NV':'Nevada','NH':'New Hampshire','NJ':'New Jersey',
+    'NM':'New Mexico','NY':'New York','NC':'North Carolina','ND':'North Dakota','OH':'Ohio',
+    'OK':'Oklahoma','OR':'Oregon','PA':'Pennsylvania','RI':'Rhode Island','SC':'South Carolina',
+    'SD':'South Dakota','TN':'Tennessee','TX':'Texas','UT':'Utah','VT':'Vermont',
+    'VA':'Virginia','WA':'Washington','WV':'West Virginia','WI':'Wisconsin','WY':'Wyoming',
+    'DC':'District of Columbia',
   }
   const stateAbbr = state.trim().toUpperCase()
   const stateFull = STATE_FULL[stateAbbr] || state
-  // SerpAPI requires full state name: "City, State, United States"
   const locationParam = encodeURIComponent(`${city}, ${stateFull}, United States`)
 
   const seen = new Set<string>()
   const results: any[] = []
 
-  await Promise.all(queries.map(async (q) => {
+  await Promise.all(baseQueries.map(async (q) => {
     try {
       const url = `https://serpapi.com/search.json?engine=google_local&q=${encodeURIComponent(q)}&location=${locationParam}&hl=en&gl=us&api_key=${process.env.SERPAPI_KEY}`
       const res = await fetch(url)
       if (!res.ok) return
       const data = await res.json()
       for (const item of (data.local_results || [])) {
-        // Post-fetch filter: only drop results that are clearly in a different state.
-        // Don't filter by city — Google often shows agents with abbreviated or
-        // slightly different city formats (KC, K.C., suburb names, etc.)
         const addr = (item.address || '').toLowerCase()
-        const stateAbbr = state.toUpperCase()
         const stateLower = state.toLowerCase()
-        // Match state abbreviation (KS) OR full name (kansas) — both formats appear in Google results
-        const stateMatch = addr.includes(`, ${stateLower}`) ||
-          addr.includes(` ${stateLower}`) ||
-          addr.endsWith(stateLower) ||
-          addr.includes(`, ${stateAbbr.toLowerCase()}`) ||
+        const stateMatch =
+          addr.includes(`, ${stateLower}`) || addr.includes(` ${stateLower}`) ||
+          addr.endsWith(stateLower) || addr.includes(`, ${stateAbbr.toLowerCase()}`) ||
           addr.match(new RegExp(`\\b${stateAbbr.toLowerCase()}\\b`)) ||
           addr.match(new RegExp(`,\\s*${stateAbbr.toLowerCase()}\\s*(\\d{5})?$`))
-        // Drop if address is missing/unverifiable — can't confirm locality
-        if (!item.address || item.address.length <= 5) return
-        // Drop if address is present but clearly wrong state
-        if (!stateMatch) return
-
+        if (!item.address || item.address.length <= 5) continue
+        if (!stateMatch) continue
         const key = item.title + item.address
         if (!seen.has(key)) {
           seen.add(key)
@@ -140,30 +173,84 @@ async function fetchAgentsFromSerp(city: string, state: string, limit: number, m
   return results
 }
 
+// ─── PRE-SCORE: 4 INDEPENDENT SIGNAL BUCKETS ─────────────────────────────────
+// Returns { score, captive } — captive is ONLY derived from brand name matching,
+// never from the score itself.
 
-// Extract emails from text
+type PreScoreResult = { score: number; captive: boolean }
+
+function preScore(raw: any, mode: string): PreScoreResult {
+  const cfg = MODE_CONFIG[mode] || MODE_CONFIG.medicare
+  const name = (raw.title || '').toLowerCase()
+  const type = (raw.type || '').toLowerCase()
+  const description = (raw.description || '').toLowerCase()
+  const extensions = ((raw.extensions || []) as string[]).join(' ').toLowerCase()
+  const allText = `${name} ${type} ${description} ${extensions}`
+  const reviews = raw.reviews || 0
+  const hasWebsite = !!raw.website
+
+  // ── Captive check: brand name match only, never score-derived ──────────────
+  const captive = cfg.captiveBrands.some(brand => {
+    const escaped = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    return new RegExp(`\\b${escaped}\\b`, 'i').test(raw.title || '')
+  })
+  if (captive) return { score: 20, captive: true }
+
+  // ── Bucket 1: Volume signal (review count) — 0 to 35 pts ─────────────────
+  let volumeScore = 0
+  if (reviews >= 200)     volumeScore = 35
+  else if (reviews >= 100) volumeScore = 28
+  else if (reviews >= 50)  volumeScore = 22
+  else if (reviews >= 20)  volumeScore = 16
+  else if (reviews >= 5)   volumeScore = 10
+  else                     volumeScore = 5
+
+  // ── Bucket 2: Independence signal — 0 to 25 pts ──────────────────────────
+  let independenceScore = 15 // default: assume independent
+  if (cfg.independenceKeywords.some(kw => allText.includes(kw))) {
+    independenceScore = 25 // explicit independence signal
+  }
+  if (cfg.negativeKeywords?.some(kw => allText.includes(kw))) {
+    independenceScore = 5  // explicit negative signal
+  }
+
+  // ── Bucket 3: Specialty/relevance signal — 0 to 25 pts ───────────────────
+  const specialtyMatches = cfg.specialtyKeywords.filter(kw => allText.includes(kw)).length
+  const specialtyScore = Math.min(25, specialtyMatches * 8)
+
+  // ── Bucket 4: Presence signal — 0 to 15 pts ──────────────────────────────
+  let presenceScore = 0
+  if (hasWebsite)         presenceScore += 8
+  if (raw.rating >= 4.0)  presenceScore += 4
+  if (raw.phone)          presenceScore += 3
+
+  const total = volumeScore + independenceScore + specialtyScore + presenceScore
+  return { score: Math.min(100, total), captive: false }
+}
+
+// ─── WEBSITE CRAWL ────────────────────────────────────────────────────────────
+// Homepage + /about in parallel. Extract text, email, socials, YouTube link.
+// Jobs and YouTube SERP lookups are NOT here — they run in the background after response.
+
 function extractEmails(text: string): string[] {
   const matches = text.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) || []
-  // Filter out noreply, support@ style emails and obvious false positives
   return [...new Set(matches)].filter(e =>
     !e.includes('noreply') && !e.includes('no-reply') && !e.includes('@sentry') &&
     !e.includes('@example') && !e.includes('@schema') && e.length < 60
   ).slice(0, 3)
 }
 
-// Extract social links from HTML (excludes YouTube — handled separately)
 function extractSocialLinks(html: string): string[] {
   const links: string[] = []
-  const socialPatterns = [
+  const patterns = [
     /https?:\/\/(?:www\.)?facebook\.com\/[^"'\s>]+/g,
     /https?:\/\/(?:www\.)?linkedin\.com\/(?:in|company)\/[^"'\s>]+/g,
     /https?:\/\/(?:www\.)?instagram\.com\/[^"'\s>]+/g,
     /https?:\/\/(?:www\.)?(?:twitter|x)\.com\/[^"'\s>]+/g,
   ]
-  for (const pattern of socialPatterns) {
-    const matches = html.match(pattern) || []
-    for (const m of matches) {
-      const clean = m.replace(/['">,]+$/, '')
+  for (const p of patterns) {
+    for (const m of (html.match(p) || [])) {
+      const clean = m.replace(/['",>]+$/, '')
       if (!links.includes(clean) && !clean.includes('sharer') && !clean.includes('intent')) {
         links.push(clean)
       }
@@ -172,42 +259,26 @@ function extractSocialLinks(html: string): string[] {
   return links.slice(0, 4)
 }
 
-// Extract the agent's own YouTube channel link from their website HTML.
-// A link on their own site is the highest-confidence signal we have.
 function extractYouTubeLink(html: string): string | null {
-  // Match channel URLs: /channel/ID, /@handle, /c/name, /user/name
   const pattern = /https?:\/\/(?:www\.)?youtube\.com\/(channel\/[A-Za-z0-9_-]+|@[A-Za-z0-9_.-]+|c\/[A-Za-z0-9_-]+|user\/[A-Za-z0-9_-]+)/g
-  const matches = html.match(pattern) || []
-  for (const m of matches) {
-    const clean = m.replace(/['">,]+$/, '')
-    // Skip YouTube's own embed/share infrastructure links
-    if (clean.includes('/embed') || clean.includes('youtube.com/t/') || clean.includes('youtube.com/about')) continue
-    return clean
+  for (const m of (html.match(pattern) || [])) {
+    const clean = m.replace(/['",>]+$/, '')
+    if (!clean.includes('/embed') && !clean.includes('youtube.com/t/') && !clean.includes('youtube.com/about')) {
+      return clean
+    }
   }
   return null
 }
 
-type WebsiteIntel = {
-  homeText: string
-  aboutText: string
-  contactText: string
-  email: string | null
-  socialLinks: string[]
-  youtubeLink: string | null  // extracted directly from their website — highest confidence
-  fullText: string // combined for Claude scoring
-}
-
-async function fetchWebsiteText(rawUrl: string): Promise<WebsiteIntel> {
-  const empty: WebsiteIntel = { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], youtubeLink: null, fullText: '' }
+async function crawlWebsite(rawUrl: string): Promise<WebsiteIntel> {
+  const empty: WebsiteIntel = { fullText: '', email: null, socialLinks: [], youtubeLink: null }
   try {
     const parsed = new URL(rawUrl)
     if (!['http:', 'https:'].includes(parsed.protocol)) return empty
-
     const base = `${parsed.protocol}//${parsed.hostname}`
 
-    // Crawl homepage, /about, and /contact in parallel
-    const [homeHtml, aboutText, contactText] = await Promise.all([
-      // For homepage we keep the raw HTML to extract socials/emails from links
+    // Fetch homepage HTML (raw, for social/email/youtube extraction) + about text in parallel
+    const [homeHtml, aboutText] = await Promise.all([
       (async () => {
         try {
           const res = await fetch(rawUrl, {
@@ -229,15 +300,9 @@ async function fetchWebsiteText(rawUrl: string): Promise<WebsiteIntel> {
           return html
         } catch { return '' }
       })(),
-      // Race all about/contact variants simultaneously — take first non-empty
       Promise.all([
-        fetchPageText(`${base}/about`, 2000),
-        fetchPageText(`${base}/about-us`, 2000),
-        fetchPageText(`${base}/our-story`, 1500),
-      ]).then(([a, b, c]) => a || b || c || ''),
-      Promise.all([
-        fetchPageText(`${base}/contact`, 1500),
-        fetchPageText(`${base}/contact-us`, 1500),
+        fetchPageText(`${base}/about`, 2000, 4000),
+        fetchPageText(`${base}/about-us`, 2000, 4000),
       ]).then(([a, b]) => a || b || ''),
     ])
 
@@ -249,248 +314,192 @@ async function fetchWebsiteText(rawUrl: string): Promise<WebsiteIntel> {
       .trim()
       .slice(0, 2000)
 
+    const allText = homeText + ' ' + aboutText
+    const email = extractEmails(allText)[0] || null
     const socialLinks = extractSocialLinks(homeHtml)
-    const allText = homeText + ' ' + aboutText + ' ' + contactText
-    const emails = extractEmails(allText)
-    const email = emails[0] || null
+    const youtubeLink = extractYouTubeLink(homeHtml)
 
-    // Build a structured summary for Claude
     const fullText = [
       homeText ? `HOMEPAGE: ${homeText}` : '',
-      aboutText ? `ABOUT PAGE: ${aboutText}` : '',
-      contactText ? `CONTACT PAGE: ${contactText}` : '',
-    ].filter(Boolean).join('\n\n').slice(0, 6000)
+      aboutText ? `ABOUT: ${aboutText}` : '',
+    ].filter(Boolean).join('\n\n').slice(0, 4000)
 
-    const youtubeLink = extractYouTubeLink(homeHtml)
-    return { homeText, aboutText, contactText, email, socialLinks, youtubeLink, fullText }
+    return { fullText, email, socialLinks, youtubeLink }
   } catch { return empty }
 }
 
-async function fetchJobPostings(name: string, city: string, state: string, mode: string = 'medicare'): Promise<{ hiring: boolean; roles: string[] }> {
-  const modeJobTerms: Record<string, string> = {
-    medicare:  'insurance agent',
-    life:      'insurance agent',
-    annuities: 'financial advisor',
-    financial: 'financial advisor',
-  }
-  const jobTerm = modeJobTerms[mode] || 'insurance agent'
-  try {
-    const q = `"${name}" ${jobTerm} ${city} ${state}`
-    const url = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(q)}&location=${encodeURIComponent(`${city}, ${state}`)}&api_key=${process.env.SERPAPI_KEY}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
-    if (!res.ok) return { hiring: false, roles: [] }
-    const data = await res.json()
-    const nameLower = name.toLowerCase()
-    const relevant = (data.jobs_results || []).filter((j: any) => {
-      const companyMatch = j.company_name?.toLowerCase().includes(nameLower.split(' ')[0]) ||
-        nameLower.includes((j.company_name?.toLowerCase() || '').split(' ')[0])
-      const recent = ['hour', 'day', 'week', 'month'].some(t => j.detected_extensions?.posted_at?.includes(t))
-      return companyMatch && recent
-    })
-    return { hiring: relevant.length > 0, roles: relevant.map((j: any) => j.title).slice(0, 3) }
-  } catch { return { hiring: false, roles: [] } }
-}
+// ─── BACKGROUND ENRICHMENT: Jobs + YouTube ───────────────────────────────────
+// These run AFTER the response is returned. They update agent_profiles in place.
+// NOT on the critical path — never blocks the user.
 
-// Tokenize a business name into meaningful words, stripping legal/generic suffixes
 function nameTokens(name: string): string[] {
-  const STOP = new Set(['insurance', 'agency', 'group', 'llc', 'inc', 'co', 'corp', 'the', 'and', 'of', 'a', 'an', 'broker', 'services', 'solutions', 'associates', 'financial', 'advisor', 'advisors'])
+  const STOP = new Set(['insurance','agency','group','llc','inc','co','corp','the','and','of','a','an','broker','services','solutions','associates','financial','advisor','advisors'])
   return name.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(t => t.length > 2 && !STOP.has(t))
 }
 
-// Returns true if candidate string shares enough meaningful tokens with the business name
 function nameMatchesChannel(businessName: string, candidate: string): boolean {
   const bizTokens = nameTokens(businessName)
   if (bizTokens.length === 0) return false
   const candidateLower = candidate.toLowerCase()
   const matchCount = bizTokens.filter(t => candidateLower.includes(t)).length
-  // Require at least half the meaningful tokens to match, and at least 1
   return matchCount >= Math.max(1, Math.ceil(bizTokens.length * 0.5))
 }
 
-// Validate a YouTube link found on the agent's own website by confirming via SerpAPI
-// that the channel handle/ID actually belongs to this business — not an embedded video
-// from another creator or a YouTube share widget.
-async function validateYouTubeLink(link: string, businessName: string): Promise<{ channel: string | null; subscribers: string | null; videoCount: number }> {
+async function backgroundEnrichAgent(
+  clerkId: string,
+  agentName: string,
+  city: string,
+  state: string,
+  mode: string,
+  youtubeLink: string | null,
+): Promise<void> {
   try {
-    const handleMatch = link.match(/youtube\.com\/((@[A-Za-z0-9_.-]+)|channel\/[A-Za-z0-9_-]+|c\/[A-Za-z0-9_-]+|user\/[A-Za-z0-9_-]+)/)
-    if (!handleMatch) return { channel: null, subscribers: null, videoCount: 0 }
-    const handle = handleMatch[1]
-
-    const searchUrl = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(handle)}&api_key=${process.env.SERPAPI_KEY}`
-    const res = await fetch(searchUrl, { signal: AbortSignal.timeout(6000) })
-    if (!res.ok) return { channel: null, subscribers: null, videoCount: 0 }
-    const data = await res.json()
-
-    // The site-extracted link IS the ground truth — it's on their own page.
-    // SERP is used only to enrich with subscriber/video metadata, not to gatekeep.
-    // If SERP finds a name-matching channel, use its canonical link + metadata.
-    // Otherwise, still trust the site link — just without subscriber metadata.
-    const matched = (data.channel_results || []).find((c: any) =>
-      nameMatchesChannel(businessName, c.title || '')
-    )
-    if (matched) {
-      return { channel: matched.link || link, subscribers: matched.subscribers || null, videoCount: 1 }
+    const modeJobTerms: Record<string, string> = {
+      medicare: 'insurance agent',
+      life: 'insurance agent',
+      annuities: 'financial advisor',
+      financial: 'financial advisor',
     }
+    const jobTerm = modeJobTerms[mode] || 'insurance agent'
 
-    // SERP couldn't confirm name match — trust the site link anyway, no metadata
-    return { channel: link, subscribers: null, videoCount: 0 }
-  } catch { return { channel: null, subscribers: null, videoCount: 0 } }
+    const [jobData, ytData] = await Promise.all([
+      // Job postings
+      (async () => {
+        try {
+          const q = `"${agentName}" ${jobTerm} ${city} ${state}`
+          const url = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(q)}&location=${encodeURIComponent(`${city}, ${state}`)}&api_key=${process.env.SERPAPI_KEY}`
+          const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
+          if (!res.ok) return { hiring: false, roles: [] as string[] }
+          const data = await res.json()
+          const nameLower = agentName.toLowerCase()
+          const relevant = (data.jobs_results || []).filter((j: any) => {
+            const companyMatch = j.company_name?.toLowerCase().includes(nameLower.split(' ')[0]) ||
+              nameLower.includes((j.company_name?.toLowerCase() || '').split(' ')[0])
+            const recent = ['hour', 'day', 'week', 'month'].some(t => j.detected_extensions?.posted_at?.includes(t))
+            return companyMatch && recent
+          })
+          return { hiring: relevant.length > 0, roles: relevant.map((j: any) => j.title).slice(0, 3) as string[] }
+        } catch { return { hiring: false, roles: [] as string[] } }
+      })(),
+      // YouTube
+      (async () => {
+        try {
+          if (youtubeLink) {
+            const handleMatch = youtubeLink.match(/youtube\.com\/((@[A-Za-z0-9_.-]+)|channel\/[A-Za-z0-9_-]+|c\/[A-Za-z0-9_-]+|user\/[A-Za-z0-9_-]+)/)
+            if (handleMatch) {
+              const handle = handleMatch[1]
+              const searchUrl = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent(handle)}&api_key=${process.env.SERPAPI_KEY}`
+              const res = await fetch(searchUrl, { signal: AbortSignal.timeout(6000) })
+              if (res.ok) {
+                const data = await res.json()
+                const matched = (data.channel_results || []).find((c: any) => nameMatchesChannel(agentName, c.title || ''))
+                if (matched) return { channel: matched.link || youtubeLink, subscribers: matched.subscribers || null, videoCount: 1 }
+              }
+            }
+            return { channel: youtubeLink, subscribers: null as string | null, videoCount: 0 }
+          }
+          // No site link — search by name
+          const searchUrl = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent('"' + agentName + '"')}&api_key=${process.env.SERPAPI_KEY}`
+          const res = await fetch(searchUrl, { signal: AbortSignal.timeout(6000) })
+          if (!res.ok) return { channel: null as string | null, subscribers: null as string | null, videoCount: 0 }
+          const data = await res.json()
+          const matchedChannel = (data.channel_results || []).find((c: any) => nameMatchesChannel(agentName, c.title || ''))
+          if (matchedChannel) return { channel: matchedChannel.link, subscribers: matchedChannel.subscribers || null, videoCount: 1 }
+          const matchedVideo = (data.video_results || []).find((v: any) => nameMatchesChannel(agentName, v.channel?.name || ''))
+          if (matchedVideo?.channel?.link) return { channel: matchedVideo.channel.link, subscribers: null as string | null, videoCount: 1 }
+          return { channel: null as string | null, subscribers: null as string | null, videoCount: 0 }
+        } catch { return { channel: null as string | null, subscribers: null as string | null, videoCount: 0 } }
+      })(),
+    ])
+
+    // Update the agent_profiles row with hiring + youtube data
+    await supabase
+      .from('agent_profiles')
+      .update({
+        hiring: jobData.hiring,
+        hiring_roles: jobData.roles.length ? jobData.roles : null,
+        youtube_channel: ytData.channel,
+        youtube_subscribers: ytData.subscribers,
+      })
+      .eq('clerk_id', clerkId)
+      .eq('name', agentName)
+      .eq('city', city)
+      .eq('state', state)
+  } catch (err) {
+    console.error('[backgroundEnrichAgent] error:', err)
+  }
 }
 
-// Only called when we have NO website-found YouTube link.
-// Searches YouTube by the exact business name and requires a strict name match on the
-// channel/uploader — never returns a result just because the topic is Medicare/insurance.
-async function fetchYouTube(name: string): Promise<{ channel: string | null; subscribers: string | null; videoCount: number }> {
-  try {
-    // Quoted name search to find THEIR channel specifically
-    const channelSearchUrl = `https://serpapi.com/search.json?engine=youtube&search_query=${encodeURIComponent('"' + name + '"')}&api_key=${process.env.SERPAPI_KEY}`
-    const channelRes = await fetch(channelSearchUrl, { signal: AbortSignal.timeout(6000) })
-    if (!channelRes.ok) return { channel: null, subscribers: null, videoCount: 0 }
-    const channelData = await channelRes.json()
+// ─── SONNET SCORING ───────────────────────────────────────────────────────────
+// Anchored to preScore. Sonnet can adjust ±15 max and must explain why.
+// Primary job: write the recruiter-facing snippet + confirm captive/carriers.
 
-    // STRICT: channel title must match the business name meaningfully
-    const matchedChannel = (channelData.channel_results || []).find((c: any) =>
-      nameMatchesChannel(name, c.title || '')
-    )
-    if (matchedChannel) {
-      return { channel: matchedChannel.link, subscribers: matchedChannel.subscribers || null, videoCount: 1 }
-    }
-
-    // Fallback: video uploader channel name must match the business name
-    const matchedVideo = (channelData.video_results || []).find((v: any) =>
-      nameMatchesChannel(name, v.channel?.name || '')
-    )
-    if (matchedVideo?.channel?.link) {
-      return {
-        channel: matchedVideo.channel.link,
-        subscribers: null,
-        videoCount: (channelData.video_results || []).filter((v: any) =>
-          v.channel?.link === matchedVideo.channel.link
-        ).length,
-      }
-    }
-
-    return { channel: null, subscribers: null, videoCount: 0 }
-  } catch { return { channel: null, subscribers: null, videoCount: 0 } }
-}
-
-async function scoreAgent(raw: any, intel: WebsiteIntel, jobData: { hiring: boolean; roles: string[] }, ytData: { channel: string | null; subscribers: string | null; videoCount: number }, mode: string = 'medicare'): Promise<AgentResult> {
+async function sonnetScore(
+  raw: any,
+  intel: WebsiteIntel,
+  anchorScore: number,
+  mode: string,
+): Promise<{
+  scoreDelta: number
+  carriers: string[]
+  captive: boolean
+  years: number | null
+  notes: string
+  about: string | null
+  contact_email: string | null
+}> {
   const anthropic = getAnthropicClient()
+  const cfg = MODE_CONFIG[mode] || MODE_CONFIG.medicare
   const name = raw.title || 'Unknown'
-  const type = raw.type || ''
-  const reviews = raw.reviews || 0
-  const rating = raw.rating || 0
-  const hasWebsite = !!raw.website
 
-  const modeTypeFallback: Record<string, string> = {
-    medicare:  'Insurance Agency',
-    life:      'Insurance Agency',
-    annuities: 'Financial Services',
-    financial: 'Financial Advisory',
-  }
+  const prompt = `You are an expert ${cfg.analyst}. Your job is to review an insurance agent listing and website, then:
+1. Write a recruiter-facing snippet (the "notes" and "about" fields) — this is the PRIMARY deliverable.
+2. Adjust the pre-computed anchor score by at most ±15 points based on what the website reveals.
+3. Identify carriers/product lines and confirm captive status.
 
-  const modeContext: Record<string, { analyst: string; keywords: string[]; captive: string[]; signals: string; coreAssumption: string; baselineRule: string; specialtySignals: string; negativeSignals?: string }> = {
-    medicare: {
-      analyst: 'Medicare/senior insurance',
-      keywords: ['Medicare','Senior','Supplement','Advantage','Medigap','PDP'],
-      captive: ['Bankers Life','State Farm','Farmers','Allstate','GEICO','New York Life','Northwestern'],
-      signals: 'Medicare, Supplement, Advantage, Senior, Medigap = strong positive',
-      coreAssumption: 'In the Medicare/senior insurance market, the vast majority of agents are INDEPENDENT brokers who can be recruited. Assume INDEPENDENT unless you find explicit evidence of a captive brand. Do NOT penalize agents because you can\'t confirm independence — absence of captive signals IS itself a positive signal.',
-      baselineRule: 'Medicare/senior/supplement/health specialty name or description = strong independent signal. Score 65+ baseline.',
-      specialtySignals: 'Medicare, Supplement, Advantage, Senior, Medigap specialty focus all point AWAY from captive and toward independent.',
-    },
-    life: {
-      analyst: 'life and final expense insurance',
-      keywords: ['Life','Final Expense','Burial','Legacy','Family Protection','Term','Whole Life'],
-      captive: ['New York Life','Northwestern','Mass Mutual','Bankers Life','Globe Life'],
-      signals: 'Final Expense, Burial, Life, Legacy, Family = strong positive',
-      coreAssumption: 'In the life and final expense insurance market, independent agents are common and highly recruitable. Many life agents do NOT have "final expense" or "burial" in their name — a generic "life insurance agency" or "insurance broker" is just as likely to be independent. Assume INDEPENDENT unless you find explicit evidence of a captive brand name. Do NOT penalize for lack of life-specific keywords in the name — most independent life agents brand generically.',
-      baselineRule: 'Life insurance specialty name OR generic insurance agency/broker description = strong independent signal. Score 65+ baseline. Final Expense, Burial, or Term Life specialty focus = score 70+ baseline.',
-      specialtySignals: 'Final Expense, Burial, Term Life, Whole Life, independent broker language all point AWAY from captive. Generic "life insurance agent" or "insurance agency" without a known captive brand name = assume independent.',
-    },
-    annuities: {
-      analyst: 'fixed index annuity (FIA) and MYGA specialist',
-      keywords: ['Annuity','Fixed Index','FIA','MYGA','Safe Money','Retirement Income','Principal Protection','Guaranteed Income','No Market Risk','Fixed Annuity'],
-      captive: ['Edward Jones','Ameriprise','Raymond James','Merrill Lynch','Morgan Stanley','Wells Fargo Advisors','Fidelity','Vanguard','Schwab','LPL Financial','Northwestern Mutual','New York Life'],
-      signals: 'Fixed Index Annuity, MYGA, Safe Money, Principal Protection, Guaranteed Income, Retirement Income Specialist, carrier names (Athene, North American, American Equity, Allianz, Nationwide, Pacific Life, Global Atlantic, Midland National) = strong positive',
-      coreAssumption: 'CRITICAL CONTEXT: The best FIA and MYGA producers often do NOT advertise as annuity agents. They hide in plain sight as "financial advisors", "retirement planners", or "retirement income specialists" — because they serve the same retirement-age client base but are insurance-only licensed (not securities). Your job is to identify insurance-only or insurance-primary advisors who sell fixed products, NOT securities-licensed wirehouses or fee-only RIAs who actively avoid annuities. A generic "retirement planning" or "financial services" firm without wirehouse/RIA signals = likely FIA producer. Assume recruitable UNLESS you find explicit wirehouse, fee-only, AUM, or securities-focused signals.',
-      baselineRule: 'Any retirement-focused, income-focused, or insurance-and-financial-services firm without explicit wirehouse/RIA/fee-only signals = score 60+ baseline. Explicit FIA, MYGA, fixed annuity, safe money, or principal protection language = score 72+ baseline. Known FIA carrier mention (Athene, North American, American Equity, Allianz, Nationwide, Pacific Life, Global Atlantic, Midland National) = score 78+ baseline.',
-      specialtySignals: 'Safe money, principal protection, no market risk, guaranteed income, fixed indexed annuity, MYGA, retirement income specialist = extremely strong FIA producer signals. Insurance and financial services (not pure financial advisor) = positive. Generic "retirement planning" without securities language = lean positive.',
-      negativeSignals: 'NEGATIVE SIGNALS — these suggest a securities-focused or anti-annuity advisor, score 30-45 if present: "fee-only" (strong negative — fee-only fiduciaries actively avoid annuities), "guidance without the sales incentive" or similar anti-commission language (near-certain anti-annuity), "assets under management" or "AUM" (securities-focused), "investment management" paired with "investment committee" or "portfolio management" (securities primary), "401(k) plan management" as a core service (employer-plan RIA, not annuity producer), "registered investment advisor" or "RIA" combined with fee-only language, "fiduciary fee-only" (near-certain anti-annuity), featured in Barrons/Bloomberg/CNBC as a wealth management firm (RIA branding). NOTE: "fiduciary" alone is neutral — insurance agents can be fiduciaries. Only penalize when combined with fee-only or AUM language. CRITICAL — RETIREMENT LANGUAGE: "retirement" alone is NOT a negative signal. You must distinguish between two types: (1) INSURANCE LENS = "retirement income", "retirement income specialist", "income you cannot outlive", "protected income", "safe money for retirement" — these are FIA-positive signals, score higher. (2) INVESTMENT LENS = "retirement planning" paired with investment portfolios, AUM, or 401(k) management — these indicate a securities-primary advisor, score lower. When retirement language appears WITHOUT any investment management, AUM, or fee-only signals, treat it as a positive FIA signal.',
-    },
-    financial: {
-      analyst: 'financial advisory and wealth management',
-      keywords: ['Financial','Wealth','Retirement','Planning','Investment','Advisor','CFP'],
-      captive: ['Edward Jones','Ameriprise','Raymond James','Merrill','Morgan Stanley','Wells Fargo Advisors'],
-      signals: 'Financial Advisor, Wealth Management, CFP, Retirement Planning, Investment = strong positive',
-      coreAssumption: 'In the financial advisory market, independent RIAs and fee-only planners are highly recruitable. Assume INDEPENDENT unless you find explicit evidence of a wirehouse or captive brand. Generic "financial advisor" or "wealth management" without a known captive brand = assume independent.',
-      baselineRule: 'Financial advisory, wealth management, or CFP specialty name or description = strong independent signal. Score 65+ baseline.',
-      specialtySignals: 'Independent RIA, fee-only, CFP, wealth management focus all point AWAY from captive.',
-    },
-  }
-  const ctx = modeContext[mode] || modeContext['medicare']
+ANCHOR SCORE: ${anchorScore}/100 (computed from: review volume, independence signals, specialty keywords, web presence)
+Your adjusted score must stay within ${Math.max(0, anchorScore - 15)}–${Math.min(100, anchorScore + 15)}.
+Only move the needle if the website content gives you a clear reason to.
 
-  const prompt = `You are an expert ${ctx.analyst} industry analyst helping FMO/IMO recruiters identify recruitable independent agents.
-
-CORE ASSUMPTION: ${ctx.coreAssumption}
-
-CAPTIVE = unrecruitable. Only flag captive if you see these specific brand names explicitly in the listing or website: ${ctx.captive.join(', ')}. ${ctx.specialtySignals}
-
-GOOGLE LISTING DATA:
+GOOGLE LISTING:
 Name: ${name}
-Business Type: ${type}
+Type: ${raw.type || ''}
 Description: ${raw.description || ''}
-Tags/Extensions: ${(raw.extensions || []).join(' ')}
-Phone: ${raw.phone || 'None'}
-Address: ${raw.address || 'Unknown'}
-Rating: ${rating} stars / ${reviews} reviews
-Has Website: ${hasWebsite ? 'YES — ' + raw.website : 'NO'}
+Tags: ${(raw.extensions || []).join(' ')}
+Rating: ${raw.rating || 0} stars / ${raw.reviews || 0} reviews
+Website: ${raw.website || 'None'}
 
-WEBSITE INTELLIGENCE:
+WEBSITE CONTENT:
 ${intel.fullText
-  ? intel.fullText
-  : hasWebsite
-    ? `Website exists at ${raw.website} but content could not be extracted (JavaScript-rendered site). Do NOT penalize for this — treat as neutral and score on listing data and name signals only.`
-    : 'No website available.'
-}
+    ? intel.fullText
+    : raw.website
+      ? 'Website exists but could not be scraped (JS-rendered). Score on listing signals only — do NOT penalize.'
+      : 'No website.'
+  }
 
-JOB POSTINGS:
-${jobData.hiring ? `ACTIVELY HIRING — Roles: ${jobData.roles.join(', ')}` : 'No active job postings found'}
+CAPTIVE BRANDS — only mark captive:true if one of these appears explicitly: ${cfg.captiveBrands.join(', ')}.
+Assume INDEPENDENT unless you see a brand name above.
 
-YOUTUBE PRESENCE:
-${ytData.channel ? `HAS YOUTUBE CHANNEL — ${ytData.subscribers || 'unknown subscribers'}, ${ytData.videoCount} video(s) found` : 'No YouTube presence found'}
+SCORING CONTEXT FOR ${mode.toUpperCase()}:
+- Independent signals: ${cfg.independenceKeywords.join(', ')}
+- Specialty signals: ${cfg.specialtyKeywords.join(', ')}
+${cfg.negativeKeywords ? `- Negative signals (score down): ${cfg.negativeKeywords.join(', ')}` : ''}
 
-SEARCH LINE: ${mode.toUpperCase()}
-
-SCORING RULES:
-1. DEFAULT is INDEPENDENT and recruitable. Only mark captive:true and score 15-35 if a known captive brand is explicitly present: ${ctx.captive.join(', ')}.
-2. ${ctx.baselineRule}
-3. Multi-carrier mentions, "broker", "independent", specialty product focus = score 70-80.
-4. Reviews signal production volume: 50+ = established producer (score boost), 100+ = well-established, 200+ = dominant. High reviews + independent signals = HOT.
-5. ACTIVELY HIRING for agents = +8 points. They are growing and likely frustrated with upline support.
-6. HAS YOUTUBE = +7 points. Building a personal brand means they are thinking beyond their current upline.
-7. Website exists but content could not be scraped = completely neutral. Do NOT dock points.
-8. HOT = 75+, WARM = 50-74, COLD = 0-49.
-9. When in doubt score HIGHER. A missed HOT agent costs a recruit. An extra call costs nothing.
-10. KEY SIGNALS FOR THIS MODE (${mode.toUpperCase()}): ${ctx.signals}
-${ctx.negativeSignals ? `11. ${ctx.negativeSignals}` : ''}
-
-Return ONLY valid JSON:
+Return ONLY valid JSON — no markdown, no preamble:
 {
-  "carriers": ["carriers or product lines identified — infer from specialty focus if not explicitly listed"],
+  "scoreDelta": number between -15 and +15,
+  "carriers": ["carrier or product line names — infer from specialty if not explicit"],
   "captive": boolean,
   "years": number or null,
-  "score": 0-100,
-  "flag": "hot"|"warm"|"cold",
-  "notes": "2-3 sentences explaining the score. If website was unscrapable say so and explain what you scored on instead.",
-  "about": "1-2 sentence plain-English summary of who this agency is. null if no content found.",
-  "contact_email": "primary contact email if found on website, else null"
+  "notes": "2-3 sentences for the recruiter explaining WHY this agent is worth calling (or not). Be specific — mention what the website revealed. If website was unscrapable, say so.",
+  "about": "1-2 sentence plain-English summary of who this agency is and who they serve. null if no content.",
+  "contact_email": "best contact email found, or null"
 }`
 
   try {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 500,
+      max_tokens: 400,
       messages: [{ role: 'user', content: prompt }],
     })
     const text = response.content[0].type === 'text' ? response.content[0].text : ''
@@ -498,121 +507,131 @@ Return ONLY valid JSON:
     if (!jsonMatch) throw new Error('No JSON')
     const parsed = JSON.parse(jsonMatch[0])
     return {
-      name, type: type || modeTypeFallback[mode] || 'Insurance Agency',
-      phone: raw.phone || '', address: raw.address || '',
-      rating, reviews, website: raw.website || null,
+      scoreDelta: Math.max(-15, Math.min(15, parsed.scoreDelta || 0)),
       carriers: parsed.carriers || ['Unknown'],
       captive: parsed.captive || false,
       years: parsed.years || null,
-      score: Math.min(100, Math.max(0, parsed.score || 50)),
-      flag: parsed.flag || 'warm',
-      notes: parsed.notes || 'No analysis available.',
-      hiring: jobData.hiring, hiring_roles: jobData.roles,
-      youtube_channel: ytData.channel, youtube_subscribers: ytData.subscribers, youtube_video_count: ytData.videoCount,
+      notes: parsed.notes || '',
       about: parsed.about || null,
-      contact_email: parsed.contact_email || intel.email || null,
-      social_links: intel.socialLinks || [],
+      contact_email: parsed.contact_email || null,
     }
   } catch {
-    const nl = name.toLowerCase()
-    const modeKeywords: Record<string, string[]> = {
-      medicare:  ['medicare','senior','supplement','advantage','medigap','health','insurance','broker'],
-      life:      ['life','final expense','burial','legacy','term','whole life'],
-      annuities: ['annuity','annuities','retirement','indexed','myga','income'],
-      financial: ['financial','wealth','planning','advisor','investment','cfp'],
-    }
-    const modeCapt: Record<string, string[]> = {
-      medicare:  ['bankers life','state farm','farmers','allstate','geico'],
-      life:      ['new york life','northwestern','mass mutual','globe life'],
-      annuities: ['edward jones','ameriprise','raymond james','merrill lynch','morgan stanley','wells fargo advisors','fidelity','vanguard','schwab','lpl financial','northwestern mutual','new york life'],
-      financial: ['edward jones','ameriprise','raymond james','merrill','morgan stanley'],
-    }
-    const keywords = modeKeywords[mode] || modeKeywords['medicare']
-    const captiveNames = modeCapt[mode] || modeCapt['medicare']
-    // Only flag captive if an explicit captive brand is found — use word-boundary aware matching
-    // to avoid false positives like "new life" matching "new york life"
-    const isCaptive = captiveNames.some(c => {
-      const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      return new RegExp(`\\b${escaped}\\b`, 'i').test(name)
-    })
-    // Default assumption: independent and recruitable
-    // Start at 60 and work up from there
-    let score = isCaptive ? 25 : 60
-    if (!isCaptive) {
-      if (reviews >= 200) score = 82
-      else if (reviews >= 100) score = 76
-      else if (reviews >= 50) score = 70
-      else if (reviews >= 20) score = 65
-      if (hasWebsite) score = Math.min(100, score + 3)
-    }
-    if (jobData.hiring) score = Math.min(100, score + 8)
-    if (ytData.channel) score = Math.min(100, score + 7)
-    return {
-      name, type: type || modeTypeFallback[mode] || 'Insurance Agency',
-      phone: raw.phone || '', address: raw.address || '',
-      rating, reviews, website: raw.website || null,
-      carriers: ['Unknown'], captive: isCaptive, years: null, score,
-      flag: score >= 75 ? 'hot' : score >= 50 ? 'warm' : 'cold',
-      notes: 'Fallback score based on name, review, and enrichment signals.',
-      hiring: jobData.hiring, hiring_roles: jobData.roles,
-      youtube_channel: ytData.channel, youtube_subscribers: ytData.subscribers, youtube_video_count: ytData.videoCount,
-      about: null,
-      contact_email: intel.email || null,
-      social_links: intel.socialLinks || [],
-    }
+    return { scoreDelta: 0, carriers: ['Unknown'], captive: false, years: null, notes: '', about: null, contact_email: null }
   }
 }
 
-// ─── AGENT PROFILE UPSERT ────────────────────────────────────────────────────
-// Called after every search. Writes each enriched agent to agent_profiles.
-// On conflict (same clerk_id + name + city + state): update enrichment fields,
-// bump last_seen, increment search_count. ANATHEMA fields are never overwritten here.
+// ─── MAIN ENRICHMENT PIPELINE ─────────────────────────────────────────────────
+
+async function enrichAgent(raw: any, mode: string): Promise<Omit<AgentResult, 'hiring' | 'hiring_roles' | 'youtube_channel' | 'youtube_subscribers' | 'youtube_video_count'> & {
+  _youtubeLink: string | null
+}> {
+  const cfg = MODE_CONFIG[mode] || MODE_CONFIG.medicare
+  const { score: ps, captive: isCaptive } = preScore(raw, mode)
+
+  // ── FAST PATH: clear cold (captive or very low signal) ───────────────────
+  if (ps < 40) {
+    return {
+      name: raw.title || 'Unknown',
+      type: raw.type || cfg.typeFallback,
+      phone: raw.phone || '', address: raw.address || '',
+      rating: raw.rating || 0, reviews: raw.reviews || 0,
+      website: raw.website || null,
+      carriers: ['Unknown'], captive: isCaptive, years: null,
+      score: ps, flag: 'cold',
+      notes: isCaptive ? 'Captive brand — not recruitable.' : 'Low signal — insufficient data to qualify.',
+      about: null, contact_email: null, social_links: [],
+      _preScore: ps, _enrichmentDelta: 0, _sonnetDelta: 0,
+      _youtubeLink: null,
+    }
+  }
+
+  // ── CRAWL WEBSITE ─────────────────────────────────────────────────────────
+  const intel = raw.website
+    ? await crawlWebsite(raw.website)
+    : { fullText: '', email: null, socialLinks: [], youtubeLink: null }
+
+  // ── ENRICHMENT DELTAS ─────────────────────────────────────────────────────
+  // Applied to preScore BEFORE Sonnet sees it, so Sonnet's anchor is already enriched.
+  // Jobs/YouTube bonuses are NOT here — they run in background.
+  let enrichmentDelta = 0
+  if (intel.fullText.length > 200) enrichmentDelta += 3   // Real website content found
+  if (intel.email)                 enrichmentDelta += 2   // Contact email found
+  if (intel.socialLinks.length)    enrichmentDelta += 2   // Social presence confirmed
+  if (intel.youtubeLink)           enrichmentDelta += 5   // YouTube found on site
+
+  const anchorScore = Math.min(100, ps + enrichmentDelta)
+
+  // ── FAST PATH: clear hot (80+) — still goes to Sonnet for the writeup ────
+  // But if it's 90+, the writeup is the only thing we need — score is locked.
+  // We always Sonnet hot agents because the snippet IS the product.
+
+  // ── SONNET: ambiguous (40-79) OR hot (80+) for snippet ───────────────────
+  // The only skip is cold (<40), handled above.
+  const sonnetResult = await sonnetScore(raw, intel, anchorScore, mode)
+
+  const finalScore = Math.min(100, Math.max(0, anchorScore + sonnetResult.scoreDelta))
+
+  return {
+    name: raw.title || 'Unknown',
+    type: raw.type || cfg.typeFallback,
+    phone: raw.phone || '', address: raw.address || '',
+    rating: raw.rating || 0, reviews: raw.reviews || 0,
+    website: raw.website || null,
+    carriers: sonnetResult.carriers,
+    captive: sonnetResult.captive,
+    years: sonnetResult.years,
+    score: finalScore,
+    flag: finalScore >= 75 ? 'hot' : finalScore >= 50 ? 'warm' : 'cold',
+    notes: sonnetResult.notes || 'Scored from listing and website signals.',
+    about: sonnetResult.about,
+    contact_email: sonnetResult.contact_email || intel.email || null,
+    social_links: intel.socialLinks,
+    _preScore: ps,
+    _enrichmentDelta: enrichmentDelta,
+    _sonnetDelta: sonnetResult.scoreDelta,
+    _youtubeLink: intel.youtubeLink,
+  }
+}
+
+// ─── UPSERT ───────────────────────────────────────────────────────────────────
 
 async function upsertAgentProfiles(
   clerkId: string,
   city: string,
   state: string,
-  agents: AgentResult[]
+  agents: AgentResult[],
 ): Promise<void> {
   if (!agents.length) return
-
   const rows = agents.map(a => ({
-    clerk_id:           clerkId,
-    name:               a.name,
-    agency_type:        a.type,
-    city:               city,
-    state:              state,
-    address:            a.address || null,
-    phone:              a.phone || null,
-    website:            a.website || null,
-    contact_email:      a.contact_email || null,
-    social_links:       a.social_links?.length ? a.social_links : null,
-    rating:             a.rating || null,
-    reviews:            a.reviews || null,
-    carriers:           a.carriers?.length ? a.carriers : null,
-    captive:            a.captive || false,
-    prometheus_score:   a.score,
-    prometheus_flag:    a.flag,
-    prometheus_notes:   a.notes,
-    prometheus_about:   a.about || null,
-    hiring:             a.hiring || false,
-    hiring_roles:       a.hiring_roles?.length ? a.hiring_roles : null,
-    youtube_channel:    a.youtube_channel || null,
+    clerk_id: clerkId,
+    name: a.name,
+    agency_type: a.type,
+    city, state,
+    address: a.address || null,
+    phone: a.phone || null,
+    website: a.website || null,
+    contact_email: a.contact_email || null,
+    social_links: a.social_links?.length ? a.social_links : null,
+    rating: a.rating || null,
+    reviews: a.reviews || null,
+    carriers: a.carriers?.length ? a.carriers : null,
+    captive: a.captive || false,
+    prometheus_score: a.score,
+    prometheus_flag: a.flag,
+    prometheus_notes: a.notes,
+    prometheus_about: a.about || null,
+    hiring: a.hiring || false,
+    hiring_roles: a.hiring_roles?.length ? a.hiring_roles : null,
+    youtube_channel: a.youtube_channel || null,
     youtube_subscribers: a.youtube_subscribers || null,
-    last_seen:          new Date().toISOString(),
+    last_seen: new Date().toISOString(),
   }))
 
-  // Upsert in one batch — on conflict update enrichment, bump counters
-  await supabase
-    .from('agent_profiles')
-    .upsert(rows, {
-      onConflict: 'clerk_id,name,city,state',
-      ignoreDuplicates: false,
-    })
+  await supabase.from('agent_profiles').upsert(rows, {
+    onConflict: 'clerk_id,name,city,state',
+    ignoreDuplicates: false,
+  })
 
-  // Increment search_count for any that already existed.
-  // (Supabase upsert doesn't support expressions like search_count + 1 directly)
-  // intentional: best-effort counter — dropping it is acceptable, never blocks response
   void supabase.rpc('increment_agent_search_count', {
     p_clerk_id: clerkId,
     p_names: agents.map(a => a.name),
@@ -621,8 +640,9 @@ async function upsertAgentProfiles(
   })
 }
 
+// ─── ROUTE HANDLER ────────────────────────────────────────────────────────────
+
 export async function POST(req: NextRequest) {
-  // CSRF check
   const origin = req.headers.get('origin')
   if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -631,9 +651,15 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const ratelimit = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(15, '1 h'), analytics: true })
-  const { success, limit, reset } = await ratelimit.limit(userId)
-  if (!success) return NextResponse.json({ error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.` }, { status: 429 })
+  const ratelimit = new Ratelimit({
+    redis: Redis.fromEnv(),
+    limiter: Ratelimit.slidingWindow(15, '1 h'),
+    analytics: true,
+  })
+  const { success, reset } = await ratelimit.limit(userId)
+  if (!success) return NextResponse.json({
+    error: `Rate limit exceeded. Resets at ${new Date(reset).toLocaleTimeString()}.`,
+  }, { status: 429 })
 
   try {
     const { city, state, limit: resultLimit = 10, mode = 'medicare', query = '' } = await req.json()
@@ -643,134 +669,61 @@ export async function POST(req: NextRequest) {
     const rawAgents = await fetchAgentsFromSerp(city, state, clampedLimit, mode, query)
 
     if (!rawAgents.length) {
-      await supabase.from('searches').insert({ clerk_id: userId, city, state, results_count: 0, hot_count: 0, warm_count: 0, cold_count: 0, agents_json: [] })
+      void supabase.from('searches').insert({
+        clerk_id: userId, city, state,
+        results_count: 0, hot_count: 0, warm_count: 0, cold_count: 0, agents_json: [],
+      })
       return NextResponse.json({ agents: [] })
     }
 
-    // ── Phase 1: Deterministic pre-score — no LLM, no crawls ───────────────────
-    // Rank all candidates using cheap heuristics. Only the top N proceed to
-    // expensive enrichment. This alone cuts Sonnet calls by 50-70% on typical searches.
-    function preScore(raw: any): number {
-      let s = 50
-      const reviews = raw.reviews || 0
-      const modeCapt: Record<string, string[]> = {
-        medicare:  ['bankers life','state farm','farmers','allstate','geico'],
-        life:      ['new york life','northwestern','mass mutual','globe life'],
-        annuities: ['edward jones','ameriprise','raymond james','merrill lynch','morgan stanley','wells fargo advisors'],
-        financial: ['edward jones','ameriprise','raymond james','merrill','morgan stanley'],
-      }
-      const captiveNames = modeCapt[mode] || modeCapt['medicare']
-      const isCaptive = captiveNames.some(c => {
-        const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        return new RegExp('\\b' + escaped + '\\b', 'i').test(raw.title || '')
-      })
-      if (isCaptive) return 20
-      if (reviews >= 200) s = 82
-      else if (reviews >= 100) s = 76
-      else if (reviews >= 50) s = 70
-      else if (reviews >= 20) s = 65
-      if (raw.website) s = Math.min(100, s + 3)
-      return s
-    }
-
-    // ENRICH = hot or warm pre-flag (>= 50). PASS (< 50) skips LLM entirely.
-    const ENRICH_THRESHOLD = 50
-
-    const ranked = rawAgents
+    // ── Pre-score all candidates (instant) ───────────────────────────────────
+    const prescored = rawAgents
       .slice(0, clampedLimit)
-      .map((raw: any) => ({ raw, preScore: preScore(raw) }))
-      .sort((a: any, b: any) => b.preScore - a.preScore)
+      .map(raw => ({ raw, ps: preScore(raw, mode) }))
+      .sort((a, b) => b.ps.score - a.ps.score)
 
-    const topCandidates  = ranked.filter(r => r.preScore >= ENRICH_THRESHOLD)
-    const tailCandidates = ranked.filter(r => r.preScore < ENRICH_THRESHOLD)
-
-    // ── Phase 2: Deep enrich all qualifying candidates — concurrency 6
+    // ── Enrich hot/warm (≥40) with concurrency 6 ─────────────────────────────
+    // Cold (<40) get returned as-is — no crawl, no LLM.
     const { default: pLimit } = await import('p-limit')
-    const limit = pLimit(6)
+    const limiter = pLimit(6)
 
-    // 4.3: Deterministic fast-path: skip Sonnet when pre-score is very high or very low.
-    // Only send to Sonnet when heuristics are ambiguous (score 40-79).
-    async function deepEnrich(raw: any): Promise<AgentResult> {
-      const preSc = preScore(raw)
-      const emptyIntel = { homeText: '', aboutText: '', contactText: '', email: null, socialLinks: [], youtubeLink: null, fullText: '' }
-      // Website crawl + job postings fire in parallel — biggest single speedup
-      const [intel, jobData] = await Promise.all([
-        raw.website ? fetchWebsiteText(raw.website) : Promise.resolve(emptyIntel),
-        fetchJobPostings(raw.title, city, state, mode),
-      ])
-      // YouTube depends on intel.youtubeLink so runs after, but is still non-blocking
-      const ytData = await (
-        intel.youtubeLink ? validateYouTubeLink(intel.youtubeLink, raw.title) :
-        raw.website        ? fetchYouTube(raw.title) :
-        Promise.resolve({ channel: null as string | null, subscribers: null as string | null, videoCount: 0 })
-      )
+    const toEnrich = prescored.filter(x => x.ps.score >= 40)
+    const coldTail  = prescored.filter(x => x.ps.score < 40)
 
-      // Apply enrichment bonuses to pre-score for the fast path
-      let adjustedPreScore = preSc
-      if (jobData.hiring) adjustedPreScore = Math.min(100, adjustedPreScore + 8)
-      if (ytData.channel) adjustedPreScore = Math.min(100, adjustedPreScore + 7)
-
-      // Fast path: only skip Sonnet for clear COLDs (captive/low signal).
-      // HOTs always go to Sonnet — the AI intel writeup is the product.
-      if (adjustedPreScore < 40) {
-        const reviews = raw.reviews || 0
-        const type = raw.type || ''
-        const modeTypeFallback: Record<string, string> = {
-          medicare: 'Insurance Agency', life: 'Insurance Agency',
-          annuities: 'Financial Services', financial: 'Financial Advisory',
-        }
-        return {
-          name: raw.title || 'Unknown',
-          type: type || modeTypeFallback[mode] || 'Insurance Agency',
-          phone: raw.phone || '', address: raw.address || '',
-          rating: raw.rating || 0, reviews,
-          website: raw.website || null,
-          carriers: ['Unknown'],
-          captive: adjustedPreScore < 40,
-          years: null,
-          score: adjustedPreScore,
-          flag: adjustedPreScore >= 75 ? 'hot' : adjustedPreScore >= 50 ? 'warm' : 'cold',
-          notes: 'Scored from listing signals and enrichment data.',
-          hiring: jobData.hiring, hiring_roles: jobData.roles,
-          youtube_channel: ytData.channel, youtube_subscribers: ytData.subscribers, youtube_video_count: ytData.videoCount,
-          about: null,
-          contact_email: intel.email || null,
-          social_links: intel.socialLinks || [],
-        }
-      }
-
-      // Ambiguous — send to Sonnet
-      return scoreAgent(raw, intel, jobData, ytData, mode)
-    }
-
-    // Enrich top candidates
-    const enriched = await Promise.all(
-      topCandidates.map(({ raw }) => limit(() => deepEnrich(raw)))
+    const enrichedRaw = await Promise.all(
+      toEnrich.map(({ raw }) => limiter(() => enrichAgent(raw, mode)))
     )
 
-    // Tail candidates: return with pre-score only — no crawl, no LLM, no drops
-    const modeTypeFallback2: Record<string, string> = {
-      medicare: 'Insurance Agency', life: 'Insurance Agency',
-      annuities: 'Financial Services', financial: 'Financial Advisory',
-    }
-    const tailScored: AgentResult[] = tailCandidates.map(({ raw, preScore: ps }) => ({
+    // ── Cold tail: shape into AgentResult with no enrichment ─────────────────
+    const cfg = MODE_CONFIG[mode] || MODE_CONFIG.medicare
+    const coldResults: AgentResult[] = coldTail.map(({ raw, ps }) => ({
       name: raw.title || 'Unknown',
-      type: raw.type || modeTypeFallback2[mode] || 'Insurance Agency',
+      type: raw.type || cfg.typeFallback,
       phone: raw.phone || '', address: raw.address || '',
       rating: raw.rating || 0, reviews: raw.reviews || 0,
       website: raw.website || null,
-      carriers: ['Unknown'], captive: ps < 40, years: null,
-      score: ps,
-      flag: ps >= 75 ? 'hot' : ps >= 50 ? 'warm' : ('cold' as const),
-      notes: 'Pre-scored from listing signals only.',
+      carriers: ['Unknown'], captive: ps.captive, years: null,
+      score: ps.score, flag: 'cold' as const,
+      notes: ps.captive ? 'Captive brand — not recruitable.' : 'Low signal — not enriched.',
       hiring: false, hiring_roles: [],
       youtube_channel: null, youtube_subscribers: null, youtube_video_count: 0,
       about: null, contact_email: null, social_links: [],
+      _preScore: ps.score, _enrichmentDelta: 0, _sonnetDelta: 0,
     }))
 
-    const sorted = [...enriched, ...tailScored].sort((a, b) => b.score - a.score)
+    // ── Merge enriched + cold, sort by final score ────────────────────────────
+    const enrichedResults: AgentResult[] = enrichedRaw.map(e => ({
+      ...e,
+      hiring: false,          // will be filled in by background job
+      hiring_roles: [],
+      youtube_channel: null,
+      youtube_subscribers: null,
+      youtube_video_count: 0,
+    }))
 
-    // ── Persist async — don't block the response ─────────────────────────────
+    const sorted = [...enrichedResults, ...coldResults].sort((a, b) => b.score - a.score)
+
+    // ── Persist + kick off background enrichment ─────────────────────────────
     void Promise.all([
       upsertAgentProfiles(userId, city, state, sorted).catch(err =>
         console.error('[/api/search] upsert error:', err)
@@ -783,9 +736,19 @@ export async function POST(req: NextRequest) {
         cold_count: sorted.filter(a => a.flag === 'cold').length,
         agents_json: sorted,
       })).catch((err: unknown) => console.error('[/api/search] searches insert error:', err)),
+      // Background: jobs + YouTube for hot/warm agents only
+      ...enrichedRaw
+        .filter(e => e.flag !== 'cold')
+        .map(e =>
+          backgroundEnrichAgent(userId, e.name, city, state, mode, e._youtubeLink)
+            .catch(err => console.error('[backgroundEnrichAgent]', e.name, err))
+        ),
     ])
 
-    return NextResponse.json({ agents: sorted })
+    // Strip internal debug fields before sending to client
+    const clientResults = sorted.map(({ _preScore, _enrichmentDelta, _sonnetDelta, ...rest }: any) => rest)
+    return NextResponse.json({ agents: clientResults })
+
   } catch (err) {
     console.error('[/api/search] error:', err)
     return NextResponse.json({ error: 'Search failed' }, { status: 500 })
