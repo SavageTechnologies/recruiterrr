@@ -1,10 +1,5 @@
 import type { Agent } from './types'
-
-const MODES = [
-  { value: 'medicare',  label: 'Medicare / Senior',    desc: 'Medicare Advantage, Supplement, PDP' },
-  { value: 'life',      label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
-  { value: 'annuities', label: 'FIA / MYGA',           desc: 'Fixed index annuities, MYGA, safe money' },
-]
+import { resolveMode } from './searchData'
 
 export function MarketSummary({ agents, searchLabel, mode }: { agents: Agent[]; searchLabel: string; mode: string }) {
   const hot      = agents.filter(a => a.flag === 'hot')
@@ -14,6 +9,10 @@ export function MarketSummary({ agents, searchLabel, mode }: { agents: Agent[]; 
   const hasWeb   = agents.filter(a => a.website)
   const avgScore = agents.length ? Math.round(agents.reduce((s, a) => s + a.score, 0) / agents.length) : 0
   const topAgent = agents[0]
+
+  // resolveMode falls back to medicare if mode is unrecognized (e.g. 'financial'
+  // restored from an old saved search) — UI never renders blank.
+  const resolvedMode = resolveMode(mode)
 
   const verdict = (() => {
     if (hot.length >= 5)  return { label: 'STRONG MARKET', color: 'var(--sig-green)',  desc: `${hot.length} HOT targets — high independent density.` }
@@ -27,7 +26,7 @@ export function MarketSummary({ agents, searchLabel, mode }: { agents: Agent[]; 
       <div>
         <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: 'var(--text-3)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 5 }}>Market Overview</div>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: 'var(--text-1)', letterSpacing: 2, lineHeight: 1 }}>{searchLabel}</div>
-        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--text-3)', letterSpacing: 1, marginTop: 3 }}>{MODES.find(m => m.value === mode)?.desc}</div>
+        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: 'var(--text-3)', letterSpacing: 1, marginTop: 3 }}>{resolvedMode.desc}</div>
       </div>
 
       <div style={{

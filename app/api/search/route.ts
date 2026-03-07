@@ -109,42 +109,35 @@ export async function POST(req: NextRequest) {
 
     const sorted = [...enrichedResults, ...coldResults].sort((a, b) => b.score - a.score)
 
-    // ── Persist to DB — awaited so Vercel doesn't kill before writes complete ──
-    await Promise.all([
+    // ── Persist to DB ─────────────────────────────────────────────────────────
+    // Capture the inserted search ID directly from the insert response.
+    // Never re-query by city+state — that races with concurrent searches from
+    // the same user running the same market in a different mode or tab.
+    const [, searchInsertResult] = await Promise.all([
       upsertAgentProfiles(userId, city, state, sorted).catch(err =>
         console.error('[/api/search] upsert error:', err)
       ),
-      Promise.resolve(supabase.from('searches').insert({
+      supabase.from('searches').insert({
         clerk_id: userId, city, state, mode,
         results_count: sorted.length,
         hot_count: sorted.filter(a => a.flag === 'hot').length,
         warm_count: sorted.filter(a => a.flag === 'warm').length,
         cold_count: sorted.filter(a => a.flag === 'cold').length,
         agents_json: sorted,
-      })).catch((err: unknown) => console.error('[/api/search] searches insert error:', err)),
+      }).select('id').single(),
     ])
+    const searchId = (searchInsertResult as any)?.data?.id ?? null
+    if (!searchId) console.error('[/api/search] failed to capture search ID for background patching')
 
-    // ── Background enrichment — truly detached, runs after response ──────────
+    // ── Background enrichment — fire and forget after response ───────────────
     // After jobs + YouTube resolve, patch searches.agents_json so saved-search
-    // views reflect the enriched data instead of the pre-enrichment snapshot.
-    const searchInsert = await supabase
-      .from('searches')
-      .select('id')
-      .eq('clerk_id', userId)
-      .eq('city', city)
-      .eq('state', state)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-    const searchId = searchInsert.data?.id ?? null
-
+    // views reflect enriched data instead of the pre-enrichment snapshot.
     enrichedRaw
       .filter(e => e.flag !== 'cold')
       .forEach(e =>
         backgroundEnrichAgent(userId, e.name, city, state, mode, e._youtubeLink)
           .then(async (enriched) => {
             if (!searchId || !enriched) return
-            // Re-fetch the current agents_json and patch matching agent
             const { data: saved } = await supabase
               .from('searches')
               .select('agents_json')

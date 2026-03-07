@@ -64,11 +64,23 @@ export const ANNUITY_TIPS = [
   },
 ]
 
+// ── Supported search modes ────────────────────────────────────────────────────
+// This is the single source of truth for what modes exist in the product.
+// The backend config.ts has a 'financial' mode that is not yet production-ready.
+// Do not add it here until the frontend search form, market summary, and
+// saved-search restore are all ready to support it.
 export const MODES = [
   { value: 'medicare',  label: 'Medicare / Senior',    desc: 'Medicare Advantage, Supplement, PDP' },
   { value: 'life',      label: 'Life / Final Expense', desc: 'Term, whole life, final expense' },
   { value: 'annuities', label: 'FIA / MYGA',           desc: 'Fixed index annuities, MYGA, safe money' },
 ]
+
+// Helper — safely resolve a mode value to its display label/desc.
+// Falls back to medicare if an unrecognized mode (e.g. 'financial') is restored
+// from a saved search, so the UI never renders a blank header or broken select.
+export function resolveMode(mode: string): { value: string; label: string; desc: string } {
+  return MODES.find(m => m.value === mode) ?? MODES[0]
+}
 
 export const LOADING_PHASES = [
   { label: 'Scanning Google local listings',     detail: 'Pulling every agent in the market'         },
