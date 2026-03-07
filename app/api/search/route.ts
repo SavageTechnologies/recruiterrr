@@ -646,7 +646,6 @@ export async function POST(req: NextRequest) {
     function preScore(raw: any): number {
       let s = 50
       const reviews = raw.reviews || 0
-      const nl = (raw.title || '').toLowerCase()
       const modeCapt: Record<string, string[]> = {
         medicare:  ['bankers life','state farm','farmers','allstate','geico'],
         life:      ['new york life','northwestern','mass mutual','globe life'],
@@ -667,10 +666,10 @@ export async function POST(req: NextRequest) {
       return s
     }
 
-    // Phase 1: rank all candidates — anyone pre-scoring 50+ (warm or hot) gets
-    // full enrichment. Cold (< 50) gets pre-score only. Hard cap at 12.
+    // ENRICH = hot or warm pre-flag (>= 50). PASS (< 50) skips LLM entirely.
     const ENRICH_THRESHOLD = 50
     const ENRICH_MAX = 12
+
     const ranked = rawAgents
       .slice(0, clampedLimit)
       .map((raw: any) => ({ raw, preScore: preScore(raw) }))
