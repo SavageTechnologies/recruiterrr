@@ -290,7 +290,7 @@ export default function DatabasePage() {
   const [selected, setSelected]   = useState<AgentProfile | null>(null)
   const [exporting, setExporting] = useState(false)
 
-  const [filterFlag,  setFilterFlag]  = useState('hot')
+  const [filterFlag,  setFilterFlag]  = useState('all')
   const [filterState, setFilterState] = useState('all')
   const [filterCity,  setFilterCity]  = useState('all')
   const [filterPhone, setFilterPhone] = useState(false)

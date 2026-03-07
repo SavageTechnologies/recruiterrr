@@ -25,7 +25,7 @@ export async function backgroundEnrichAgent(
   state: string,
   mode: string,
   youtubeLink: string | null,
-): Promise<void> {
+): Promise<{ hiring: boolean; hiring_roles: string[] | null; youtube_channel: string | null; youtube_subscribers: string | null } | null> {
   try {
     const modeJobTerms: Record<string, string> = {
       medicare: 'insurance agent',
@@ -97,7 +97,15 @@ export async function backgroundEnrichAgent(
       .eq('name', agentName)
       .eq('city', city)
       .eq('state', state)
+
+    return {
+      hiring: jobData.hiring,
+      hiring_roles: jobData.roles.length ? jobData.roles : null,
+      youtube_channel: ytData.channel,
+      youtube_subscribers: ytData.subscribers,
+    }
   } catch (err) {
     console.error('[backgroundEnrichAgent] error:', err)
+    return null
   }
 }

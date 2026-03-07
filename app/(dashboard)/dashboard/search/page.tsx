@@ -150,6 +150,7 @@ function SearchPageInner() {
       if (data.search) {
         setAgents(data.search.agents_json || [])
         setCity(data.search.city); setState(data.search.state)
+        if (data.search.mode) setMode(data.search.mode)
         setSearchLabel(`${data.search.city.toUpperCase()}, ${data.search.state}`)
         setSearched(true); setSearchCollapsed(true)
       }

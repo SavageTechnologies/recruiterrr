@@ -42,15 +42,15 @@ export async function fetchAgentsFromSerp(
   const locationParam = encodeURIComponent(`${city}, ${stateFull}, United States`)
 
   const seen = new Set<string>()
-  const results: any[] = []
+  const results: { item: any; queryRank: number }[] = []
 
-  await Promise.all(baseQueries.map(async (q) => {
+  await Promise.all(baseQueries.map(async (q, queryIndex) => {
     try {
       const url = `https://serpapi.com/search.json?engine=google_local&q=${encodeURIComponent(q)}&location=${locationParam}&hl=en&gl=us&api_key=${process.env.SERPAPI_KEY}`
       const res = await fetch(url)
       if (!res.ok) return
       const data = await res.json()
-      for (const item of (data.local_results || [])) {
+      for (const [resultIndex, item] of (data.local_results || []).entries()) {
         const addr = (item.address || '').toLowerCase()
         const stateLower = state.toLowerCase()
         const stateMatch =
@@ -64,11 +64,16 @@ export async function fetchAgentsFromSerp(
         if (!seen.has(key)) {
           seen.add(key)
           item.website = item.links?.website || null
-          results.push(item)
+          // Rank: primary query (index 0) results lead; within a query,
+          // Google's own order is preserved. Caller applies limit after scoring.
+          results.push({ item, queryRank: queryIndex * 1000 + resultIndex })
         }
       }
     } catch {}
   }))
 
-  return results
+  // Sort by query rank so result set is deterministic across runs,
+  // regardless of which parallel fetch finished first.
+  results.sort((a, b) => a.queryRank - b.queryRank)
+  return results.map(r => r.item)
 }

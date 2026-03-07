@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     if (!rawAgents.length) {
       void supabase.from('searches').insert({
-        clerk_id: userId, city, state,
+        clerk_id: userId, city, state, mode,
         results_count: 0, hot_count: 0, warm_count: 0, cold_count: 0, agents_json: [],
       })
       return NextResponse.json({ agents: [] })
@@ -65,9 +65,9 @@ export async function POST(req: NextRequest) {
 
     // ── Pre-score all candidates (instant, no network) ───────────────────────
     const prescored = rawAgents
-      .slice(0, clampedLimit)
       .map(raw => ({ raw, ps: preScore(raw, mode) }))
       .sort((a, b) => b.ps.score - a.ps.score)
+      .slice(0, clampedLimit)  // limit applied after sort, not before — preserves best candidates
 
     // ── Triage: captives and low signal skip enrichment entirely ─────────────
     const { default: pLimit } = await import('p-limit')
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
         console.error('[/api/search] upsert error:', err)
       ),
       Promise.resolve(supabase.from('searches').insert({
-        clerk_id: userId, city, state,
+        clerk_id: userId, city, state, mode,
         results_count: sorted.length,
         hot_count: sorted.filter(a => a.flag === 'hot').length,
         warm_count: sorted.filter(a => a.flag === 'warm').length,
@@ -125,12 +125,40 @@ export async function POST(req: NextRequest) {
     ])
 
     // ── Background enrichment — truly detached, runs after response ──────────
-    // Jobs + YouTube don't block the response but also won't be killed by Vercel
-    // since we've already awaited the critical writes above.
+    // After jobs + YouTube resolve, patch searches.agents_json so saved-search
+    // views reflect the enriched data instead of the pre-enrichment snapshot.
+    const searchInsert = await supabase
+      .from('searches')
+      .select('id')
+      .eq('clerk_id', userId)
+      .eq('city', city)
+      .eq('state', state)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    const searchId = searchInsert.data?.id ?? null
+
     enrichedRaw
       .filter(e => e.flag !== 'cold')
       .forEach(e =>
         backgroundEnrichAgent(userId, e.name, city, state, mode, e._youtubeLink)
+          .then(async (enriched) => {
+            if (!searchId || !enriched) return
+            // Re-fetch the current agents_json and patch matching agent
+            const { data: saved } = await supabase
+              .from('searches')
+              .select('agents_json')
+              .eq('id', searchId)
+              .single()
+            if (!saved?.agents_json) return
+            const patched = (saved.agents_json as any[]).map((a: any) =>
+              a.name === e.name
+                ? { ...a, hiring: enriched.hiring, hiring_roles: enriched.hiring_roles,
+                    youtube_channel: enriched.youtube_channel, youtube_subscribers: enriched.youtube_subscribers }
+                : a
+            )
+            await supabase.from('searches').update({ agents_json: patched }).eq('id', searchId)
+          })
           .catch(err => console.error('[backgroundEnrichAgent]', e.name, err))
       )
 

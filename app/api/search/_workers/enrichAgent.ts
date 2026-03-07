@@ -58,6 +58,32 @@ export async function enrichAgent(
   // ── SONNET: writes the recruiter snippet + adjusts score ±15 ─────────────
   const sonnetResult = await sonnetScore(raw, intel, anchorScore, mode)
 
+  // ── SONNET-CONFIRMED CAPTIVE: escaped preScore brand check but caught by crawl ──
+  // Treat identically to preScore captive — not recruitable, hard cold, no score.
+  if (sonnetResult.captive) {
+    return {
+      name: raw.title || 'Unknown',
+      type: raw.type || cfg.typeFallback,
+      phone: raw.phone || '', address: raw.address || '',
+      rating: raw.rating || 0, reviews: raw.reviews || 0,
+      website: raw.website || null,
+      carriers: sonnetResult.carriers,
+      captive: true,
+      wrongLine: false,
+      years: sonnetResult.years,
+      score: 20,
+      flag: 'cold',
+      notes: 'Captive brand — not recruitable.',
+      about: sonnetResult.about,
+      contact_email: sonnetResult.contact_email || intel.email || null,
+      social_links: intel.socialLinks,
+      _preScore: ps,
+      _enrichmentDelta: enrichmentDelta,
+      _sonnetDelta: sonnetResult.scoreDelta,
+      _youtubeLink: intel.youtubeLink,
+    }
+  }
+
   // ── WRONG LINE: confirmed mismatch → hard cold, bypass score threshold ────
   // This is not a score penalty — it's a known fact. Treat it the same as captive.
   if (sonnetResult.wrongLine) {
