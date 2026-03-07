@@ -10,7 +10,7 @@
 //
 // Captive is ONLY derived from brand name matching — never from score.
 
-import { MODE_CONFIG } from './config'
+import { MODE_CONFIG, CAPTIVE_BRANDS } from './config'
 import type { PreScoreResult } from './types'
 
 export function preScore(raw: any, mode: string): PreScoreResult {
@@ -27,14 +27,48 @@ export function preScore(raw: any, mode: string): PreScoreResult {
   // Some captive agents (e.g. HealthMarkets) brand personally but their website
   // is a subdomain/path of the captive's domain — catch those too.
   const CAPTIVE_DOMAINS = [
-    'healthmarkets.com', 'statefarm.com', 'farmers.com', 'allstate.com',
-    'amfam.com', 'shelterinsurance.com', 'newyorklife.com', 'northwesternmutual.com',
-    'massmutual.com', 'globelife.com', 'coloniallife.com', 'aflac.com',
-    'primerica.com', 'transamerica.com', 'bankerlife.com',
+    // P&C / Multi-line
+    'statefarm.com', 'allstate.com', 'farmers.com', 'amfam.com', 'nationwide.com',
+    'libertymutual.com', 'travelers.com', 'usaa.com', 'erieinsurance.com',
+    'auto-owners.com', 'shelterinsurance.com', 'countryfinancial.com',
+    'foremost.com', 'bristolwest.com', 'sentry.com', 'pemco.com',
+    'pekininsurance.com', 'grinnellmutual.com',
+    'geico.com', 'progressive.com', 'elephantinsurance.com',
+    // AAA
+    'aaa.com', 'csaa.com', 'autoclubgroup.aaa.com',
+    // National health carriers
+    'uhc.com', 'unitedhealthcare.com', 'humana.com', 'aetna.com',
+    'cigna.com', 'molinahealthcare.com', 'kp.org', 'kaiserpermanente.org',
+    'hioscar.com', 'brighthealthcare.com', 'cloverhealth.com',
+    'alignmenthealthcare.com', 'devoted.com', 'zinghealth.com',
+    // Centene
+    'ambetterhealth.com', 'wellcare.com', 'health.net', 'centene.com',
+    // BCBS
+    'bcbs.com', 'anthem.com', 'floridablue.com', 'premera.com', 'regence.com',
+    'blueshieldca.com', 'excellusbcbs.com', 'empireblue.com', 'horizonblue.com',
+    'ibx.com', 'highmarkbcbs.com', 'carefirst.com', 'wellmark.com',
+    'hmsa.com', 'selecthealth.org', 'deancare.com',
+    // Life & annuity captives
+    'newyorklife.com', 'northwesternmutual.com', 'massmutual.com',
+    'prudential.com', 'metlife.com', 'guardianlife.com', 'pacificlife.com',
+    'principal.com', 'lfg.com',
+    // Supplemental / worksite / senior
+    'aflac.com', 'coloniallife.com', 'unum.com', 'americanincome.com',
+    'libertynational.com', 'familyheritagelife.com', 'unitedamerican.com',
+    'globelife.com', 'bankerslife.com', 'washingtonnational.com',
+    'americanfidelity.com', 'sunlife.com', 'voya.com',
+    'mutualofomaha.com', 'trustage.com', 'cunamutual.com',
+    'transamerica.com', 'worldfinancialgroup.com', 'primerica.com',
+    'combinedinsurance.com', 'healthmarkets.com', 'bankerlife.com',
+    // Wirehouses / broker-dealers
+    'edwardjones.com', 'ameriprise.com', 'raymondjames.com',
+    'ml.com', 'morganstanley.com', 'wellsfargoadvisors.com',
+    'ubs.com', 'fidelity.com', 'vanguard.com', 'schwab.com',
+    'tdameritrade.com', 'lpl.com', 'cetera.com', 'commonwealth.com',
   ]
   const websiteUrl = (raw.website || '').toLowerCase()
   const captiveByDomain = CAPTIVE_DOMAINS.some(domain => websiteUrl.includes(domain))
-  const captiveByName = cfg.captiveBrands.some(brand => {
+  const captiveByName = CAPTIVE_BRANDS.some(brand => {
     const escaped = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     return new RegExp(`\\b${escaped}\\b`, 'i').test(raw.title || '')
   })
