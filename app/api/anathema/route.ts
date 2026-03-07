@@ -185,19 +185,23 @@ export async function POST(req: NextRequest) {
     !l.includes('facebook.com/share')
   ) || null
 
-  // ─── STEP 1: Gather evidence — 4 parallel fetches ───────────────────────────
+  // ─── STEP 1: Gather evidence — website crawl + SERP in parallel ─────────────
   const {
     evidenceBlob,
     facebookProfileUrl,
     facebookAbout,
     facebookPostText,
     serpDebug,
+    ownerNames,
+    websitePagesFound,
   } = await gatherEvidence(
     agent.name,
     agent.state || '',
     agent.city || '',
+    agent.website || null,
     serpKey,
     socialFbUrl,
+    agent.youtube_channel || null,
   )
 
   // ── Prometheus cross-reference ───────────────────────────────────────────────
@@ -238,31 +242,16 @@ export async function POST(req: NextRequest) {
     // Prometheus lookup failed — continue without it
   }
 
-  // ── Apify enrichment — only if confidence will be low ────────────────────────
-  // We don't know confidence yet, so run a quick pre-check:
-  // If we have a FB URL and Apify is available, fire it now in parallel
-  // with the AI analysis call below. We'll merge the results after.
-  let apifyEvidenceExtra = ''
+  // ─── STEP 2: Apify social — runs in parallel before AI analysis ─────────────
+  // Facebook posts + YouTube videos feed into the primary analysis, not as fallback.
+  // Social often has more relationship signals than the consumer-facing website.
   let apifyPostCount = 0
   let apifyVideoCount = 0
   let apifyUsed = false
+  let combinedEvidenceBlob = evidenceBlob
 
   const hasApifyTargets = !!(facebookProfileUrl || agent.youtube_channel)
-  const apifyAvailable = !!(hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET)
-
-  // ─── STEP 2: Analyze evidence — one Sonnet call ──────────────────────────────
-  // Run AI analysis. If result comes back low confidence AND Apify is available,
-  // we'll run Apify and do a second AI call with the enriched evidence.
-  let analysis = await analyzeEvidence(
-    agent.name,
-    agent.state || '',
-    evidenceBlob,
-    networkSignals,
-    extraSignals,
-  )
-
-  // ── Apify enrichment on low confidence ──────────────────────────────────────
-  if (apifyAvailable && analysis.tree_confidence < 55) {
+  if (hasApifyTargets && process.env.APIFY_API_KEY) {
     try {
       const apifyEnrichment = await enrichWithApify({
         facebookProfileUrl,
@@ -274,34 +263,38 @@ export async function POST(req: NextRequest) {
 
       if (apifyPostCount > 0 || apifyVideoCount > 0) {
         apifyUsed = true
-        apifyEvidenceExtra = [apifyEnrichment.facebookText, apifyEnrichment.youtubeText]
+        const apifyText = [apifyEnrichment.facebookText, apifyEnrichment.youtubeText]
           .filter(Boolean).join('\n')
 
         // Add Apify snippets to debug trail
         const apifySnippets = apifyToSerpSnippets(apifyEnrichment)
         serpDebug.push({
-          query: `apify_facebook:${facebookProfileUrl || 'n/a'}`,
-          source: 'apify_facebook_posts',
-          results: apifySnippets.filter(s => s.title.startsWith('Facebook')).slice(0, 5).map(s => ({
+          query: `apify_social:${facebookProfileUrl || agent.youtube_channel || 'n/a'}`,
+          source: 'apify_social',
+          results: apifySnippets.slice(0, 8).map(s => ({
             title: s.title, url: s.url, snippet: s.snippet.slice(0, 200), signals_matched: [],
           })),
         })
 
-        // Re-analyze with richer evidence
-        analysis = await analyzeEvidence(
-          agent.name,
-          agent.state || '',
-          [evidenceBlob, apifyEvidenceExtra].join('\n\n'),
-          networkSignals,
-          extraSignals,
-        )
+        combinedEvidenceBlob = [evidenceBlob, `=== FACEBOOK POSTS + YOUTUBE (via Apify) ===\n${apifyText}`]
+          .join('\n\n')
       }
     } catch {
-      // Apify failed — use first analysis result
+      // Apify failed — continue with website + SERP evidence only
     }
   }
 
-  // ─── STEP 3: DB enrichment ───────────────────────────────────────────────────
+  // ─── STEP 3: Analyze evidence — one Sonnet call ──────────────────────────────
+  const analysis = await analyzeEvidence(
+    agent.name,
+    agent.state || '',
+    combinedEvidenceBlob,
+    networkSignals,
+    extraSignals,
+    ownerNames,
+  )
+
+  // ─── STEP 4: DB enrichment ───────────────────────────────────────────────────
   let subimoPartnerId: string | null = null
   let subimoIsNewDiscovery = false
   let subimoNumericConfidence: number | null = null

@@ -1,17 +1,18 @@
 // ─── lib/domain/anathema/analyzer.ts ─────────────────────────────────────────
-// The Anathema prediction engine — rebuilt clean.
-//
-// Replaces chain-resolver.ts and upline-hunter.ts entirely.
+// The ANATHEMA prediction engine.
 //
 // Three steps, one pipeline:
-//   1. gatherEvidence   — 4 parallel SERP/FB fetches → one evidence blob
-//   2. analyzeEvidence  — one Sonnet call → tree + sub-IMO simultaneously
+//   1. gatherEvidence   — website crawl + social + SERP in parallel
+//   2. analyzeEvidence  — one Sonnet call → find real named relationships
 //   3. enrichFromDB     — pure lookup → attach UUID or write to discovered_fmos
 //
-// The DB never votes on the answer. It only recognizes it afterward.
+// Philosophy: find evidence of a REAL relationship between this agent and any
+// named FMO or wholesaler. Don't force a tree classification. Surface what
+// actually exists in the public record — posts, trips, leaderboards, mentions.
 
 import { getAnthropicClient } from '@/lib/ai'
 import { supabase } from '@/lib/supabase.server'
+import { crawlAgentSite } from './agentCrawler'
 import type { NetworkSignal } from './signals'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
@@ -21,11 +22,10 @@ export type AnalysisSignal = {
   type: 'domain' | 'name' | 'comention' | 'relationship' | 'association' | 'brand_language'
   entity: string
   text: string
-  source: 'serp' | 'facebook' | 'ai_inference'
+  source: 'serp' | 'facebook' | 'website' | 'ai_inference'
 }
 
 export type AnalysisResult = {
-  // Tree prediction
   predicted_tree: 'integrity' | 'amerilife' | 'sms' | 'unknown'
   tree_confidence: number
   tree_evidence: string
@@ -33,18 +33,15 @@ export type AnalysisResult = {
   reasoning: string
   prediction_source: 'brand_language' | 'ai_inference' | 'both' | null
 
-  // Sub-IMO
   predicted_sub_imo: string | null
   predicted_sub_imo_confidence: number | null
   predicted_sub_imo_partner_id: string | null
   predicted_sub_imo_signals: AnalysisSignal[]
   predicted_sub_imo_is_new_discovery: boolean
 
-  // Facebook
   facebook_profile_url: string | null
   facebook_about: string | null
 
-  // Audit
   serp_debug: Array<{
     query: string
     source: string
@@ -53,29 +50,60 @@ export type AnalysisResult = {
 }
 
 // ─── STEP 1: GATHER EVIDENCE ─────────────────────────────────────────────────
-// Fires 4 fetches in parallel. Never blocks on one failing.
-// Returns a single evidence blob + raw debug for the audit trail.
+// Runs three things in parallel:
+//   A. Website crawl — sitemap-driven, extracts owner names + relationship signals
+//   B. Apify social — Facebook posts + YouTube videos (runs first, not as fallback)
+//   C. SERP — broad search + owner-name search + Facebook search
+//
+// Owner name from the website crawl feeds into a targeted SERP search.
+// Social runs immediately alongside the crawl — not after AI analysis.
 
 export async function gatherEvidence(
   agentName: string,
   agentState: string,
   agentCity: string,
+  agentWebsite: string | null,
   serpKey: string,
   socialFbUrl: string | null,
+  youtubeUrl: string | null,
 ): Promise<{
   evidenceBlob: string
   facebookProfileUrl: string | null
   facebookAbout: string | null
   facebookPostText: string
   serpDebug: AnalysisResult['serp_debug']
+  ownerNames: string[]
+  websitePagesFound: string[]
 }> {
   const base = `https://serpapi.com/search.json?engine=google&num=8&api_key=${serpKey}`
   const timeout = { signal: AbortSignal.timeout(10000) }
 
+  // ── A. Website crawl — runs immediately, gives us owner names for SERP ──────
+  const websiteIntel = agentWebsite
+    ? await crawlAgentSite(agentWebsite, agentName).catch(() => null)
+    : null
+
+  // Use social URLs found on website if we don't already have them
+  const fbUrl = socialFbUrl || websiteIntel?.socialUrls.facebook || null
+  const ytUrl = youtubeUrl || websiteIntel?.socialUrls.youtube || null
+  const ownerNames = websiteIntel?.ownerNames || []
+  const primaryOwner = ownerNames[0] || null
+
+  // ── B + C. Social (Apify) + SERP fire in parallel ──────────────────────────
+  // q1: broad local search for the agency
   const q1 = `"${agentName}" insurance ${agentCity} ${agentState}`.trim()
-  const q2 = `"${agentName}" FMO OR IMO OR appointed OR contracted OR upline`
-  const q3 = `"${agentName}" Integrity OR AmeriLife OR "Senior Market Sales" OR "Family First Life" OR USABG`
-  const q4 = `"${agentName}" site:facebook.com`
+  // q2: owner person search — FMO/conference/relationship language
+  const q2 = primaryOwner
+    ? `"${primaryOwner}" insurance FMO OR IMO OR wholesaler OR "marketing organization" OR conference OR appointed OR trip`
+    : `"${agentName}" FMO OR IMO OR "field marketing" OR "marketing organization" OR appointed OR contracted OR upline`
+  // q3: agency + owner co-mention with any known distribution org
+  const q3 = primaryOwner
+    ? `"${primaryOwner}" OR "${agentName}" "field marketing" OR "marketing organization" OR upline OR leaderboard OR "top producer" OR "annual conference"`
+    : `"${agentName}" upline OR leaderboard OR "top producer" OR "annual conference" OR "producer trip"`
+  // q4: Facebook profile search
+  const q4 = primaryOwner
+    ? `"${primaryOwner}" OR "${agentName}" site:facebook.com`
+    : `"${agentName}" site:facebook.com`
 
   const [r1, r2, r3, r4] = await Promise.all([
     fetch(`${base}&q=${encodeURIComponent(q1)}`, timeout).catch(() => null),
@@ -91,8 +119,8 @@ export async function gatherEvidence(
 
   const [d1, d2, d3, d4] = await Promise.all([
     parse(r1, q1, 'broad'),
-    parse(r2, q2, 'fmo_context'),
-    parse(r3, q3, 'tree_brand'),
+    parse(r2, q2, 'owner_relationship'),
+    parse(r3, q3, 'distribution_signals'),
     parse(r4, q4, 'facebook_search'),
   ])
 
@@ -108,8 +136,8 @@ export async function gatherEvidence(
     })),
   }))
 
-  // Extract Facebook profile URL
-  let facebookProfileUrl = socialFbUrl
+  // Extract Facebook profile URL from SERP
+  let facebookProfileUrl = fbUrl
   let facebookAbout = ''
   let facebookPostText = ''
 
@@ -118,12 +146,11 @@ export async function gatherEvidence(
     !r.link.includes('facebook.com/sharer') &&
     !r.link.includes('facebook.com/share')
   )
-
   if (fbResult?.link && !facebookProfileUrl) {
     facebookProfileUrl = fbResult.link
   }
 
-  // Try to get Facebook profile content if we have a handle
+  // Try Facebook profile content via SerpAPI
   if (facebookProfileUrl) {
     try {
       const handleMatch = facebookProfileUrl.match(/facebook\.com\/([^/?&#]+)/)
@@ -159,18 +186,43 @@ export async function gatherEvidence(
     } catch { /* Facebook content fetch failed — URL still valid for Apify */ }
   }
 
-  // Flatten everything into one evidence blob for the AI
+  // ── Assemble evidence blob ────────────────────────────────────────────────
+  const sections: string[] = []
+
+  // Website content — highest trust, agent wrote this themselves
+  if (websiteIntel?.fullText) {
+    sections.push(`=== AGENT WEBSITE (${agentWebsite}) ===
+Pages crawled: ${websiteIntel.pagesFound.join(', ')}
+${websiteIntel.fullText}`)
+
+    if (websiteIntel.ownerNames.length > 0)
+      sections.push(`OWNER/PRINCIPAL NAMES FOUND ON SITE: ${websiteIntel.ownerNames.join(', ')}`)
+    if (websiteIntel.carrierMentions.length > 0)
+      sections.push(`CARRIERS MENTIONED ON SITE: ${websiteIntel.carrierMentions.join(', ')}`)
+    if (websiteIntel.membershipOrgs.length > 0)
+      sections.push(`ORGANIZATIONS/MEMBERSHIPS MENTIONED: ${websiteIntel.membershipOrgs.join(', ')}`)
+    if (websiteIntel.relationshipPhrases.length > 0)
+      sections.push(`RELATIONSHIP LANGUAGE FOUND:\n${websiteIntel.relationshipPhrases.map(p => `- ${p}`).join('\n')}`)
+  }
+
+  // SERP results
   const allSnippets: string[] = []
   for (const d of [d1, d2, d3, d4]) {
     for (const r of d.results) {
       const text = [r.title, r.snippet, r.link].filter(Boolean).join(' | ')
-      if (text) allSnippets.push(text)
+      if (text) allSnippets.push(`[${d.source}] ${text}`)
     }
   }
-  if (facebookAbout) allSnippets.push(`Facebook About: ${facebookAbout}`)
-  if (facebookPostText) allSnippets.push(`Facebook Posts: ${facebookPostText}`)
+  if (allSnippets.length > 0)
+    sections.push(`=== WEB SEARCH RESULTS ===\n${allSnippets.join('\n\n')}`)
 
-  const evidenceBlob = allSnippets.join('\n\n')
+  // Facebook content
+  if (facebookAbout)
+    sections.push(`=== FACEBOOK ABOUT ===\n${facebookAbout}`)
+  if (facebookPostText)
+    sections.push(`=== FACEBOOK POSTS ===\n${facebookPostText}`)
+
+  const evidenceBlob = sections.join('\n\n').slice(0, 10000)
 
   return {
     evidenceBlob,
@@ -178,13 +230,15 @@ export async function gatherEvidence(
     facebookAbout: facebookAbout || null,
     facebookPostText,
     serpDebug,
+    ownerNames,
+    websitePagesFound: websiteIntel?.pagesFound || [],
   }
 }
 
 // ─── STEP 2: ANALYZE EVIDENCE ─────────────────────────────────────────────────
-// One Sonnet call. Answers both questions simultaneously.
-// Tree prediction and sub-IMO inference share the same evidence read —
-// they inform each other, which is more accurate than two separate systems.
+// One Sonnet call. Primary question: does any named organization have a real
+// relationship with this agent? Describe the evidence. Don't guess.
+// Tree classification is secondary and only returned when explicitly evidenced.
 
 type AIAnalysis = {
   tree: 'integrity' | 'amerilife' | 'sms' | 'unknown'
@@ -195,7 +249,7 @@ type AIAnalysis = {
   subimo: string | null
   subimo_confidence: 'HIGH' | 'MED' | 'LOW' | null
   subimo_evidence: string | null
-  subimo_evidence_type: 'contracting_language' | 'association_event' | 'domain_signal' | 'comention' | 'brand_content' | null
+  subimo_evidence_type: 'contracting_language' | 'association_event' | 'domain_signal' | 'comention' | 'brand_content' | 'website_mention' | 'social_post' | null
 }
 
 export async function analyzeEvidence(
@@ -203,7 +257,8 @@ export async function analyzeEvidence(
   agentState: string,
   evidenceBlob: string,
   networkSignals: NetworkSignal[],
-  extraSignals: string[] = [], // pre-scored signals from SMS carrier check, profile scan, etc.
+  extraSignals: string[] = [],
+  ownerNames: string[] = [],
 ): Promise<AIAnalysis> {
   const fallback: AIAnalysis = {
     tree: 'unknown',
@@ -217,79 +272,71 @@ export async function analyzeEvidence(
     subimo_evidence_type: null,
   }
 
-  // Build known partner hints for the AI — hints only, not constraints
-  const integrityHints = networkSignals
-    .filter(s => s.tree === 'integrity' && s.partner && !s.isAlias)
-    .slice(0, 25).map(s => s.partner!.name).join(', ')
-  const amerilifeHints = networkSignals
-    .filter(s => s.tree === 'amerilife' && s.partner && !s.isAlias)
-    .slice(0, 25).map(s => s.partner!.name).join(', ')
-  const smsHints = networkSignals
-    .filter(s => s.tree === 'sms' && s.partner && !s.isAlias)
-    .slice(0, 25).map(s => s.partner!.name).join(', ')
+  // Known partner hints — for recognition only, not to bias the search
+  const knownPartners = networkSignals
+    .filter(s => s.partner && !s.isAlias)
+    .slice(0, 60)
+    .map(s => `${s.partner!.name} (${s.tree})`)
+    .join(', ')
 
-  const prompt = `You are ANATHEMA — an intelligence system that identifies which insurance distribution tree an agent belongs to, and who their immediate upline organization is.
+  const prompt = `You are ANATHEMA — an intelligence system that finds real business relationships between insurance agents and their upline organizations.
 
-AGENT: "${agentName}" (${agentState})
+AGENT: "${agentName}"${ownerNames.length > 0 ? `\nOWNER/PRINCIPAL: ${ownerNames.join(', ')}` : ''}
+STATE: ${agentState}
 
-PRE-SCORED SIGNALS (from carrier fingerprint and profile scan):
-${extraSignals.length > 0 ? extraSignals.map(s => `- ${s}`).join('\n') : '- None'}
+${extraSignals.length > 0 ? `PRE-SCORED SIGNALS:\n${extraSignals.map(s => `- ${s}`).join('\n')}\n` : ''}
 
-WEB EVIDENCE:
-${evidenceBlob.slice(0, 6000)}
+EVIDENCE GATHERED:
+${evidenceBlob.slice(0, 8000)}
 
-━━━ QUESTION 1: WHICH TREE? ━━━
+━━━ YOUR JOB ━━━
 
-Three possible trees:
+Find any named FMO, IMO, wholesaler, or upline organization that has a REAL relationship with this agent or their owner. 
 
-INTEGRITY MARKETING GROUP
-Brand language: "Integrity Marketing Group", "Family First Life", "FFL agent", "IntegrityCONNECT", "MedicareCENTER", "integrity.com"
-Known sub-IMOs (hints only): ${integrityHints || 'none loaded'}
+A real relationship means:
+- They are mentioned on the agent's own website as a partner, upline, or affiliated org
+- The agent or owner appears on the organization's leaderboard, award list, or trip roster
+- The agent or owner posted about the organization (conference, trip, event, training)
+- The agent or owner is tagged by or tags the organization on social media
+- A YouTube video title or description mentions the organization in a relationship context
+- The agent explicitly says "I work with", "appointed through", "contracted with", or similar
 
-AMERILIFE  
-Brand language: "AmeriLife", "USABG", "United Senior Benefits Group", "amerilife.com"
-Known sub-IMOs (hints only): ${amerilifeHints || 'none loaded'}
+NOT a real relationship:
+- Two names appearing in the same state insurance filing or directory (they just happen to be listed together)
+- A SERP result that mentions both names but in different contexts
+- Generic insurance education content that mentions carrier names
+- Carrier names alone (Humana, Aetna, etc.) — those are products, not uplines
 
-SENIOR MARKET SALES (SMS)
-Brand language: "Senior Market Sales", "SMS partner", "Rethinking Retirement", "seniormarketsales.com"
-Exclusive carrier combo: Mutual of Omaha + Medico together
-Known sub-IMOs (hints only): ${smsHints || 'none loaded'}
+━━━ TREE CLASSIFICATION ━━━
 
-TREE RULES:
-- Only predict a tree if there is EXPLICIT brand language or the SMS carrier combo
-- Generic insurance language, location, or common carriers do NOT qualify
-- If confidence < 40, use tree: "unknown"
-- signals_used: 2-4 most compelling signals as short phrases
-- reasoning: 1-2 sentences max
+Only classify a tree if you find EXPLICIT brand language — not inferred:
+- INTEGRITY: "Integrity Marketing Group", "Family First Life", "FFL", "IntegrityCONNECT", "MedicareCENTER", integrity.com domain
+- AMERILIFE: "AmeriLife", "USABG", "United Senior Benefits Group", amerilife.com domain  
+- SMS: "Senior Market Sales", "SMS", "Rethinking Retirement", seniormarketsales.com domain — OR Mutual of Omaha + Medico both present
 
-━━━ QUESTION 2: WHO IS THE SUB-IMO? ━━━
+Known sub-IMOs for reference (may appear in evidence): ${knownPartners || 'none loaded'}
 
-The sub-IMO is the named partner agency, FMO, or IMO sitting directly between this agent and the parent tree. Their immediate upline — not the tree itself.
+━━━ CONFIDENCE LEVELS ━━━
 
-SUB-IMO CONFIDENCE GUIDE:
-- HIGH: Explicit contracting language ("appointed through X", "contracted with X", "writing under X"), agent on their leaderboard/award list, agent sharing their branded content
-- MED: Co-mentioned in association context (trip, conference, award), domain co-appears with agent
-- LOW: Name appears near agent but relationship unclear — only report if fairly confident
+HIGH: Explicit contracting language, agent on their leaderboard/roster, agent sharing their branded content, website directly names them as upline
+MED: Agent at their event or trip, co-mentioned in association context with relationship implied, owner personally tagged
+LOW: Name appears near agent but relationship type unclear
 
-SUB-IMO RULES:
-- Do NOT name the parent tree itself (Integrity/AmeriLife/SMS)
-- Do NOT name generic carriers (Humana, Aetna, UnitedHealth, Cigna, etc.)
-- The answer may be a company NOT in the known sub-IMO hints — that is fine and expected
-- If you cannot identify a sub-IMO with at least LOW confidence, return null
-- subimo_evidence_type options: "contracting_language" | "association_event" | "domain_signal" | "comention" | "brand_content"
+If you cannot find a real relationship with at least LOW confidence — return subimo: null. 
+"Unknown" is a valid and honest answer. A wrong confident answer is worse than no answer.
 
 ━━━ RESPOND WITH ONLY THIS JSON ━━━
 
 {
   "tree": "integrity" | "amerilife" | "sms" | "unknown",
   "tree_confidence": 0-100,
-  "tree_evidence": "the single strongest signal",
+  "tree_evidence": "the single strongest explicit signal, or empty string",
   "signals_used": ["signal 1", "signal 2"],
-  "reasoning": "1-2 sentences",
+  "reasoning": "1-2 sentences explaining what you found and where",
   "subimo": "exact org name as seen in evidence, or null",
   "subimo_confidence": "HIGH" | "MED" | "LOW" | null,
-  "subimo_evidence": "the quote or context that reveals this, or null",
-  "subimo_evidence_type": "contracting_language" | "association_event" | "domain_signal" | "comention" | "brand_content" | null
+  "subimo_evidence": "the specific quote, post text, page content, or context that shows this relationship",
+  "subimo_evidence_type": "contracting_language" | "association_event" | "domain_signal" | "comention" | "brand_content" | "website_mention" | "social_post" | null
 }`
 
   try {
@@ -321,8 +368,6 @@ SUB-IMO RULES:
 
 // ─── STEP 3: ENRICH FROM DB ───────────────────────────────────────────────────
 // Pure lookup. AI already made the call — this just attaches metadata.
-// Fuzzy match handles "XYZ Insurance Group" vs "XYZ Insurance" etc.
-// If unknown → writes to discovered_fmos (the learning loop).
 
 export async function enrichFromDB(
   subimoName: string,
@@ -334,7 +379,6 @@ export async function enrichFromDB(
 ): Promise<{ id: string | null; isNewDiscovery: boolean }> {
   const nameLower = subimoName.toLowerCase().trim()
 
-  // 1. Exact name match in network_partners
   const treeFilter = tree !== 'unknown' ? tree : undefined
   const query = supabase
     .from('network_partners')
@@ -347,7 +391,6 @@ export async function enrichFromDB(
   const { data: exact } = await query
   if (exact && exact.length > 0) return { id: exact[0].id, isNewDiscovery: false }
 
-  // 2. Alias + fuzzy match
   const allQuery = supabase
     .from('network_partners')
     .select('id, name, aliases')
@@ -368,7 +411,6 @@ export async function enrichFromDB(
     }
   }
 
-  // 3. Check discovered_fmos
   const { data: discovered } = await supabase
     .from('discovered_fmos')
     .select('id, name')
@@ -376,7 +418,6 @@ export async function enrichFromDB(
     .limit(1)
   if (discovered && discovered.length > 0) return { id: discovered[0].id, isNewDiscovery: false }
 
-  // 4. New discovery — write to discovered_fmos
   try {
     await supabase.rpc('upsert_discovered_fmo', {
       p_name: subimoName,
@@ -405,7 +446,11 @@ export function subimoConfidenceToNumber(
   isKnown: boolean,
 ): number {
   const base = tier === 'HIGH' ? 85 : tier === 'MED' ? 65 : 45
-  const typeBonus = evidenceType === 'contracting_language' ? 8 : evidenceType === 'brand_content' ? 5 : 0
+  const typeBonus = evidenceType === 'contracting_language' ? 8
+    : evidenceType === 'brand_content' ? 5
+    : evidenceType === 'website_mention' ? 6
+    : evidenceType === 'social_post' ? 4
+    : 0
   const knownBonus = isKnown ? 5 : 0
   return Math.min(96, base + typeBonus + knownBonus)
 }
