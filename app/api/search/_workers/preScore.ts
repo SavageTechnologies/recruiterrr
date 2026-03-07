@@ -23,11 +23,22 @@ export function preScore(raw: any, mode: string): PreScoreResult {
   const reviews = raw.reviews || 0
   const hasWebsite = !!raw.website
 
-  // ── Captive check: brand name match only, never score-derived ──────────────
-  const captive = cfg.captiveBrands.some(brand => {
+  // ── Captive check: brand name OR captive domain in website URL ──────────────
+  // Some captive agents (e.g. HealthMarkets) brand personally but their website
+  // is a subdomain/path of the captive's domain — catch those too.
+  const CAPTIVE_DOMAINS = [
+    'healthmarkets.com', 'statefarm.com', 'farmers.com', 'allstate.com',
+    'amfam.com', 'shelterinsurance.com', 'newyorklife.com', 'northwesternmutual.com',
+    'massmutual.com', 'globelife.com', 'coloniallife.com', 'aflac.com',
+    'primerica.com', 'transamerica.com', 'bankerlife.com',
+  ]
+  const websiteUrl = (raw.website || '').toLowerCase()
+  const captiveByDomain = CAPTIVE_DOMAINS.some(domain => websiteUrl.includes(domain))
+  const captiveByName = cfg.captiveBrands.some(brand => {
     const escaped = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     return new RegExp(`\\b${escaped}\\b`, 'i').test(raw.title || '')
   })
+  const captive = captiveByName || captiveByDomain
   if (captive) return { score: 20, captive: true }
 
   // ── Bucket 1: Volume signal (review count) — 0 to 35 pts ─────────────────

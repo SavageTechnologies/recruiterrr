@@ -109,8 +109,8 @@ export async function POST(req: NextRequest) {
 
     const sorted = [...enrichedResults, ...coldResults].sort((a, b) => b.score - a.score)
 
-    // ── Persist + kick off background enrichment (non-blocking) ─────────────
-    void Promise.all([
+    // ── Persist to DB — awaited so Vercel doesn't kill before writes complete ──
+    await Promise.all([
       upsertAgentProfiles(userId, city, state, sorted).catch(err =>
         console.error('[/api/search] upsert error:', err)
       ),
@@ -122,13 +122,17 @@ export async function POST(req: NextRequest) {
         cold_count: sorted.filter(a => a.flag === 'cold').length,
         agents_json: sorted,
       })).catch((err: unknown) => console.error('[/api/search] searches insert error:', err)),
-      ...enrichedRaw
-        .filter(e => e.flag !== 'cold')
-        .map(e =>
-          backgroundEnrichAgent(userId, e.name, city, state, mode, e._youtubeLink)
-            .catch(err => console.error('[backgroundEnrichAgent]', e.name, err))
-        ),
     ])
+
+    // ── Background enrichment — truly detached, runs after response ──────────
+    // Jobs + YouTube don't block the response but also won't be killed by Vercel
+    // since we've already awaited the critical writes above.
+    enrichedRaw
+      .filter(e => e.flag !== 'cold')
+      .forEach(e =>
+        backgroundEnrichAgent(userId, e.name, city, state, mode, e._youtubeLink)
+          .catch(err => console.error('[backgroundEnrichAgent]', e.name, err))
+      )
 
     // Strip internal debug fields before sending to client
     const clientResults = sorted.map(({ _preScore, _enrichmentDelta, _sonnetDelta, ...rest }: any) => rest)
