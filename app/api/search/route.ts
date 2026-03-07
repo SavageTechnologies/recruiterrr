@@ -655,7 +655,7 @@ export async function POST(req: NextRequest) {
       }
       const captiveNames = modeCapt[mode] || modeCapt['medicare']
       const isCaptive = captiveNames.some(c => {
-        const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, '$$&')
+        const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         return new RegExp('\\b' + escaped + '\\b', 'i').test(raw.title || '')
       })
       if (isCaptive) return 20
