@@ -25,16 +25,6 @@ const LOADING_STEPS = [
   'Generating affiliation report',
 ]
 
-const STAGE_LOGS: Record<number, string[]> = {
-  0: ['[OK] Agent name received', '[OK] Initializing affiliation scan'],
-  1: ['[OK] Fetching website content', '[OK] Extracting visible text', '[FOUND] Website content indexed'],
-  2: ['[OK] Checking carrier patterns', '[OK] Matching Integrity fingerprint', '[OK] Matching AmeriLife fingerprint', '[OK] Matching SMS fingerprint'],
-  3: ['[OK] Querying affiliation directories', '[OK] Scanning partner indexes', '[FOUND] SERP intelligence compiled'],
-  4: ['[OK] Searching for Facebook profile', '[OK] Probing profile content', '[FOUND] Social intelligence compiled'],
-  5: ['[OK] Sending to ANATHEMA analysis engine', '[OK] Weighing affiliation markers...', '[OK] Calculating confidence stage...', '[OK] Assessing affiliation confidence...'],
-  6: ['[OK] Compiling affiliation report', '[OK] Staging confirmed', '[OK] Report ready'],
-}
-
 const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
   FACEBOOK:      { label: 'FB',     color: '#4267B2' },
   YOUTUBE:       { label: 'YT',     color: '#cc2200' },
@@ -77,15 +67,15 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: {
   const visible = showMed ? [...high, ...med] : high
   if (facts.length === 0) return null
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: '2px solid var(--orange)', borderRadius: 'var(--radius)', marginTop: 10, animation: 'slideIn 0.3s ease both' }}>
-      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--orange)', marginBottom: 2 }}>◈ DAVID — PERSONAL INTEL</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', marginBottom: 3, letterSpacing: 0.5 }}>◈ DAVID — PERSONAL INTEL</div>
           <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{high.length} high usability · {med.length} supporting · Use to personalize your opener</div>
           {deepScanStatus === 'polling' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite' }} />
-              <span style={{ fontSize: 11, color: 'var(--orange)' }}>Deepening — pulling Facebook + YouTube · stay on page</span>
+              <span style={{ fontSize: 11, color: 'var(--orange)' }}>Deepening — pulling Facebook + YouTube</span>
             </div>
           )}
           {deepScanStatus === 'complete' && (
@@ -98,19 +88,19 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: {
           </button>
         )}
       </div>
-      <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flex: 1 }}>
         {visible.length === 0 ? (
           <div style={{ fontSize: 13, color: 'var(--text-3)' }}>No high-usability facts found.{med.length > 0 ? ' Show supporting to see context.' : ''}</div>
         ) : visible.map((fact, i) => {
           const src = SOURCE_LABELS[fact.source] || SOURCE_LABELS.OTHER
           return (
-            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 14px', background: fact.usability === 'HIGH' ? 'var(--orange-dim)' : 'var(--bg)', borderLeft: `3px solid ${fact.usability === 'HIGH' ? 'var(--orange)' : 'var(--border)'}`, borderRadius: '0 var(--radius) var(--radius) 0', animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 13px', background: fact.usability === 'HIGH' ? 'var(--orange-dim)' : 'var(--bg)', borderLeft: `3px solid ${fact.usability === 'HIGH' ? 'var(--orange)' : 'var(--border)'}`, borderRadius: '0 var(--radius) var(--radius) 0', animation: `slideIn 0.2s ease ${i * 0.04}s both` }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0, alignItems: 'center', paddingTop: 2 }}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '1px 5px', border: `1px solid ${src.color}40`, color: src.color, letterSpacing: 1, borderRadius: 2 }}>{src.label}</span>
                 {fact.recency === 'RECENT' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: 'var(--sig-green)', letterSpacing: 1 }}>RECENT</span>}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6, marginBottom: fact.raw_quote ? 6 : 0 }}>{fact.fact}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6, marginBottom: fact.raw_quote ? 5 : 0 }}>{fact.fact}</div>
                 {fact.raw_quote && (
                   <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, borderLeft: '2px solid var(--border)', paddingLeft: 10, fontStyle: 'italic' }}>
                     "{fact.raw_quote.slice(0, 140)}{fact.raw_quote.length > 140 ? '...' : ''}"
@@ -122,24 +112,10 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: {
         })}
       </div>
       {high.length > 0 && (
-        <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)' }}>
+        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)', flexShrink: 0 }}>
           Opener tip — lead with a HIGH fact: "I was looking at your profile and noticed..."
         </div>
       )}
-    </div>
-  )
-}
-
-// ── Terminal Log ──────────────────────────────────────────────────────────────
-
-function TerminalLog({ lines }: { lines: string[] }) {
-  return (
-    <div style={{ background: '#0f0f0f', border: '1px solid #2a2a2a', padding: '16px', height: 200, overflowY: 'auto', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 0.5, lineHeight: 2, borderRadius: 'var(--radius)' }}>
-      <div style={{ color: '#444', marginBottom: 4, fontSize: 10 }}>anathema@analysis:~$ ./scan</div>
-      {lines.map((line, i) => (
-        <div key={i} style={{ color: line.startsWith('[OK]') ? '#00e676' : line.startsWith('[WARN]') ? '#ff9800' : line.startsWith('[ALERT]') ? '#ff1744' : line.startsWith('[FOUND]') ? 'rgba(0,230,118,0.6)' : '#444', animation: 'slideIn 0.2s ease both' }}>{line}</div>
-      ))}
-      <div style={{ display: 'inline-block', width: 8, height: 12, background: '#00e676', animation: 'blink 1s step-end infinite', verticalAlign: 'middle' }} />
     </div>
   )
 }
@@ -236,18 +212,87 @@ function ChainSection({ result }: { result: ScanResult }) {
   )
 }
 
+// ── Scan Progress ─────────────────────────────────────────────────────────────
+
+function ScanProgress({ currentStep, agencyName }: { currentStep: number; agencyName: string }) {
+  return (
+    <div style={{ padding: '32px 28px', animation: 'slideIn 0.3s ease both' }}>
+      <div style={{ fontSize: 11, color: 'var(--text-4)', letterSpacing: 2, marginBottom: 6, textTransform: 'uppercase' }}>Analyzing</div>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: 'var(--text-1)', letterSpacing: 1, marginBottom: 28 }}>{agencyName}</div>
+
+      {/* Progress bar */}
+      <div style={{ height: 2, background: 'var(--border)', borderRadius: 1, overflow: 'hidden', marginBottom: 28 }}>
+        <div style={{ height: '100%', background: 'var(--sig-green)', borderRadius: 1, transition: 'width 0.5s ease', width: `${Math.round(((currentStep + 1) / LOADING_STEPS.length) * 100)}%` }} />
+      </div>
+
+      {/* Steps */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {LOADING_STEPS.map((step, i) => {
+          const done    = i < currentStep
+          const active  = i === currentStep
+          return (
+            <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.3s' }}>
+              <div style={{
+                width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: done ? 'var(--sig-green-dim)' : active ? 'var(--bg-card)' : 'transparent',
+                border: `1px solid ${done ? 'var(--sig-green-border)' : active ? 'var(--border-strong)' : 'var(--border)'}`,
+                transition: 'all 0.3s',
+              }}>
+                {done
+                  ? <span style={{ fontSize: 10, color: 'var(--sig-green)' }}>✓</span>
+                  : active
+                  ? <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite' }} />
+                  : <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--border-strong)' }} />
+                }
+              </div>
+              <span style={{
+                fontSize: 13,
+                color: done ? 'var(--sig-green)' : active ? 'var(--text-1)' : 'var(--text-4)',
+                fontWeight: active ? 500 : 400,
+                transition: 'color 0.3s',
+              }}>{step}</span>
+              {done && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--sig-green)', opacity: 0.7 }}>done</span>}
+              {active && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--orange)' }}>running...</span>}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── DAVID Waiting State ───────────────────────────────────────────────────────
+
+function DavidWaiting({ deepScanStatus }: { deepScanStatus: 'idle' | 'polling' | 'complete' | 'timeout' }) {
+  return (
+    <div style={{ padding: '32px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, opacity: 0.6 }}>
+      <div style={{ fontSize: 32, color: 'var(--orange)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2 }}>◈ DAVID</div>
+      {deepScanStatus === 'polling' ? (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite' }} />
+            <span style={{ fontSize: 13, color: 'var(--orange)' }}>Pulling social data...</span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', maxWidth: 200, lineHeight: 1.6 }}>Facebook + YouTube enrichment in progress. Facts will appear when ready.</div>
+        </>
+      ) : (
+        <div style={{ fontSize: 13, color: 'var(--text-3)', textAlign: 'center', maxWidth: 200, lineHeight: 1.6 }}>Personal intel will appear here after the scan completes.</div>
+      )}
+    </div>
+  )
+}
+
 // ── Result Panel ──────────────────────────────────────────────────────────────
 
-function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfirmedTrees, confirmedOther, setConfirmedOther, subImo, setSubImo, recruiterNotes, setRecruiterNotes, saveState, onSave, davidFacts, deepScanStatus }: {
+function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfirmedTrees, confirmedOther, setConfirmedOther, subImo, setSubImo, recruiterNotes, setRecruiterNotes, saveState, onSave }: {
   result: ScanResult; agencyName: string; city: string; state: string
   confirmedTrees: string[]; setConfirmedTrees: (v: string[]) => void
   confirmedOther: string; setConfirmedOther: (v: string) => void
   subImo: string; setSubImo: (v: string) => void
   recruiterNotes: string; setRecruiterNotes: (v: string) => void
   saveState: 'idle' | 'saving' | 'saved'; onSave: () => void
-  davidFacts: DavidFact[] | null; deepScanStatus: 'idle' | 'polling' | 'complete' | 'timeout'
 }) {
-  // If user has confirmed a tree, show that — not the raw prediction
   const confirmedKey  = confirmedTrees.length > 0 && confirmedTrees[0] !== 'other' ? confirmedTrees[0] : null
   const displayTree   = confirmedKey || result.predicted_tree
   const isConfirmed   = confirmedTrees.length > 0
@@ -264,12 +309,12 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
 
   return (
     <div style={{ animation: 'slideIn 0.3s ease both' }}>
-      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12, fontWeight: 500 }}>
+      <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 12, fontWeight: 500, letterSpacing: 0.3 }}>
         REPORT: {agencyName.toUpperCase()}{city ? ` · ${city.toUpperCase()}, ${state.toUpperCase()}` : ''}
       </div>
 
       {/* Verdict card */}
-      <div style={{ background: 'var(--bg-card)', border: `1px solid ${treeBorder}`, borderLeft: `4px solid ${treeColor}`, borderRadius: 'var(--radius)', marginBottom: 10, overflow: 'hidden', boxShadow: '0 2px 8px var(--shadow-sm)' }}>
+      <div style={{ background: 'var(--bg-card)', border: `1px solid ${treeBorder}`, borderLeft: `4px solid ${treeColor}`, borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: '0 2px 8px var(--shadow-sm)' }}>
 
         {/* Verdict header */}
         <div style={{ padding: '20px 24px', background: isUnknown ? 'transparent' : treeDim, borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center' }}>
@@ -361,22 +406,6 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
           </button>
         </div>
       </div>
-
-      {/* DAVID */}
-      {davidFacts && davidFacts.length > 0 && <DavidFactsPanel facts={davidFacts} agentName={agencyName} deepScanStatus={deepScanStatus} />}
-      {davidFacts === null && (
-        <div style={{ marginTop: 10, padding: '14px 20px', background: 'var(--bg-card)', border: '1px solid var(--orange-border)', borderRadius: 'var(--radius)' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--orange)', marginBottom: 4 }}>◈ DAVID — PERSONAL INTEL</div>
-          {deepScanStatus === 'polling' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)', animation: 'blink 1s step-end infinite', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: 'var(--orange)' }}>Deepening — pulling Facebook + YouTube · stay on page</span>
-            </div>
-          ) : (
-            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>No personal facts extracted from this scan</div>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -398,7 +427,6 @@ function AnathemaDashboardInner() {
   const [state, setState]                   = useState('')
   const [scanning, setScanning]             = useState(false)
   const [currentStep, setCurrentStep]       = useState(-1)
-  const [logLines, setLogLines]             = useState<string[]>([])
   const [result, setResult]                 = useState<ScanResult | null>(null)
   const [error, setError]                   = useState('')
   const [confirmedTrees, setConfirmedTrees] = useState<string[]>([])
@@ -415,7 +443,6 @@ function AnathemaDashboardInner() {
 
   const timerRef     = useRef<NodeJS.Timeout | null>(null)
   const pollRef      = useRef<NodeJS.Timeout | null>(null)
-  const resultRef    = useRef<HTMLDivElement>(null)
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -454,8 +481,6 @@ function AnathemaDashboardInner() {
     fetch('/api/specimens').then(r => r.json()).then(d => setSpecimens(d.specimens || [])).catch(() => {})
   }, [])
 
-  function addLog(line: string) { setLogLines(prev => [...prev.slice(-40), line]) }
-
   function startDeepPolling(id: string) {
     if (pollRef.current) clearInterval(pollRef.current)
     setDeepScanStatus('polling')
@@ -475,17 +500,17 @@ function AnathemaDashboardInner() {
 
   async function runScan() {
     if (!agencyName.trim() || scanning) return
-    setScanning(true); setResult(null); setError(''); setLogLines([]); setCurrentStep(0); setDavidFacts(null); setDeepScanStatus('idle'); setSpecimenId(null)
+    setScanning(true); setResult(null); setError(''); setCurrentStep(0); setDavidFacts(null); setDeepScanStatus('idle'); setSpecimenId(null)
     if (pollRef.current) clearInterval(pollRef.current)
     if (saveState !== 'saved') { setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes('') }
     setSaveState('idle')
     let si = 0, li = 0
+    const STAGE_DELAYS = [300, 260, 260, 320, 260, 260, 260]
     function tick() {
       if (si >= LOADING_STEPS.length) return
       setCurrentStep(si)
-      const stageLogs = STAGE_LOGS[si] || []
-      if (li < stageLogs.length) { addLog(stageLogs[li]); li++; timerRef.current = setTimeout(tick, 260) }
-      else { li = 0; si++; if (si < LOADING_STEPS.length) timerRef.current = setTimeout(tick, 320) }
+      li = 0; si++
+      if (si < LOADING_STEPS.length) timerRef.current = setTimeout(tick, STAGE_DELAYS[si] || 300)
     }
     tick()
     try {
@@ -494,14 +519,7 @@ function AnathemaDashboardInner() {
       if (data.error) throw new Error(data.error)
       if (timerRef.current) clearTimeout(timerRef.current)
       setCurrentStep(LOADING_STEPS.length - 1)
-      const tree = TREE_LABELS[data.predicted_tree] || 'UNCLASSIFIED'
-      addLog(`[OK] Scan complete — ${agencyName.trim()}`)
-      addLog(data.predicted_tree !== 'unknown' ? `[FOUND] AFFILIATION: ${tree} — CONFIDENCE: ${data.confidence}%` : `[WARN] AFFILIATION: UNCLASSIFIED — Insufficient markers`)
-      if (data.facebook_profile_url) addLog(`[FOUND] Facebook profile located`)
-      if (data.predicted_sub_imo) addLog(`[FOUND] SUB-IMO: ${data.predicted_sub_imo} — ${data.predicted_sub_imo_confidence}% confidence`)
-      else if (data.unresolved_upline) addLog(`[ALERT] UNRESOLVED UPLINE: ${data.unresolved_upline}`)
       const davidFactsList: DavidFact[] = data.david_facts?.facts || []
-      if (davidFactsList.length > 0) addLog(`[FOUND] DAVID: ${davidFactsList.filter((f: DavidFact) => f.usability === 'HIGH').length} HIGH usability personal facts`)
       setResult(data); setSaveState('idle')
       if (data.predicted_sub_imo) setSubImo(data.predicted_sub_imo)
       if (davidFactsList.length > 0) {
@@ -531,10 +549,8 @@ function AnathemaDashboardInner() {
           } catch {}
         }, 3000)
       }
-      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err: any) {
       if (timerRef.current) clearTimeout(timerRef.current)
-      addLog(`[ALERT] Scan failed: ${err.message}`)
       setError(err.message || 'Scan failed. Please try again.')
     }
     setScanning(false); setCurrentStep(-1)
@@ -554,35 +570,19 @@ function AnathemaDashboardInner() {
 
   async function loadSpecimen(s: any) {
     setAgencyName(s.agent_name || ''); setWebsite(s.agent_website || ''); setCity(s.city || ''); setState(s.state || '')
-    setError(''); setLogLines([])
+    setError('')
     const trees = s.confirmed_tree ? s.confirmed_tree.split(',').map((t: string) => t.trim()) : []
     setConfirmedTrees(trees)
     setConfirmedOther(s.confirmed_tree_other || ''); setSubImo(s.confirmed_sub_imo || ''); setRecruiterNotes(s.recruiter_notes || ''); setSaveState('saved'); setDavidFacts(null)
-
-    // Build a synthetic result immediately from list data so the card renders
-    // even if the full scan record has no analysis_json
     const syntheticResult = {
-      predicted_tree: s.predicted_tree || 'unknown',
-      confidence: s.predicted_confidence || 0,
-      signals_used: [],
-      reasoning: '',
-      facebook_profile_url: null,
-      facebook_about: null,
-      predicted_sub_imo: s.confirmed_sub_imo || null,
-      predicted_sub_imo_confidence: null,
-      predicted_sub_imo_signals: [],
-      predicted_sub_imo_partner_id: null,
-      predicted_sub_imo_proof_url: null,
-      prediction_source: null,
-      serp_debug: null,
-      unresolved_upline: null,
-      unresolved_upline_evidence: null,
-      unresolved_upline_source_url: null,
-      unresolved_upline_confidence: null,
+      predicted_tree: s.predicted_tree || 'unknown', confidence: s.predicted_confidence || 0, signals_used: [], reasoning: '',
+      facebook_profile_url: null, facebook_about: null, predicted_sub_imo: s.confirmed_sub_imo || null,
+      predicted_sub_imo_confidence: null, predicted_sub_imo_signals: [], predicted_sub_imo_partner_id: null,
+      predicted_sub_imo_proof_url: null, prediction_source: null, serp_debug: null,
+      unresolved_upline: null, unresolved_upline_evidence: null, unresolved_upline_source_url: null, unresolved_upline_confidence: null,
     }
     setResult(syntheticResult)
     window.scrollTo({ top: 0, behavior: 'smooth' })
-
     try {
       const res = await fetch(`/api/anathema?id=${s.id}`)
       if (!res.ok) return
@@ -592,186 +592,174 @@ function AnathemaDashboardInner() {
         if (data.scan.analysis_json.predicted_sub_imo && !s.confirmed_sub_imo) setSubImo(data.scan.analysis_json.predicted_sub_imo)
         if (data.scan.david_facts?.facts) setDavidFacts(data.scan.david_facts.facts)
       }
-      // Re-apply confirmed fields from the saved scan
-      if (data.scan?.confirmed_tree) {
-        setConfirmedTrees(Array.isArray(data.scan.confirmed_tree)
-          ? data.scan.confirmed_tree
-          : data.scan.confirmed_tree.split(',').map((t: string) => t.trim()))
-      }
+      if (data.scan?.confirmed_tree) setConfirmedTrees(Array.isArray(data.scan.confirmed_tree) ? data.scan.confirmed_tree : data.scan.confirmed_tree.split(',').map((t: string) => t.trim()))
       if (data.scan?.confirmed_tree_other) setConfirmedOther(data.scan.confirmed_tree_other)
       if (data.scan?.sub_imo) setSubImo(data.scan.sub_imo)
       if (data.scan?.recruiter_notes) setRecruiterNotes(data.scan.recruiter_notes)
     } catch {}
   }
 
-  const showTwoCol = !!(result || scanning)
+  const hasResult = !!(result || scanning)
 
   return (
-    <div style={{ padding: '40px 40px', maxWidth: 1400 }}>
+    <div style={{ padding: '32px 40px', maxWidth: 1400, display: 'flex', flexDirection: 'column', gap: 0 }}>
       <style>{`
         @keyframes slideIn   { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes loadSlide { 0% { left: -40%; } 100% { left: 100%; } }
         @keyframes blink     { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
-        @keyframes scanDown  { 0% { top: 0; opacity: 0.8; } 100% { top: 100%; opacity: 0; } }
         @keyframes betaSweep { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(100%); } }
-        .detail-scroll::-webkit-scrollbar { width: 3px; }
-        .detail-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); }
+        .panel-scroll::-webkit-scrollbar { width: 3px; }
+        .panel-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); }
       `}</style>
 
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div className="page-eyebrow">Relationship Analysis System</div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16 }}>
-          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: 2, color: 'var(--text-1)', lineHeight: 0.9 }}>
-            ANATHEMA<span style={{ color: 'var(--sig-green)' }}>.</span>
-          </h1>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 3, color: 'var(--sig-green)', border: '1px solid var(--sig-green-border)', background: 'var(--sig-green-dim)', padding: '5px 10px', marginBottom: 8, position: 'relative', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-            <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(26,158,92,0.18), transparent)', animation: 'betaSweep 3s ease-in-out infinite' }} />
-            ⚡ BETA
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: showTwoCol ? '380px 1fr' : '1fr', gap: 0, alignItems: 'start', isolation: 'isolate' }}>
-
-        {/* LEFT */}
-        <div style={{ width: showTwoCol ? 380 : '100%', flexShrink: 0, paddingRight: showTwoCol ? 28 : 0, borderRight: showTwoCol ? '1px solid var(--border)' : 'none', overflow: 'hidden' }}>
-
-          {/* Scan input */}
-          <div style={{ display: 'flex', gap: 0, border: `1.5px solid ${scanning ? 'var(--sig-green)' : 'var(--border-strong)'}`, background: 'var(--bg-card)', marginBottom: 6, transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: scanning ? '0 0 0 3px var(--sig-green-dim)' : '0 2px 6px var(--shadow-sm)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-            <input value={agencyName} onChange={e => setAgencyName(e.target.value)} onKeyDown={e => e.key === 'Enter' && runScan()} placeholder="Agency or agent name" disabled={scanning}
-              style={{ flex: 1, padding: '16px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-1)', fontSize: 15 }} />
-            <button onClick={runScan} disabled={scanning || !agencyName.trim()}
-              style={{ padding: '14px 24px', background: scanning ? 'var(--sig-green-dim)' : 'var(--sig-green)', border: 'none', cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 3, color: scanning ? 'var(--sig-green)' : 'white', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              {scanning ? 'SCANNING...' : '◈ SCAN'}
-            </button>
-          </div>
-
-          {/* Optional fields */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 6, marginBottom: 6 }}>
-            {[
-              { value: website, set: setWebsite,                                                   ph: 'Website (optional)' },
-              { value: city,    set: setCity,                                                       ph: 'City' },
-              { value: state,   set: (v: string) => setState(v.toUpperCase().slice(0, 2)), ph: 'State' },
-            ].map((f, i) => (
-              <input key={i} value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.ph} disabled={scanning}
-                style={{ padding: '10px 14px', fontSize: 13, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-2)', outline: 'none', borderRadius: 'var(--radius)' }} />
-            ))}
-          </div>
-
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 20 }}>Website + location optional but improve signal quality</div>
-
-          {/* Loading steps */}
-          {scanning && currentStep >= 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ height: 2, background: 'var(--border)', position: 'relative', overflow: 'hidden', marginBottom: 16, borderRadius: 1 }}>
-                <div style={{ position: 'absolute', left: '-40%', width: '40%', height: '100%', background: 'var(--sig-green)', animation: 'loadSlide 1s ease-in-out infinite' }} />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {LOADING_STEPS.map((step, i) => (
-                  <div key={step} style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 10, color: i < currentStep ? 'var(--sig-green)' : i === currentStep ? 'var(--text-1)' : 'var(--text-4)', transition: 'color 0.3s' }}>
-                    <span style={{ color: i < currentStep ? 'var(--sig-green)' : i === currentStep ? 'var(--orange)' : 'var(--text-4)', fontSize: 9, flexShrink: 0 }}>{i < currentStep ? '●' : i === currentStep ? '◐' : '○'}</span>
-                    {step}
-                  </div>
-                ))}
-              </div>
+      {/* ── TOP: Header + Input bar ── */}
+      <div style={{ marginBottom: 24 }}>
+        {/* Header */}
+        <div style={{ marginBottom: 20 }}>
+          <div className="page-eyebrow">Relationship Analysis System</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+            <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: 'var(--text-1)', lineHeight: 0.9 }}>
+              ANATHEMA<span style={{ color: 'var(--sig-green)' }}>.</span>
+            </h1>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 3, color: 'var(--sig-green)', border: '1px solid var(--sig-green-border)', background: 'var(--sig-green-dim)', padding: '5px 10px', marginBottom: 8, position: 'relative', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+              <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(26,158,92,0.18), transparent)', animation: 'betaSweep 3s ease-in-out infinite' }} />
+              ⚡ BETA
             </div>
-          )}
-
-          {error && (
-            <div style={{ padding: '12px 16px', border: '1px solid var(--sig-red-border)', background: 'var(--sig-red-dim)', color: 'var(--sig-red)', fontSize: 13, marginBottom: 16, borderRadius: 'var(--radius)' }}>{error}</div>
-          )}
-
-          {result && !scanning && (
-            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-              <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>← History</button>
-              <button onClick={() => { setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); runScan() }} className="btn-ghost" style={{ fontSize: 12 }}>↺ Rescan</button>
-              <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>New scan</button>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!scanning && !result && (
-            <div style={{ marginTop: 8 }}>
-              {specimens.length > 0 && (
-                <div style={{ marginBottom: 36 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>Recent scans</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-4)' }}>{specimenPage * SPECIMENS_PER_PAGE + 1}–{Math.min((specimenPage + 1) * SPECIMENS_PER_PAGE, specimens.length)} of {specimens.length}</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {specimens.slice(specimenPage * SPECIMENS_PER_PAGE, (specimenPage + 1) * SPECIMENS_PER_PAGE).map((s: any) => {
-                      const tree = TREE_LABELS[s.predicted_tree] || 'Unclassified'
-                      const tc   = TREE_COLOR[s.predicted_tree]  || 'var(--text-3)'
-                      return (
-                        <button key={s.id} onClick={() => loadSpecimen(s)}
-                          style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, alignItems: 'center', padding: '12px 16px', background: 'var(--bg-card)', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', borderRadius: 'var(--radius)' }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-strong)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover)' }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-card)' }}>
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>{s.agent_name}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{[s.city, s.state].filter(Boolean).join(', ')}{s.confirmed_sub_imo && <span style={{ color: 'var(--text-2)' }}> · {s.confirmed_sub_imo}</span>}</div>
-                          </div>
-                          <div style={{ fontSize: 12, color: tc, fontWeight: 600 }}>{tree}</div>
-                          <div style={{ fontSize: 12 }}>{s.confirmed_tree ? <span style={{ color: 'var(--sig-green)' }}>✓</span> : s.predicted_confidence ? <span style={{ color: 'var(--text-3)' }}>{s.predicted_confidence}%</span> : <span style={{ color: 'var(--text-4)' }}>—</span>}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-4)', whiteSpace: 'nowrap' }}>{new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {specimens.length > SPECIMENS_PER_PAGE && (
-                    <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-                      <button onClick={() => setSpecimenPage(p => Math.max(0, p - 1))} disabled={specimenPage === 0} className="btn-ghost" style={{ flex: 1, fontSize: 12, opacity: specimenPage === 0 ? 0.4 : 1 }}>← Prev</button>
-                      <button onClick={() => setSpecimenPage(p => Math.min(Math.ceil(specimens.length / SPECIMENS_PER_PAGE) - 1, p + 1))} disabled={(specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length} className="btn-ghost" style={{ flex: 1, fontSize: 12, opacity: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? 0.4 : 1 }}>Next →</button>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 10 }}>What Anathema detects</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                {[
-                  { n: '01', title: 'Carrier analysis',     tip: 'Identifies which carriers an agent is actively writing with — a strong indicator of how they operate and where their loyalties are.' },
-                  { n: '02', title: 'Language patterns',     tip: "Scans the agent's own words — website copy, bios, job posts — for affiliation signals they didn't know they were broadcasting." },
-                  { n: '03', title: 'Web intelligence',      tip: 'Cross-references the agency across public directories, partner pages, and indexed content to build an affiliation picture.' },
-                  { n: '04', title: 'Social presence scan',  tip: "Facebook and YouTube reveal what agents won't say on a call — trip photos, events, and brand associations tell the real story." },
-                  { n: '05', title: 'Confidence staging',    tip: 'Results are staged I through IV based on signal strength. STAGE I means early indicators. STAGE IV means confirmed affiliation.' },
-                  { n: '06', title: 'Personal intel',        tip: 'Surfaces personal facts — hobbies, family, recent milestones — so you can open a conversation that feels like research, not a cold call.' },
-                ].map(c => (
-                  <div key={c.n} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '16px', borderRadius: 'var(--radius)', transition: 'border-color 0.12s' }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--sig-green-border)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--sig-green)', letterSpacing: 2, marginBottom: 6 }}>{c.n}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 5 }}>{c.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>{c.tip}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT */}
-        {showTwoCol && (
-          <div ref={resultRef} className="detail-scroll" style={{ paddingLeft: 28, maxHeight: 'calc(100vh - 180px)', overflowY: 'auto', position: 'sticky', top: 0, alignSelf: 'start' }}>
-            {scanning && !result && (
-              <div style={{ paddingTop: 40 }}>
-                <div style={{ fontSize: 12, color: 'var(--text-3)', letterSpacing: 1, marginBottom: 16 }}>ANALYZING · {agencyName.slice(0, 36).toUpperCase()}</div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'var(--sig-green)', letterSpacing: 2, lineHeight: 1.1, marginBottom: 28, minHeight: 40 }}>{currentStep >= 0 ? LOADING_STEPS[currentStep] : ''}</div>
-                <TerminalLog lines={logLines} />
+            {hasResult && (
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, paddingBottom: 8 }}>
+                <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>← History</button>
+                <button onClick={() => { setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); runScan() }} className="btn-ghost" style={{ fontSize: 12 }}>↺ Rescan</button>
+                <button onClick={() => { setResult(null); setAgencyName(''); setWebsite(''); setCity(''); setState(''); setDavidFacts(null); setConfirmedTrees([]); setConfirmedOther(''); setSubImo(''); setRecruiterNotes(''); setSaveState('idle'); setError('') }} className="btn-ghost" style={{ fontSize: 12 }}>New scan</button>
               </div>
             )}
-            {result && !scanning && (
-              <ResultPanel result={result} agencyName={agencyName} city={city} state={state}
+          </div>
+        </div>
+
+        {/* Input bar — full width */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', gap: 0, border: `1.5px solid ${scanning ? 'var(--sig-green)' : 'var(--border-strong)'}`, background: 'var(--bg-card)', transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: scanning ? '0 0 0 3px var(--sig-green-dim)' : '0 2px 6px var(--shadow-sm)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 6 }}>
+              <input value={agencyName} onChange={e => setAgencyName(e.target.value)} onKeyDown={e => e.key === 'Enter' && runScan()} placeholder="Agency or agent name" disabled={scanning}
+                style={{ flex: 1, padding: '14px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-1)', fontSize: 15 }} />
+              <button onClick={runScan} disabled={scanning || !agencyName.trim()}
+                style={{ padding: '12px 28px', background: scanning ? 'var(--sig-green-dim)' : 'var(--sig-green)', border: 'none', cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 3, color: scanning ? 'var(--sig-green)' : 'white', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                {scanning ? 'SCANNING...' : '◈ SCAN'}
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 6 }}>
+              {[
+                { value: website, set: setWebsite, ph: 'Website (optional)' },
+                { value: city,    set: setCity,    ph: 'City' },
+                { value: state,   set: (v: string) => setState(v.toUpperCase().slice(0, 2)), ph: 'State' },
+              ].map((f, i) => (
+                <input key={i} value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.ph} disabled={scanning}
+                  style={{ padding: '9px 14px', fontSize: 13, background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-2)', outline: 'none', borderRadius: 'var(--radius)' }} />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>Website + location optional but improve signal quality</div>
+        {error && (
+          <div style={{ padding: '12px 16px', border: '1px solid var(--sig-red-border)', background: 'var(--sig-red-dim)', color: 'var(--sig-red)', fontSize: 13, marginTop: 10, borderRadius: 'var(--radius)' }}>{error}</div>
+        )}
+      </div>
+
+      {/* ── BOTTOM: Two panels ── */}
+      {hasResult ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+
+          {/* LEFT — ANATHEMA result */}
+          <div className="panel-scroll" style={{ maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' }}>
+            {scanning && !result ? (
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                <ScanProgress currentStep={currentStep} agencyName={agencyName} />
+              </div>
+            ) : result ? (
+              <ResultPanel
+                result={result} agencyName={agencyName} city={city} state={state}
                 confirmedTrees={confirmedTrees} setConfirmedTrees={setConfirmedTrees}
                 confirmedOther={confirmedOther} setConfirmedOther={setConfirmedOther}
                 subImo={subImo} setSubImo={setSubImo}
                 recruiterNotes={recruiterNotes} setRecruiterNotes={setRecruiterNotes}
                 saveState={saveState} onSave={logObservation}
-                davidFacts={davidFacts} deepScanStatus={deepScanStatus} />
+              />
+            ) : null}
+          </div>
+
+          {/* RIGHT — DAVID */}
+          <div className="panel-scroll" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: '2px solid var(--orange)', borderRadius: 'var(--radius)', maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' }}>
+            {davidFacts && davidFacts.length > 0 ? (
+              <DavidFactsPanel facts={davidFacts} agentName={agencyName} deepScanStatus={deepScanStatus} />
+            ) : (
+              <DavidWaiting deepScanStatus={scanning ? 'idle' : deepScanStatus} />
             )}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* ── Empty state — full width ── */
+        <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 28 }}>
+          {/* Recent scans */}
+          <div>
+            {specimens.length > 0 && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>Recent scans</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-4)' }}>{specimenPage * SPECIMENS_PER_PAGE + 1}–{Math.min((specimenPage + 1) * SPECIMENS_PER_PAGE, specimens.length)} of {specimens.length}</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {specimens.slice(specimenPage * SPECIMENS_PER_PAGE, (specimenPage + 1) * SPECIMENS_PER_PAGE).map((s: any) => {
+                    const tree = TREE_LABELS[s.predicted_tree] || 'Unclassified'
+                    const tc   = TREE_COLOR[s.predicted_tree]  || 'var(--text-3)'
+                    return (
+                      <button key={s.id} onClick={() => loadSpecimen(s)}
+                        style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, alignItems: 'center', padding: '12px 16px', background: 'var(--bg-card)', border: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', borderRadius: 'var(--radius)' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-strong)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-card)' }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>{s.agent_name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{[s.city, s.state].filter(Boolean).join(', ')}{s.confirmed_sub_imo && <span style={{ color: 'var(--text-2)' }}> · {s.confirmed_sub_imo}</span>}</div>
+                        </div>
+                        <div style={{ fontSize: 12, color: tc, fontWeight: 600 }}>{tree}</div>
+                        <div style={{ fontSize: 12 }}>{s.confirmed_tree ? <span style={{ color: 'var(--sig-green)' }}>✓</span> : s.predicted_confidence ? <span style={{ color: 'var(--text-3)' }}>{s.predicted_confidence}%</span> : <span style={{ color: 'var(--text-4)' }}>—</span>}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-4)', whiteSpace: 'nowrap' }}>{new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+                {specimens.length > SPECIMENS_PER_PAGE && (
+                  <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                    <button onClick={() => setSpecimenPage(p => Math.max(0, p - 1))} disabled={specimenPage === 0} className="btn-ghost" style={{ flex: 1, fontSize: 12, opacity: specimenPage === 0 ? 0.4 : 1 }}>← Prev</button>
+                    <button onClick={() => setSpecimenPage(p => Math.min(Math.ceil(specimens.length / SPECIMENS_PER_PAGE) - 1, p + 1))} disabled={(specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length} className="btn-ghost" style={{ flex: 1, fontSize: 12, opacity: (specimenPage + 1) * SPECIMENS_PER_PAGE >= specimens.length ? 0.4 : 1 }}>Next →</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* What ANATHEMA detects */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 10 }}>What Anathema detects</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {[
+                { n: '01', title: 'Carrier analysis',     tip: 'Identifies which carriers an agent is actively writing with — a strong indicator of how they operate and where their loyalties are.' },
+                { n: '02', title: 'Language patterns',     tip: "Scans the agent's own words — website copy, bios, job posts — for affiliation signals they didn't know they were broadcasting." },
+                { n: '03', title: 'Web intelligence',      tip: 'Cross-references the agency across public directories, partner pages, and indexed content to build an affiliation picture.' },
+                { n: '04', title: 'Social presence scan',  tip: "Facebook and YouTube reveal what agents won't say on a call — trip photos, events, and brand associations tell the real story." },
+                { n: '05', title: 'Confidence staging',    tip: 'Results are staged I through IV based on signal strength. STAGE I means early indicators. STAGE IV means confirmed affiliation.' },
+                { n: '06', title: 'Personal intel',        tip: 'Surfaces personal facts — hobbies, family, recent milestones — so you can open a conversation that feels like research, not a cold call.' },
+              ].map(c => (
+                <div key={c.n} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '16px', borderRadius: 'var(--radius)', transition: 'border-color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--sig-green-border)')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: 'var(--sig-green)', letterSpacing: 2, marginBottom: 6 }}>{c.n}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 5 }}>{c.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>{c.tip}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
