@@ -667,15 +667,18 @@ export async function POST(req: NextRequest) {
       return s
     }
 
-    // Phase 1: rank all candidates, take top N for deep enrichment
-    const ENRICH_CAP = 5
+    // Phase 1: rank all candidates, split by potential HOT threshold
+    // Anyone pre-scoring 70+ is a potential HOT and gets full enrichment.
+    // The rest get pre-scores only. Hard cap at 8 to bound cost on dense markets.
+    const ENRICH_THRESHOLD = 70
+    const ENRICH_MAX = 8
     const ranked = rawAgents
       .slice(0, clampedLimit)
       .map((raw: any) => ({ raw, preScore: preScore(raw) }))
       .sort((a: any, b: any) => b.preScore - a.preScore)
 
-    const topCandidates  = ranked.slice(0, ENRICH_CAP)
-    const tailCandidates = ranked.slice(ENRICH_CAP)
+    const topCandidates  = ranked.filter(r => r.preScore >= ENRICH_THRESHOLD).slice(0, ENRICH_MAX)
+    const tailCandidates = ranked.filter(r => r.preScore < ENRICH_THRESHOLD)
 
     // ── Phase 2: Deep enrich top N — capped concurrency, Sonnet only when needed ─
     // p-limit keeps us from spawning 10-20 simultaneous fetch + LLM calls.
