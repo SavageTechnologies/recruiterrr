@@ -47,6 +47,16 @@ export default function SearchesTable({ searches }: { searches: Search[] }) {
     )
   }
 
+  // Build windowed page list: always show first, last, and ±2 around current
+  const pageButtons: (number | 'ellipsis')[] = []
+  for (let i = 0; i < totalPages; i++) {
+    if (i === 0 || i === totalPages - 1 || (i >= page - 2 && i <= page + 2)) {
+      pageButtons.push(i)
+    } else if (pageButtons[pageButtons.length - 1] !== 'ellipsis') {
+      pageButtons.push('ellipsis')
+    }
+  }
+
   return (
     <div>
       {/* Column headers */}
@@ -69,16 +79,17 @@ export default function SearchesTable({ searches }: { searches: Search[] }) {
       {/* Pagination */}
       {totalPages > 1 && (
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', gap: 12,
           marginTop: 12, padding: '0 4px',
         }}>
           <div style={{
             fontFamily: "'DM Mono', monospace", fontSize: 10,
-            color: 'var(--text-3)', letterSpacing: 1,
+            color: 'var(--text-3)', letterSpacing: 1, whiteSpace: 'nowrap', flexShrink: 0,
           }}>
             {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, searches.length)} of {searches.length}
           </div>
-          <div style={{ display: 'flex', gap: 3 }}>
+
+          <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'nowrap' }}>
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
@@ -91,21 +102,25 @@ export default function SearchesTable({ searches }: { searches: Search[] }) {
               }}
             >← PREV</button>
 
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setPage(i)}
-                style={{
-                  padding: '6px 12px',
-                  background: i === page ? 'var(--orange)' : 'transparent',
-                  border: `1px solid ${i === page ? 'var(--orange)' : 'var(--border)'}`,
-                  borderRadius: 'var(--radius)',
-                  color: i === page ? 'white' : 'var(--text-2)',
-                  fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1,
-                  cursor: 'pointer',
-                }}
-              >{i + 1}</button>
-            ))}
+            {pageButtons.map((p, idx) =>
+              p === 'ellipsis' ? (
+                <span key={`e${idx}`} style={{ color: 'var(--text-4)', fontSize: 10, padding: '0 2px' }}>…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  style={{
+                    padding: '6px 12px',
+                    background: p === page ? 'var(--orange)' : 'transparent',
+                    border: `1px solid ${p === page ? 'var(--orange)' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius)',
+                    color: p === page ? 'white' : 'var(--text-2)',
+                    fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1,
+                    cursor: 'pointer',
+                  }}
+                >{p + 1}</button>
+              )
+            )}
 
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
