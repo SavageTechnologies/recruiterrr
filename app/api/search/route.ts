@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       phone: raw.phone || '', address: raw.address || '',
       rating: raw.rating || 0, reviews: raw.reviews || 0,
       website: raw.website || null,
-      carriers: ['Unknown'], captive: ps.captive, years: null,
+      carriers: ['Unknown'], captive: ps.captive, wrongLine: false, years: null,
       score: ps.score, flag: 'cold' as const,
       notes: ps.captive ? 'Captive brand — not recruitable.' : 'Low signal — not enriched.',
       hiring: false, hiring_roles: [],

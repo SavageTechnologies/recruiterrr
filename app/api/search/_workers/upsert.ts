@@ -28,6 +28,7 @@ export async function upsertAgentProfiles(
     reviews: a.reviews || null,
     carriers: a.carriers?.length ? a.carriers : null,
     captive: a.captive || false,
+    wrong_line: a.wrongLine || false,
     prometheus_score: a.score,
     prometheus_flag: a.flag,
     prometheus_notes: a.notes,
