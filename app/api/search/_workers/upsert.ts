@@ -40,10 +40,15 @@ export async function upsertAgentProfiles(
     last_seen: new Date().toISOString(),
   }))
 
-  await supabase.from('agent_profiles').upsert(rows, {
+  const { error: upsertError } = await supabase.from('agent_profiles').upsert(rows, {
     onConflict: 'clerk_id,name,city,state',
     ignoreDuplicates: false,
   })
+
+  if (upsertError) {
+    console.error('[upsertAgentProfiles] failed:', upsertError.message, '| city:', city, '| state:', state, '| agents:', agents.length)
+    throw new Error(upsertError.message)
+  }
 
   void supabase.rpc('increment_agent_search_count', {
     p_clerk_id: clerkId,
