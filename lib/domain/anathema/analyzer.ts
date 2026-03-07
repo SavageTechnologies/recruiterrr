@@ -313,7 +313,8 @@ SUB-IMO RULES:
       subimo_evidence: parsed.subimo_evidence || null,
       subimo_evidence_type: parsed.subimo_evidence_type || null,
     }
-  } catch {
+  } catch (err) {
+    console.error('[analyzeEvidence] failed:', err instanceof Error ? err.message : err)
     return fallback
   }
 }

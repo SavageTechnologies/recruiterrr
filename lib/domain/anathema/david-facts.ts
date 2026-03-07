@@ -192,7 +192,8 @@ Return ONLY the JSON array.`,
       extracted_at: new Date().toISOString(),
       scan_sources_used: sourcesUsed,
     }
-  } catch {
+  } catch (err) {
+    console.error('[extractDavidFacts] failed:', err instanceof Error ? err.message : err)
     return null
   }
 }

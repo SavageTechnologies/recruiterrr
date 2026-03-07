@@ -82,7 +82,16 @@ export function scoreSMSCarriers(carriers: string[]): { sms: number; signals: st
 // Discovered FMOs without a confirmed tree are treated as unknown — they still
 // generate signals but don't contribute to tree scores until promoted.
 
-export async function buildNetworkSignalIndex(): Promise<NetworkSignal[]> {
+// ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
+// The signal index changes at most a few times a day (new partners, promoted FMOs).
+// Re-fetching on every scan burns two unnecessary Supabase round trips.
+// 5-minute TTL balances freshness with efficiency.
+
+let _cachedSignals: NetworkSignal[] | null = null
+let _cacheExpiry = 0
+const CACHE_TTL_MS = 5 * 60 * 1000
+
+async function _buildFresh(): Promise<NetworkSignal[]> {
   const signals: NetworkSignal[] = []
   const seen = new Set<string>()
 
@@ -169,6 +178,15 @@ export async function buildNetworkSignalIndex(): Promise<NetworkSignal[]> {
     }
   }
 
+  return signals
+}
+
+export async function buildNetworkSignalIndex(): Promise<NetworkSignal[]> {
+  const now = Date.now()
+  if (_cachedSignals && now < _cacheExpiry) return _cachedSignals
+  const signals = await _buildFresh()
+  _cachedSignals = signals
+  _cacheExpiry = now + CACHE_TTL_MS
   return signals
 }
 
