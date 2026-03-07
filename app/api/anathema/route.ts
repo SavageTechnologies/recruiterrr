@@ -181,6 +181,38 @@ export async function POST(req: NextRequest) {
     specimenId = inserted?.id || null
   }
 
+  // ── STEP 5: Fire-and-forget David enrichment ──────────────────────────────
+  // Apify FB + YouTube runs in its own Vercel function after we return.
+  // No UI, no await. Enrichment worker writes back to the specimen via
+  // saveDavidFacts when done — silently deepening the agent profile.
+  const hasApifyTargets = !!(profile.facebook_profile_url)
+  if (hasApifyTargets && process.env.APIFY_API_KEY && process.env.ENRICHMENT_SECRET) {
+    const baseUrl = `${req.nextUrl.protocol}//${req.nextUrl.host}`
+    fetch(`${baseUrl}/api/david/enrich`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-enrichment-secret': process.env.ENRICHMENT_SECRET,
+      },
+      body: JSON.stringify({
+        userId,
+        agentName:          agent.name,
+        agentCity:          agent.city    || '',
+        agentState:         agent.state   || '',
+        facebookProfileUrl: profile.facebook_profile_url,
+        youtubeChannelUrl:  agent.youtube_channel || null,
+        serpSnippets:       serpDebug
+          .flatMap((e: any) => e.results.map((r: any) => ({ title: r.title, url: r.link, snippet: r.snippet })))
+          .filter((r: any) => r.snippet),
+        facebookAbout:    null,
+        facebookPostText: null,
+        agentWebsite:     agent.website || null,
+        agentNotes:       agent.notes   || null,
+        agentAbout:       agent.about   || null,
+      }),
+    }).catch((err: Error) => console.warn('[david/enrich] fire-and-forget failed:', err))
+  }
+
   return NextResponse.json({
     id:                 specimenId,
     profile,
