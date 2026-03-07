@@ -70,7 +70,7 @@ function DavidFactsPanel({ facts, agentName, deepScanStatus }: {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', marginBottom: 3, letterSpacing: 0.5 }}>◈ DAVID — PERSONAL INTEL</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', marginBottom: 3, letterSpacing: 0.5 }}>DAVID — PERSONAL INTEL</div>
           <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{high.length} high usability · {med.length} supporting · Use to personalize your opener</div>
           {deepScanStatus === 'polling' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
@@ -267,7 +267,7 @@ function ScanProgress({ currentStep, agencyName }: { currentStep: number; agency
 function DavidWaiting({ deepScanStatus }: { deepScanStatus: 'idle' | 'polling' | 'complete' | 'timeout' }) {
   return (
     <div style={{ padding: '32px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, opacity: 0.6 }}>
-      <div style={{ fontSize: 32, color: 'var(--orange)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2 }}>◈ DAVID</div>
+      <div style={{ fontSize: 32, color: 'var(--orange)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2 }}>DAVID</div>
       {deepScanStatus === 'polling' ? (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -309,12 +309,12 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
 
   return (
     <div style={{ animation: 'slideIn 0.3s ease both' }}>
-      <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 12, fontWeight: 500, letterSpacing: 0.3 }}>
+      <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 10, fontWeight: 500, letterSpacing: 0.3 }}>
         REPORT: {agencyName.toUpperCase()}{city ? ` · ${city.toUpperCase()}, ${state.toUpperCase()}` : ''}
       </div>
 
       {/* Verdict card */}
-      <div style={{ background: 'var(--bg-card)', border: `1px solid ${treeBorder}`, borderLeft: `4px solid ${treeColor}`, borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: '0 2px 8px var(--shadow-sm)' }}>
+      <div style={{ background: 'var(--bg-card)', border: `1px solid ${treeBorder}`, borderLeft: `4px solid ${treeColor}`, borderRadius: 'var(--radius)' }}>
 
         {/* Verdict header */}
         <div style={{ padding: '20px 24px', background: isUnknown ? 'transparent' : treeDim, borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center' }}>
@@ -359,7 +359,7 @@ function ResultPanel({ result, agencyName, city, state, confirmedTrees, setConfi
               {result.facebook_profile_url && (
                 <div style={{ fontSize: 13, color: 'var(--text-1)', display: 'flex', gap: 10 }}>
                   <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>▸</span>
-                  <a href={result.facebook_profile_url} target="_blank" rel="noopener noreferrer" style={{ color: '#4267B2', textDecoration: 'none' }}>◈ Facebook profile located ↗</a>
+                  <a href={result.facebook_profile_url} target="_blank" rel="noopener noreferrer" style={{ color: '#4267B2', textDecoration: 'none' }}>Facebook profile ↗</a>
                 </div>
               )}
             </div>
@@ -643,7 +643,7 @@ function AnathemaDashboardInner() {
                 style={{ flex: 1, padding: '14px 20px', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-1)', fontSize: 15 }} />
               <button onClick={runScan} disabled={scanning || !agencyName.trim()}
                 style={{ padding: '12px 28px', background: scanning ? 'var(--sig-green-dim)' : 'var(--sig-green)', border: 'none', cursor: scanning ? 'not-allowed' : 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 3, color: scanning ? 'var(--sig-green)' : 'white', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {scanning ? 'SCANNING...' : '◈ SCAN'}
+                {scanning ? 'SCANNING...' : 'SCAN'}
               </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 6 }}>
@@ -666,12 +666,12 @@ function AnathemaDashboardInner() {
 
       {/* ── BOTTOM: Two panels ── */}
       {hasResult ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start', gridAutoRows: 'auto' }}>
 
           {/* LEFT — ANATHEMA result */}
-          <div className="panel-scroll" style={{ maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' }}>
+          <div className="panel-scroll" style={{ maxHeight: 'calc(100vh - 240px)', overflowY: 'auto' }}>
             {scanning && !result ? (
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
                 <ScanProgress currentStep={currentStep} agencyName={agencyName} />
               </div>
             ) : result ? (
@@ -687,7 +687,7 @@ function AnathemaDashboardInner() {
           </div>
 
           {/* RIGHT — DAVID */}
-          <div className="panel-scroll" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: '2px solid var(--orange)', borderRadius: 'var(--radius)', maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' }}>
+          <div className="panel-scroll" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderTop: '2px solid var(--orange)', borderRadius: 'var(--radius)', maxHeight: 'calc(100vh - 240px)', overflowY: 'auto' }}>
             {davidFacts && davidFacts.length > 0 ? (
               <DavidFactsPanel facts={davidFacts} agentName={agencyName} deepScanStatus={deepScanStatus} />
             ) : (
