@@ -42,8 +42,8 @@ const US_STATES = [
 function SearchPageInner() {
   const searchParams = useSearchParams()
   const [city, setCity]                       = useState('')
-  const [state, setState]                     = useState('KS')
-  const [mode, setMode]                       = useState('medicare')
+  const [state, setState]                     = useState('')
+  const [mode, setMode]                       = useState('')
   const [loading, setLoading]                 = useState(false)
   const [currentStep, setCurrentStep]         = useState(-1)
   const [agents, setAgents]                   = useState<Agent[]>([])
@@ -58,7 +58,7 @@ function SearchPageInner() {
   const [acLoading, setAcLoading]             = useState(false)
 
   // Browse drawer state
-  const [browseOpen, setBrowseOpen]           = useState(false)
+  const [browseOpen, setBrowseOpen]           = useState(true)
   const [browseState, setBrowseState]         = useState<string | null>(null)
   const [browseStateName, setBrowseStateName] = useState('')
   const [browseCities, setBrowseCities]       = useState<{ city: string; county: string }[]>([])
@@ -160,7 +160,7 @@ function SearchPageInner() {
   async function runSearch(overrideCity?: string, overrideState?: string) {
     const searchCity  = overrideCity  || city
     const searchState = overrideState || state
-    if (!searchCity.trim()) return
+    if (!searchCity.trim() || !searchState || !mode) return
 
     setLoading(true); setSearched(false); setAgents([])
     setError(''); setCurrentStep(0); setSelectedIndex(null); setShowAll(false)
@@ -195,10 +195,6 @@ function SearchPageInner() {
   const hotCount      = agents.filter(a => a.flag === 'hot').length
   const warmCount     = agents.filter(a => a.flag === 'warm').length
 
-  const filteredBrowseCities = cityFilter.trim()
-    ? browseCities.filter(c => c.city.toLowerCase().includes(cityFilter.toLowerCase()))
-    : browseCities
-
   return (
     <div style={{ padding: '32px 36px', maxWidth: 1400 }}>
 
@@ -232,31 +228,7 @@ function SearchPageInner() {
               onSearch={() => runSearch()}
             />
 
-            {/* ── Browse toggle ── */}
-            <div style={{ marginBottom: 24, marginTop: 2 }}>
-              <button
-                onClick={() => { browseOpen ? closeBrowse() : setBrowseOpen(true) }}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: 11, letterSpacing: 1,
-                  color: browseOpen ? 'var(--orange)' : 'var(--text-3)',
-                  transition: 'color 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--orange)')}
-                onMouseLeave={e => (e.currentTarget.style.color = browseOpen ? 'var(--orange)' : 'var(--text-3)')}
-              >
-                <span style={{
-                  fontSize: 8, display: 'inline-block',
-                  transition: 'transform 0.2s',
-                  transform: browseOpen ? 'rotate(90deg)' : 'none',
-                }}>▶</span>
-                {browseOpen ? 'CLOSE MARKET BROWSER' : 'BROWSE BY STATE → CITY'}
-              </button>
-            </div>
-
-            {/* ── Browse drawer ── */}
+            {/* ── Market browser — always open ── */}
             {browseOpen && (
               <div style={{
                 background: 'var(--bg-card)',
@@ -307,21 +279,6 @@ function SearchPageInner() {
                     </div>
                   )}
 
-                  {/* City filter — only shown inside a state */}
-                  {browseState && (
-                    <input
-                      autoFocus
-                      value={cityFilter}
-                      onChange={e => setCityFilter(e.target.value)}
-                      placeholder="Filter..."
-                      style={{
-                        padding: '4px 11px', border: '1px solid var(--border)',
-                        borderRadius: 100, fontFamily: "'DM Sans', sans-serif",
-                        fontSize: 11, background: '#fff', color: 'var(--text-1)',
-                        outline: 'none', width: 160,
-                      }}
-                    />
-                  )}
                 </div>
 
                 {/* State grid */}
@@ -366,36 +323,39 @@ function SearchPageInner() {
                         Loading...
                       </div>
                     )}
-                    {!browseCitiesLoading && filteredBrowseCities.length === 0 && (
+                    {!browseCitiesLoading && browseCities.length === 0 && (
                       <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-3)', padding: '20px 0' }}>
                         {cityFilter ? `No cities match "${cityFilter}"` : 'No cities found.'}
                       </div>
                     )}
-                    {!browseCitiesLoading && filteredBrowseCities.map((c, i) => (
+                    {!browseCitiesLoading && browseCities.map((c, i) => (
                       <button
                         key={c.city}
                         onClick={() => selectBrowseCity(c.city, browseState)}
                         style={{
                           padding: '7px 13px',
-                          background: 'var(--bg)',
+                          background: 'var(--bg-card)',
                           border: '1px solid var(--border)',
                           borderRadius: 'var(--radius)',
                           cursor: 'pointer',
                           fontFamily: "'DM Sans', sans-serif",
-                          fontSize: 13, fontWeight: 500,
-                          color: 'var(--text-1)',
+                          fontSize: 11, fontWeight: 500, letterSpacing: 0.3,
+                          color: 'var(--text-2)',
                           transition: 'all 0.1s',
                           animation: `slideIn 0.14s ease ${i * 0.012}s both`,
+                          boxShadow: '0 1px 2px var(--shadow-sm)',
                         }}
                         onMouseEnter={e => {
                           e.currentTarget.style.background = 'var(--orange-dim)'
                           e.currentTarget.style.borderColor = 'var(--orange-border)'
                           e.currentTarget.style.color = 'var(--orange)'
+                          e.currentTarget.style.boxShadow = 'none'
                         }}
                         onMouseLeave={e => {
-                          e.currentTarget.style.background = 'var(--bg)'
+                          e.currentTarget.style.background = 'var(--bg-card)'
                           e.currentTarget.style.borderColor = 'var(--border)'
-                          e.currentTarget.style.color = 'var(--text-1)'
+                          e.currentTarget.style.color = 'var(--text-2)'
+                          e.currentTarget.style.boxShadow = '0 1px 2px var(--shadow-sm)'
                         }}
                       >
                         {c.city}
@@ -505,11 +465,15 @@ function SearchForm({ city, state, mode, loading, acRef, acLoading, suggestions,
     }}>
       <select value={mode} onChange={onModeChange} disabled={loading}
         style={{
-          width: 185, padding: '16px 12px', background: 'transparent',
-          border: 'none', borderRight: '1px solid var(--border)', outline: 'none',
-          color: 'var(--orange)', fontFamily: "'DM Sans', sans-serif", fontSize: 11,
+          width: 185, padding: '16px 12px', background: mode ? 'transparent' : 'var(--orange-dim)',
+          border: 'none', borderRight: `1px solid ${mode ? 'var(--border)' : 'var(--orange-border)'}`,
+          outline: 'none',
+          color: mode ? 'var(--orange)' : 'var(--text-3)',
+          fontFamily: "'DM Sans', sans-serif", fontSize: 11,
           cursor: 'pointer', appearance: 'none', textAlign: 'center', letterSpacing: 1, flexShrink: 0,
+          transition: 'background 0.2s, color 0.2s',
         }}>
+        <option value="" disabled>Select type...</option>
         {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
       </select>
 
@@ -523,26 +487,24 @@ function SearchForm({ city, state, mode, loading, acRef, acLoading, suggestions,
             fontFamily: "'DM Sans', sans-serif", fontSize: 'var(--text-base)',
           }} />
 
-        {/* ── State pill ── */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 0,
-          marginRight: 12, flexShrink: 0,
-        }}>
-          <div style={{ width: 1, height: 18, background: 'var(--border)', marginRight: 10 }} />
-          <div style={{
-            padding: '3px 9px',
-            background: city ? 'var(--orange-dim)' : 'var(--bg-hover)',
-            border: `1px solid ${city ? 'var(--orange-border)' : 'var(--border)'}`,
-            borderRadius: 100,
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: 10, fontWeight: 600, letterSpacing: 1.5,
-            color: city ? 'var(--orange)' : 'var(--text-3)',
-            transition: 'all 0.2s',
-            whiteSpace: 'nowrap',
-          }}>
-            {state}
+        {/* ── State pill — only shown once a city/state is resolved ── */}
+        {state && (
+          <div style={{ display: 'flex', alignItems: 'center', marginRight: 12, flexShrink: 0 }}>
+            <div style={{ width: 1, height: 18, background: 'var(--border)', marginRight: 10 }} />
+            <div style={{
+              padding: '3px 9px',
+              background: 'var(--orange-dim)',
+              border: '1px solid var(--orange-border)',
+              borderRadius: 100,
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 10, fontWeight: 600, letterSpacing: 1.5,
+              color: 'var(--orange)',
+              whiteSpace: 'nowrap',
+            }}>
+              {state}
+            </div>
           </div>
-        </div>
+        )}
 
         {acLoading && (
           <div style={{ position: 'absolute', right: 60, top: '50%', transform: 'translateY(-50%)' }}>
@@ -578,7 +540,7 @@ function SearchForm({ city, state, mode, loading, acRef, acLoading, suggestions,
         )}
       </div>
 
-      <button onClick={onSearch} disabled={loading || !city.trim()}
+      <button onClick={onSearch} disabled={loading || !city.trim() || !mode}
         style={{
           padding: '14px 32px', background: loading ? 'var(--border)' : 'var(--orange)',
           border: 'none', borderRadius: '0 var(--radius-md) var(--radius-md) 0',
