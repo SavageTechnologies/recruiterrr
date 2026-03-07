@@ -2,21 +2,12 @@
 
 import { useEffect, useState } from "react"
 
-// ── Tree colors — used only as secondary context, not the main event ──────────
-const TREE_COLORS: Record<string, { border: string; label: string; bar: string; bg: string }> = {
-  INTEGRITY: { border: "#f4621f", label: "#f4621f", bar: "#f4621f", bg: "rgba(244,98,31,0.06)"   },
-  AMERILIFE: { border: "#4fc3f7", label: "#2a9fd6", bar: "#4fc3f7", bg: "rgba(79,195,247,0.06)"  },
-  SMS:       { border: "#9c6faa", label: "#9c6faa", bar: "#ce93d8", bg: "rgba(156,111,170,0.06)" },
-  OTHER:     { border: "#7a7570", label: "#7a7570", bar: "#7a7570", bg: "rgba(122,117,112,0.04)" },
-  UNKNOWN:   { border: "#2e2b27", label: "#7a7570", bar: "#2e2b27", bg: "transparent"             },
-}
-
 const PAGE_SIZE = 12
 
 type Fact = { fact: string; usability: string; source: string }
 type Node = {
-  id: string; name: string; city: string; state: string; tree: string
-  confidence: number; upline: string | null; facts: number; highFacts: number
+  id: string; name: string; city: string; state: string
+  facts: number; highFacts: number
   factsList: Fact[]; hasFacebook: boolean; apifyEnriched: boolean; scannedAt: string
 }
 type SortKey = "intel" | "facts" | "recent"
@@ -35,9 +26,7 @@ function sortNodes(nodes: Node[], key: SortKey): Node[] {
 // ── Agent card ────────────────────────────────────────────────────────────────
 
 function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => void; selected: boolean }) {
-  const col = TREE_COLORS[node.tree] || TREE_COLORS.UNKNOWN
   const topFact = node.factsList.find(f => f.usability === "HIGH")
-  const hasContact = false // placeholder — contact enrichment coming
 
   return (
     <div
@@ -45,7 +34,7 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
       style={{
         background: selected ? "var(--bg-hover)" : "var(--bg-card)",
         border: `1px solid ${selected ? "var(--border-strong)" : "var(--border)"}`,
-        borderLeft: `2px solid ${selected ? "var(--orange)" : col.border}`,
+        borderLeft: `2px solid ${selected ? "var(--orange)" : "var(--border)"}`,
         padding: "14px 16px",
         cursor: "pointer",
         transition: "border-color 0.15s, background 0.15s",
@@ -64,7 +53,7 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
             {node.name}
           </div>
           <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "'DM Sans', sans-serif" }}>
-            {node.city}, {node.state}
+            {[node.city, node.state].filter(Boolean).join(", ")}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
@@ -73,7 +62,7 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
         </div>
       </div>
 
-      {/* Top HIGH fact — the point of this card */}
+      {/* Top HIGH fact */}
       {topFact ? (
         <div style={{
           fontSize: 12, color: "var(--text-1)", lineHeight: 1.6,
@@ -85,34 +74,20 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
           {topFact.fact.length > 100 ? topFact.fact.slice(0, 100) + "…" : topFact.fact}
         </div>
       ) : (
-        <div style={{
-          fontSize: 11, color: "var(--text-4)", fontFamily: "'DM Sans', sans-serif",
-          padding: "6px 0",
-        }}>
+        <div style={{ fontSize: 11, color: "var(--text-4)", fontFamily: "'DM Sans', sans-serif", padding: "6px 0" }}>
           No personal intel yet
         </div>
       )}
 
-      {/* Footer — fact count + tree tag + contact status */}
+      {/* Footer */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {node.facts > 0 && (
-            <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "'DM Sans', sans-serif" }}>
-              {node.facts} facts{node.highFacts > 0 ? ` · ${node.highFacts} actionable` : ""}
-            </span>
-          )}
-          <span style={{
-            fontFamily: "'DM Mono', monospace", fontSize: 9,
-            color: col.label, letterSpacing: 1, opacity: 0.7,
-          }}>
-            {node.tree}
-          </span>
-        </div>
-        <span style={{
-          fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1,
-          color: hasContact ? "var(--sig-green)" : "var(--text-4)",
-        }}>
-          {hasContact ? "✓ CONTACT" : "NO CONTACT"}
+        <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "'DM Sans', sans-serif" }}>
+          {node.facts > 0
+            ? `${node.facts} facts${node.highFacts > 0 ? ` · ${node.highFacts} actionable` : ""}`
+            : "No facts yet"}
+        </span>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: 1, color: "var(--text-4)" }}>
+          NO CONTACT
         </span>
       </div>
     </div>
@@ -122,7 +97,6 @@ function AgentCard({ node, onClick, selected }: { node: Node; onClick: () => voi
 // ── Detail panel ──────────────────────────────────────────────────────────────
 
 function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
-  const col = TREE_COLORS[node.tree] || TREE_COLORS.UNKNOWN
   const highFacts = node.factsList.filter(f => f.usability === "HIGH")
   const medFacts  = node.factsList.filter(f => f.usability === "MED")
   const lowFacts  = node.factsList.filter(f => f.usability === "LOW")
@@ -133,7 +107,7 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
       .filter(f => f.usability === "HIGH" || f.usability === "MED")
       .map(f => `· ${f.fact}`)
       .join("\n")
-    const text = `${node.name} — ${node.city}, ${node.state}\n\nPersonal Intel:\n${lines}\n\nTree: ${node.tree}${node.confidence ? ` (${node.confidence}% confidence)` : ""}${node.upline ? `\nUpline: ${node.upline}` : ""}`
+    const text = `${node.name} — ${[node.city, node.state].filter(Boolean).join(", ")}\n\nPersonal Intel:\n${lines}`
     navigator.clipboard?.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -157,7 +131,7 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
               {node.name}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "'DM Sans', sans-serif" }}>
-              {node.city}, {node.state}
+              {[node.city, node.state].filter(Boolean).join(", ")}
             </div>
           </div>
           <button onClick={onClose} className="btn-ghost" style={{ fontSize: 11, padding: "5px 10px", marginTop: 2 }}>
@@ -169,7 +143,6 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20, marginTop: 14 }}>
           {node.apifyEnriched && <span className="dash-badge dash-badge-green">DEEP SCAN</span>}
           {node.hasFacebook   && <span className="dash-badge">FACEBOOK</span>}
-          <span className="dash-badge" style={{ color: col.label, borderColor: col.border }}>{node.tree}</span>
         </div>
 
         {/* Contact status — roadmap placeholder */}
@@ -190,7 +163,7 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
           <span className="dash-badge">PENDING</span>
         </div>
 
-        {/* Personal Intel — main section */}
+        {/* Personal Intel */}
         {node.factsList.length === 0 ? (
           <div style={{
             padding: "24px 0", textAlign: "center",
@@ -202,7 +175,6 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
             {highFacts.length > 0 && (
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8, fontFamily: "'DM Sans', sans-serif" }}>
@@ -269,39 +241,7 @@ function DetailPanel({ node, onClose }: { node: Node; onClose: () => void }) {
           </div>
         )}
 
-        {/* Tree context — secondary, below facts */}
-        {(node.confidence > 0 || node.upline) && (
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--border)" }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 12, fontFamily: "'DM Sans', sans-serif" }}>
-              Tree Context
-            </div>
-
-            {node.confidence > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "var(--text-2)", fontFamily: "'DM Sans', sans-serif" }}>{node.tree} affiliation</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: col.label }}>{node.confidence}%</span>
-                </div>
-                <div style={{ height: 3, background: "var(--border)", borderRadius: 2 }}>
-                  <div style={{ height: "100%", width: `${node.confidence}%`, background: col.bar, borderRadius: 2 }} />
-                </div>
-              </div>
-            )}
-
-            {node.upline && (
-              <div style={{
-                padding: "10px 12px", background: col.bg,
-                borderLeft: `2px solid ${col.border}`,
-                borderRadius: "0 var(--radius) var(--radius) 0",
-              }}>
-                <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>Predicted upline</div>
-                <div style={{ fontSize: 12, color: col.label, fontFamily: "'DM Mono', monospace" }}>{node.upline}</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Primary CTA */}
+        {/* CTA */}
         {node.factsList.length > 0 && (
           <button
             onClick={copyBrief}
@@ -330,7 +270,6 @@ export default function DavidPage() {
   const [nodes, setNodes]       = useState<Node[]>([])
   const [loading, setLoading]   = useState(true)
   const [sort, setSort]         = useState<SortKey>("intel")
-  const [filter, setFilter]     = useState("ALL")
   const [search, setSearch]     = useState("")
   const [selected, setSelected] = useState<Node | null>(null)
   const [page, setPage]         = useState(1)
@@ -342,15 +281,13 @@ export default function DavidPage() {
       .catch(() => setLoading(false))
   }, [])
 
-  useEffect(() => { setPage(1) }, [sort, filter, search])
-
-  const trees = ["ALL", ...Array.from(new Set(nodes.map(n => n.tree))).sort()]
+  useEffect(() => { setPage(1) }, [sort, search])
 
   const filtered = sortNodes(
     nodes.filter(n => {
-      if (filter !== "ALL" && n.tree !== filter) return false
-      if (search && !n.name.toLowerCase().includes(search.toLowerCase()) && !n.city.toLowerCase().includes(search.toLowerCase())) return false
-      return true
+      if (!search) return true
+      return n.name.toLowerCase().includes(search.toLowerCase()) ||
+             n.city.toLowerCase().includes(search.toLowerCase())
     }),
     sort
   )
@@ -401,9 +338,9 @@ export default function DavidPage() {
           {/* Stats */}
           <div style={{ display: "flex", gap: 20, marginBottom: 14, alignItems: "center" }}>
             {[
-              { val: nodes.length, label: "agents", color: "var(--text-1)" },
-              { val: totalFacts,   label: "facts collected", color: "var(--text-1)" },
-              { val: highCount,    label: "actionable", color: "var(--sig-green)" },
+              { val: nodes.length, label: "agents",          color: "var(--text-1)"    },
+              { val: totalFacts,   label: "facts collected", color: "var(--text-1)"    },
+              { val: highCount,    label: "actionable",      color: "var(--sig-green)" },
               ...(enrichedCount > 0 ? [{ val: enrichedCount, label: "deep enriched", color: "var(--sig-green)" }] : []),
             ].map((s, i, arr) => (
               <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -425,13 +362,6 @@ export default function DavidPage() {
               className="dash-input"
               style={{ width: 220 }}
             />
-            <div className="dash-filter-bar">
-              {trees.map(t => (
-                <button key={t} onClick={() => setFilter(t)} className={`dash-filter-btn${filter === t ? " active" : ""}`}>
-                  {t}
-                </button>
-              ))}
-            </div>
             <div className="dash-filter-bar" style={{ marginLeft: "auto" }}>
               {([ ["intel","Best Intel"], ["facts","Most Facts"], ["recent","Recent"] ] as [SortKey, string][]).map(([key, label]) => (
                 <button key={key} onClick={() => setSort(key)} className={`dash-filter-btn${sort === key ? " active-orange" : ""}`}>

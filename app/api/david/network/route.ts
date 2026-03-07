@@ -20,52 +20,29 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('anathema_specimens')
-    .select(`
-      id,
-      agent_name,
-      city,
-      state,
-      predicted_tree,
-      predicted_confidence,
-      confirmed_tree,
-      predicted_sub_imo,
-      predicted_sub_imo_confidence,
-      unresolved_upline,
-      facebook_profile_url,
-      david_facts,
-      created_at
-    `)
+    .select('id, agent_name, city, state, facebook_profile_url, david_facts, created_at')
     .eq('clerk_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Shape for the network — only what the visualization needs
   const nodes = (data || []).map(s => {
     const facts = s.david_facts?.facts || []
-    const tree = s.confirmed_tree || s.predicted_tree || 'unknown'
-    const upline = s.predicted_sub_imo || s.unresolved_upline || null
-
     return {
       id:           s.id,
       name:         s.agent_name,
       city:         s.city,
       state:        s.state,
-      tree:         tree.toUpperCase(),
-      confidence:   s.predicted_confidence || 0,
-      upline:       upline,
       facts:        facts.length,
       highFacts:    facts.filter((f: { usability: string }) => f.usability === 'HIGH').length,
       factsList:    facts.slice(0, 12).map((f: { fact: string; usability: string; source_type: string }) => ({
-        fact:     f.fact,
+        fact:      f.fact,
         usability: f.usability,
-        source:   f.source_type,
+        source:    f.source_type,
       })),
-      hasFacebook:  !!s.facebook_profile_url,
-      apifyEnriched: (s.david_facts?.scan_sources_used || []).some((src: string) =>
-        src.startsWith('APIFY_')
-      ),
-      scannedAt:    s.created_at,
+      hasFacebook:   !!s.facebook_profile_url,
+      apifyEnriched: (s.david_facts?.scan_sources_used || []).some((src: string) => src.startsWith('APIFY_')),
+      scannedAt:     s.created_at,
     }
   })
 
