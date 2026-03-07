@@ -306,13 +306,15 @@ NOT a real relationship:
 - A SERP result that mentions both names but in different contexts
 - Generic insurance education content that mentions carrier names
 - Carrier names alone (Humana, Aetna, etc.) — those are products, not uplines
+- The agent's name or agency name RESEMBLING a known sub-IMO name — name similarity is not a relationship signal under any circumstances
+- The word "integrity", "amerilife", "senior", "marketing", or any tree-brand word appearing in a generic context (e.g. "we act with integrity", membership org text, educational content)
 
 ━━━ TREE CLASSIFICATION ━━━
 
-Only classify a tree if you find EXPLICIT brand language — not inferred:
-- INTEGRITY: "Integrity Marketing Group", "Family First Life", "FFL", "IntegrityCONNECT", "MedicareCENTER", integrity.com domain
-- AMERILIFE: "AmeriLife", "USABG", "United Senior Benefits Group", amerilife.com domain  
-- SMS: "Senior Market Sales", "SMS", "Rethinking Retirement", seniormarketsales.com domain — OR Mutual of Omaha + Medico both present
+Only classify a tree if you find EXPLICIT brand language — not inferred, not implied by name similarity:
+- INTEGRITY: The exact phrases "Integrity Marketing Group", "Family First Life", "FFL agent", "IntegrityCONNECT", "MedicareCENTER", or a link/domain containing integrity.com. The word "integrity" alone does NOT count.
+- AMERILIFE: The exact phrases "AmeriLife", "USABG", "United Senior Benefits Group", or amerilife.com domain. 
+- SMS: The exact phrases "Senior Market Sales", "Rethinking Retirement", seniormarketsales.com domain — OR Mutual of Omaha + Medico both explicitly listed as carried products.
 
 Known sub-IMOs for reference (may appear in evidence): ${knownPartners || 'none loaded'}
 
