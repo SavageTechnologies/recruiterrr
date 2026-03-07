@@ -39,16 +39,23 @@ export async function GET(req: NextRequest) {
   const { data: allScans }       = await supabase.from('anathema_specimens').select('clerk_id, agent_name, city, state, predicted_tree, confirmed_tree, created_at, updated_at').order('updated_at', { ascending: false }).limit(2000)
   const { data: allPrometheus }  = await supabase.from('prometheus_scans').select('clerk_id, domain, created_at').order('created_at', { ascending: false }).limit(1000)
 
-  // Tree distribution
-  const { data: treeData } = await supabase.from('anathema_specimens').select('confirmed_tree, predicted_tree')
-  const treeCounts = { integrity_count: 0, amerilife_count: 0, sms_count: 0, unknown_count: 0 }
-  for (const row of treeData || []) {
-    const tree = row.confirmed_tree || row.predicted_tree || 'unknown'
-    if (tree === 'integrity')  treeCounts.integrity_count++
-    else if (tree === 'amerilife') treeCounts.amerilife_count++
-    else if (tree === 'sms')   treeCounts.sms_count++
-    else                       treeCounts.unknown_count++
+  // Tree distribution — counted in DB, not pulled into JS memory
+  const [
+    { count: integrityCount },
+    { count: ameriCount },
+    { count: smsCount },
+  ] = await Promise.all([
+    supabase.from('anathema_specimens').select('*', { count: 'exact', head: true }).or('confirmed_tree.eq.integrity,predicted_tree.eq.integrity'),
+    supabase.from('anathema_specimens').select('*', { count: 'exact', head: true }).or('confirmed_tree.eq.amerilife,predicted_tree.eq.amerilife'),
+    supabase.from('anathema_specimens').select('*', { count: 'exact', head: true }).or('confirmed_tree.eq.sms,predicted_tree.eq.sms'),
+  ])
+  const treeCounts = {
+    integrity_count: integrityCount ?? 0,
+    amerilife_count: ameriCount    ?? 0,
+    sms_count:       smsCount      ?? 0,
+    unknown_count:   0, // derived below from total - known
   }
+  treeCounts.unknown_count = Math.max(0, (totalAnathemaCount ?? 0) - treeCounts.integrity_count - treeCounts.amerilife_count - treeCounts.sms_count)
 
   // Per-user map
   type UserActivity = {
@@ -110,19 +117,17 @@ export async function GET(req: NextRequest) {
     ...treeCounts,
   }
 
-  // Activity feed
+  // Activity feed — email lookup map built once to avoid O(n²) finds
+  const emailByClerkId = Object.fromEntries((users || []).map(u => [u.clerk_id, u.email || 'unknown']))
   const recentActivity: Array<{ type: string; user_email: string; detail: string; at: string }> = []
   for (const s of (allSearches || []).slice(0, 15)) {
-    const user = users?.find(u => u.clerk_id === s.clerk_id)
-    recentActivity.push({ type: 'SEARCH', user_email: user?.email || 'unknown', detail: `${s.city}, ${s.state} — ${s.results_count} agents`, at: s.created_at })
+    recentActivity.push({ type: 'SEARCH', user_email: emailByClerkId[s.clerk_id] || 'unknown', detail: `${s.city}, ${s.state} — ${s.results_count} agents`, at: s.created_at })
   }
   for (const s of (allScans || []).slice(0, 15)) {
-    const user = users?.find(u => u.clerk_id === s.clerk_id)
-    recentActivity.push({ type: 'ANATHEMA', user_email: user?.email || 'unknown', detail: `${s.agent_name} — ${s.confirmed_tree || s.predicted_tree || 'unknown'}`, at: s.updated_at })
+    recentActivity.push({ type: 'ANATHEMA', user_email: emailByClerkId[s.clerk_id] || 'unknown', detail: `${s.agent_name} — ${s.confirmed_tree || s.predicted_tree || 'unknown'}`, at: s.updated_at })
   }
   for (const s of (allPrometheus || []).slice(0, 10)) {
-    const user = users?.find(u => u.clerk_id === s.clerk_id)
-    recentActivity.push({ type: 'PROMETHEUS', user_email: user?.email || 'unknown', detail: s.domain, at: s.created_at })
+    recentActivity.push({ type: 'PROMETHEUS', user_email: emailByClerkId[s.clerk_id] || 'unknown', detail: s.domain, at: s.created_at })
   }
   recentActivity.sort((a, b) => b.at.localeCompare(a.at))
 
