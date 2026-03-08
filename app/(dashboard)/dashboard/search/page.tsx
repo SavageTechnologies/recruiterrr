@@ -6,7 +6,7 @@ import type { Agent, CitySuggestion }  from '@/components/search/types'
 import { CompactAgentCard }            from '@/components/search/CompactAgentCard'
 import { DetailPanel }                 from '@/components/search/DetailPanel'
 import { MarketSummary }               from '@/components/search/MarketSummary'
-import { MODES, LOADING_PHASES }       from '@/components/search/searchData'
+import { MODES, LOADING_PHASES, resolveMode } from '@/components/search/searchData'
 
 // Minimal static list — just abbr + name, no city data. Cities come from the DB.
 const US_STATES = [
@@ -570,7 +570,7 @@ function SearchResults({ agents, visibleAgents, selectedIndex, selectedAgent, ho
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: 'var(--text-2)', letterSpacing: 1 }}>
-          <strong style={{ color: 'var(--text-1)' }}>{searchLabel}</strong> — {MODES.find(m => m.value === mode)?.label}
+          <strong style={{ color: 'var(--text-1)' }}>{searchLabel}</strong> — {resolveMode(mode).label}
         </div>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
           <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--sig-green)', fontWeight: 500 }}>● {hotCount} HOT</div>
