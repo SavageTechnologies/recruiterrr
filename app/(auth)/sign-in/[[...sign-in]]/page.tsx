@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSignIn, useAuth } from '@clerk/nextjs'
+import { useSignIn, useAuth, useClerk } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import '../../../(site)/site.css'
 import SiteFooter from '../../../../components/site/SiteFooter'
@@ -13,6 +13,7 @@ const sans  = "'DM Sans', sans-serif"
 export default function SignInPage() {
   const { signIn, isLoaded } = useSignIn()
   const { isSignedIn } = useAuth()
+  const { setActive } = useClerk()
   const router = useRouter()
 
   const [email, setEmail]       = useState('')
@@ -33,6 +34,9 @@ export default function SignInPage() {
     try {
       const result = await signIn.create({ identifier: email, password })
       if (result.status === 'complete') {
+        // setActive commits the session token before we navigate —
+        // prevents the middleware hang where the session isn't ready yet
+        await setActive({ session: result.createdSessionId })
         router.push('/dashboard')
       } else {
         setError('Sign in could not be completed. Please try again.')
@@ -54,24 +58,36 @@ export default function SignInPage() {
 
   return (
     <div className="site-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <style>{`
+        .signin-grid { display: grid; grid-template-columns: 1fr 1fr; flex: 1; }
+        .signin-brand { display: block; }
+        .signin-form-panel { padding: 48px 44px; }
+        .signin-nav-back { display: inline-flex; }
+        @media (max-width: 768px) {
+          .signin-grid { grid-template-columns: 1fr; }
+          .signin-brand { display: none; }
+          .signin-form-panel { padding: 40px 24px; }
+          .signin-nav-back { display: none; }
+        }
+      `}</style>
 
       <nav style={{
         height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 32px', borderBottom: '1px solid var(--site-border)',
+        padding: '0 24px', borderBottom: '1px solid var(--site-border)',
         background: 'var(--site-white)', flexShrink: 0,
       }}>
         <a href="/" style={{ fontFamily: bebas, fontSize: 20, letterSpacing: 3, color: 'var(--site-ink)', textDecoration: 'none' }}>
           RECRUITERRR<span style={{ color: 'var(--site-orange)' }}>.</span>
         </a>
         <div style={{ display: 'flex', gap: 8 }}>
-          <a href="/" style={{ fontFamily: mono, fontSize: 10, letterSpacing: 1.5, padding: '7px 16px', border: '1px solid var(--site-border)', borderRadius: 4, color: 'var(--site-ink-3)', textDecoration: 'none' }}>← BACK</a>
+          <a href="/" className="signin-nav-back" style={{ fontFamily: mono, fontSize: 10, letterSpacing: 1.5, padding: '7px 16px', border: '1px solid var(--site-border)', borderRadius: 4, color: 'var(--site-ink-3)', textDecoration: 'none' }}>← BACK</a>
           <a href="/sign-up" style={{ fontFamily: mono, fontSize: 10, letterSpacing: 1.5, padding: '7px 16px', border: '1px solid var(--site-border)', borderRadius: 4, color: 'var(--site-ink-3)', textDecoration: 'none' }}>REQUEST ACCESS</a>
         </div>
       </nav>
 
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'stretch' }}>
+      <div className="signin-grid" style={{ alignItems: 'stretch' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 44px', background: 'var(--site-paper)', borderRight: '1px solid var(--site-border)' }}>
+        <div className="signin-form-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--site-paper)', borderRight: '1px solid var(--site-border)' }}>
           <div style={{ width: '100%', maxWidth: 400 }}>
             <div style={{ marginBottom: 40 }}>
               <div style={{ fontFamily: bebas, fontSize: 40, letterSpacing: 2, color: 'var(--site-ink)', marginBottom: 6 }}>WELCOME BACK.</div>
@@ -119,7 +135,7 @@ export default function SignInPage() {
           </div>
         </div>
 
-        <div style={{ background: '#e84d1c', padding: '48px 44px' }}>
+        <div className="signin-brand" style={{ background: '#e84d1c', padding: '48px 44px' }}>
           <h1 style={{ fontFamily: bebas, fontSize: 56, letterSpacing: 2, lineHeight: 0.92, color: 'white', marginBottom: 24 }}>
             RECRUIT ON<br />INTELLIGENCE,<br /><span style={{ color: 'rgba(255,255,255,0.42)' }}>NOT INSTINCT.</span>
           </h1>
