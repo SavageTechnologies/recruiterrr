@@ -215,7 +215,7 @@ function HomePage() {
                   <div style={{ fontFamily: bebas, fontSize: 40, letterSpacing: 2, color: 'var(--site-ink)', marginBottom: 6 }}>WELCOME BACK.</div>
                   <div style={{ fontFamily: mono, fontSize: 10, color: 'var(--site-ink-3)', letterSpacing: 2 }}>OPERATOR ACCESS</div>
                 </div>
-                <SignIn forceRedirectUrl="/dashboard" appearance={clerkAppearance} />
+                <SignIn routing="hash" forceRedirectUrl="/dashboard" appearance={clerkAppearance} />
                 <div style={{ marginTop: 24, textAlign: 'center', fontFamily: mono, fontSize: 10, color: 'var(--site-ink-4)', letterSpacing: 1 }}>
                   Don&apos;t have an account?{' '}
                   <button onClick={() => setAuthMode('signup-email')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--site-orange)', fontFamily: mono, fontSize: 10, letterSpacing: 1, padding: 0 }}>
@@ -310,6 +310,7 @@ function HomePage() {
                   <div style={{ fontFamily: mono, fontSize: 10, color: 'var(--site-ink-3)', letterSpacing: 2 }}>FINISH SETTING UP YOUR ACCOUNT</div>
                 </div>
                 <SignUp
+                  routing="hash"
                   forceRedirectUrl="/dashboard/activate"
                   initialValues={{ emailAddress: email }}
                   appearance={clerkAppearance}

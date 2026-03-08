@@ -17,8 +17,8 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
+      signInUrl="/"
+      signUpUrl="/"
       afterSignInUrl="/dashboard"
       afterSignUpUrl="/dashboard"
     >
