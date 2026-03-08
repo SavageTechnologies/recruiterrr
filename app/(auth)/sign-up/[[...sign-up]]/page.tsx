@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { SignUp } from '@clerk/nextjs'
-import { useSearchParams } from 'next/navigation'
+import { SignUp, useAuth } from '@clerk/nextjs'
+import { useSearchParams, useRouter } from 'next/navigation'
 import '../../../(site)/site.css'
 
 const mono  = "'DM Mono', monospace"
@@ -47,10 +47,17 @@ type Step = 'email' | 'payment' | 'clerk'
 
 function SignUpInner() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { isSignedIn } = useAuth()
   const [step, setStep]               = useState<Step>('email')
   const [email, setEmail]             = useState('')
   const [emailError, setEmailError]   = useState('')
   const [checkingOut, setCheckingOut] = useState(false)
+
+  // Already signed in — send to dashboard
+  useEffect(() => {
+    if (isSignedIn) router.replace('/dashboard')
+  }, [isSignedIn, router])
 
   useEffect(() => {
     const checkout = searchParams.get('checkout')

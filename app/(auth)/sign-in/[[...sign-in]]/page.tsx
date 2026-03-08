@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useSignIn } from '@clerk/nextjs'
+import { useState, useEffect } from 'react'
+import { useSignIn, useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import '../../../(site)/site.css'
 
@@ -11,12 +11,18 @@ const sans  = "'DM Sans', sans-serif"
 
 export default function SignInPage() {
   const { signIn, isLoaded } = useSignIn()
+  const { isSignedIn } = useAuth()
   const router = useRouter()
 
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
+
+  // Already signed in — get them to the dashboard immediately
+  useEffect(() => {
+    if (isSignedIn) router.replace('/dashboard')
+  }, [isSignedIn, router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -32,7 +38,14 @@ export default function SignInPage() {
         setLoading(false)
       }
     } catch (err: unknown) {
-      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message
+      const clerkErr = err as { errors?: { code?: string; message: string }[] }
+      const code = clerkErr?.errors?.[0]?.code
+      // Session already exists — just send them to the dashboard
+      if (code === 'identifier_already_signed_in' || code === 'session_exists') {
+        router.replace('/dashboard')
+        return
+      }
+      const msg = clerkErr?.errors?.[0]?.message
       setError(msg || 'Invalid email or password.')
       setLoading(false)
     }

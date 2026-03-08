@@ -67,7 +67,7 @@ function DefaultPanel() {
 // ── Main inner component ──────────────────────────────────────────────────────
 function HomePage() {
   const searchParams = useSearchParams()
-  const [authMode, setAuthMode] = useState<AuthMode>('signin')
+  const [authMode, setAuthMode] = useState<AuthMode>('signup-email')
   const [email, setEmail] = useState('')
   const [emailError, setEmailError] = useState('')
   const [checkingOut, setCheckingOut] = useState(false)
