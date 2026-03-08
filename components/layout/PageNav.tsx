@@ -5,8 +5,6 @@ import { useState, useEffect, useRef } from 'react'
 
 const TOOLS = [
   { href: '/prometheus', label: 'Prometheus', sub: 'FMO competitive intel',        color: 'var(--site-orange)' },
-  { href: '/anathema',   label: 'Anathema',   sub: 'Distribution tree analysis',   color: 'var(--site-green)'  },
-  { href: '/david',      label: 'David',      sub: 'Agentic recruiting outreach',  color: 'var(--site-purple)' },
 ]
 
 const NAV_LINKS = [

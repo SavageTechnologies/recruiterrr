@@ -16,8 +16,6 @@ const COLS = [
     label: 'Intelligence',
     links: [
       { href: '/prometheus', label: 'Prometheus' },
-      { href: '/anathema',   label: 'Anathema'   },
-      { href: '/david',      label: 'David'       },
     ],
   },
   {
@@ -45,16 +43,14 @@ const COLS = [
 ]
 
 const SOCIALS = [
-  { label: 'X / TWITTER', handle: '@rrrSIGNAL', href: 'https://x.com/rrrSIGNAL'                 },
-  { label: 'INSTAGRAM',   handle: '@rrrSIGNAL', href: 'https://instagram.com/rrrSIGNAL'         },
-  { label: 'TIKTOK',      handle: '@rrrSIGNAL', href: 'https://tiktok.com/@rrrSIGNAL'           },
-  { label: 'LINKEDIN',    handle: '@rrrSIGNAL', href: 'https://linkedin.com/company/rrrsignal'  },
+  { label: 'X / TWITTER', handle: '@rrrSIGNAL', href: 'https://x.com/rrrSIGNAL'                },
+  { label: 'INSTAGRAM',   handle: '@rrrSIGNAL', href: 'https://instagram.com/rrrSIGNAL'        },
+  { label: 'TIKTOK',      handle: '@rrrSIGNAL', href: 'https://tiktok.com/@rrrSIGNAL'          },
+  { label: 'LINKEDIN',    handle: '@rrrSIGNAL', href: 'https://linkedin.com/company/rrrsignal' },
 ]
 
 const MODULES = [
   { label: 'PROMETHEUS', color: 'var(--site-orange)', border: 'var(--site-orange-border)' },
-  { label: 'ANATHEMA',   color: 'var(--site-green)',  border: 'var(--site-green-border)'  },
-  { label: 'DAVID',      color: 'var(--site-purple)', border: 'var(--site-purple-border)' },
 ]
 
 function CookieBanner() {
@@ -159,7 +155,7 @@ export default function PageFooter() {
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--site-ink-5)', letterSpacing: 2 }}>ALL SYSTEMS NOMINAL</div>
               <div style={{ display: 'flex', gap: 5 }}>
                 <div style={{ width: 4, height: 4, background: 'var(--site-orange-border)', borderRadius: '50%' }} />
-                <div style={{ width: 4, height: 4, background: 'var(--site-green-border)',  borderRadius: '50%' }} />
+                <div style={{ width: 4, height: 4, background: 'rgba(26,200,100,0.4)', borderRadius: '50%' }} />
               </div>
             </div>
           </div>
