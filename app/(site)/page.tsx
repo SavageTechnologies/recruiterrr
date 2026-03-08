@@ -119,11 +119,23 @@ function HomePage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <style>{`
+        .home-grid { display: grid; grid-template-columns: 1fr 1fr; flex: 1; align-items: stretch; }
+        .home-brand { display: flex; flex-direction: column; overflow-y: auto; }
+        .home-form-panel { padding: 48px 44px; min-height: calc(100vh - 56px - 44px); }
+        .home-nav-signin { display: inline-flex; }
+        @media (max-width: 768px) {
+          .home-grid { grid-template-columns: 1fr; }
+          .home-brand { display: none; }
+          .home-form-panel { padding: 40px 24px; min-height: unset; }
+          .home-nav-signin { display: none; }
+        }
+      `}</style>
 
       {/* ── NAV ── */}
       <nav style={{
         height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 32px', borderBottom: '1px solid var(--site-border)',
+        padding: '0 24px', borderBottom: '1px solid var(--site-border)',
         background: 'var(--site-white)', flexShrink: 0, position: 'sticky', top: 0, zIndex: 100,
       }}>
         <button
@@ -135,13 +147,14 @@ function HomePage() {
         <div style={{ display: 'flex', gap: 8 }}>
           <a
             href="/sign-in"
+            className="home-nav-signin"
             style={{
               fontFamily: mono, fontSize: 10, letterSpacing: 1.5, padding: '7px 16px',
               background: 'none',
               border: '1px solid var(--site-border)',
               borderRadius: 4, cursor: 'pointer',
               color: 'var(--site-ink-3)', textDecoration: 'none',
-              display: 'inline-flex', alignItems: 'center',
+              alignItems: 'center',
             }}
           >SIGN IN</a>
           <button
@@ -158,14 +171,13 @@ function HomePage() {
       </nav>
 
       {/* ── SPLIT BODY ── */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'stretch' }}>
+      <div className="home-grid">
 
         {/* LEFT — auth form, off-white */}
-        <div style={{
+        <div className="home-form-panel" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '48px 44px', background: 'var(--site-paper)',
+          background: 'var(--site-paper)',
           borderRight: '1px solid var(--site-border)',
-          minHeight: 'calc(100vh - 56px - 44px)',
         }}>
           <div style={{ width: '100%', maxWidth: 400 }}>
 
@@ -266,12 +278,9 @@ function HomePage() {
         </div>
 
         {/* RIGHT — orange brand panel */}
-        <div style={{
+        <div className="home-brand" style={{
           background: 'var(--site-orange)',
           padding: '48px 44px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflowY: 'auto',
         }}>
           {rightPage && (
             <button
