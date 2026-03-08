@@ -1,50 +1,9 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { SignIn, SignUp } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import PrivacyPanel from '../../components/site/PrivacyPanel'
 import TermsPanel from '../../components/site/TermsPanel'
-
-// ── Clerk appearance ──────────────────────────────────────────────────────────
-const clerkAppearance = {
-  variables: {
-    colorPrimary: '#e84d1c',
-    colorBackground: '#ffffff',
-    colorInputBackground: '#f7f5f2',
-    colorInputText: '#111010',
-    colorText: '#111010',
-    colorTextSecondary: '#7a7571',
-    colorNeutral: '#e0dbd5',
-    borderRadius: '4px',
-    fontFamily: "'DM Mono', monospace",
-  },
-  elements: {
-    card: { background: 'transparent', border: 'none', borderRadius: '0', boxShadow: 'none', padding: '0' },
-    rootBox: { width: '100%' },
-    headerTitle: { fontFamily: "'Bebas Neue', sans-serif", fontSize: '32px', letterSpacing: '2px', color: '#111010' },
-    headerSubtitle: { fontFamily: "'DM Mono', monospace", fontSize: '10px', letterSpacing: '1.5px', color: '#7a7571', textTransform: 'uppercase' },
-    formButtonPrimary: {
-      background: '#e84d1c', borderRadius: '4px', fontFamily: "'Bebas Neue', sans-serif",
-      fontSize: '18px', letterSpacing: '2px', color: '#ffffff', padding: '14px 0',
-      border: 'none', boxShadow: '0 2px 12px rgba(232,77,28,0.28)',
-    },
-    formFieldInput: {
-      background: '#f7f5f2', border: '1px solid #e0dbd5', borderRadius: '4px',
-      color: '#111010', fontFamily: "'DM Mono', monospace", fontSize: '13px', padding: '12px 14px',
-    },
-    formFieldLabel: { fontFamily: "'DM Mono', monospace", fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: '#7a7571' },
-    footerActionLink: { color: '#e84d1c', fontFamily: "'DM Mono', monospace", fontSize: '11px' },
-    dividerLine: { background: '#e0dbd5' },
-    dividerText: { color: '#b8b3ae', fontFamily: "'DM Mono', monospace", fontSize: '10px' },
-    socialButtonsBlockButton: {
-      background: '#f7f5f2', border: '1px solid #e0dbd5', borderRadius: '4px',
-      color: '#3d3a38', fontFamily: "'DM Mono', monospace", fontSize: '11px', letterSpacing: '1px',
-    },
-    identityPreviewEditButton: { color: '#e84d1c' },
-    alertText: { fontFamily: "'DM Mono', monospace", fontSize: '11px' },
-  },
-}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type RightPage = 'privacy' | 'terms'
@@ -211,11 +170,17 @@ function HomePage() {
 
             {authMode === 'signin' && (
               <>
-                <div style={{ marginBottom: 32 }}>
+                <div style={{ marginBottom: 40 }}>
                   <div style={{ fontFamily: bebas, fontSize: 40, letterSpacing: 2, color: 'var(--site-ink)', marginBottom: 6 }}>WELCOME BACK.</div>
                   <div style={{ fontFamily: mono, fontSize: 10, color: 'var(--site-ink-3)', letterSpacing: 2 }}>OPERATOR ACCESS</div>
                 </div>
-                <SignIn routing="hash" forceRedirectUrl="/dashboard" appearance={clerkAppearance} />
+                <a href="/sign-in" style={{
+                  display: 'block', width: '100%', padding: '16px',
+                  background: 'var(--site-orange)', borderRadius: 4, textDecoration: 'none',
+                  fontFamily: bebas, fontSize: 20, letterSpacing: 3, color: 'white',
+                  textAlign: 'center', boxSizing: 'border-box',
+                  boxShadow: '0 2px 12px rgba(232,77,28,0.28)',
+                }}>SIGN IN →</a>
                 <div style={{ marginTop: 24, textAlign: 'center', fontFamily: mono, fontSize: 10, color: 'var(--site-ink-4)', letterSpacing: 1 }}>
                   Don&apos;t have an account?{' '}
                   <button onClick={() => setAuthMode('signup-email')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--site-orange)', fontFamily: mono, fontSize: 10, letterSpacing: 1, padding: 0 }}>
@@ -305,16 +270,17 @@ function HomePage() {
 
             {authMode === 'signup-clerk' && (
               <>
-                <div style={{ marginBottom: 32 }}>
+                <div style={{ marginBottom: 40 }}>
                   <div style={{ fontFamily: bebas, fontSize: 40, letterSpacing: 2, color: 'var(--site-ink)', marginBottom: 6 }}>CREATE ACCOUNT.</div>
                   <div style={{ fontFamily: mono, fontSize: 10, color: 'var(--site-ink-3)', letterSpacing: 2 }}>FINISH SETTING UP YOUR ACCOUNT</div>
                 </div>
-                <SignUp
-                  routing="hash"
-                  forceRedirectUrl="/dashboard/activate"
-                  initialValues={{ emailAddress: email }}
-                  appearance={clerkAppearance}
-                />
+                <a href={`/sign-up${email ? `?email=${encodeURIComponent(email)}` : ''}`} style={{
+                  display: 'block', width: '100%', padding: '16px',
+                  background: 'var(--site-orange)', borderRadius: 4, textDecoration: 'none',
+                  fontFamily: bebas, fontSize: 20, letterSpacing: 3, color: 'white',
+                  textAlign: 'center', boxSizing: 'border-box',
+                  boxShadow: '0 2px 12px rgba(232,77,28,0.28)',
+                }}>CREATE ACCOUNT →</a>
               </>
             )}
           </div>
