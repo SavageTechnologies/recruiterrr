@@ -7,7 +7,7 @@ import TermsPanel from '../../components/site/TermsPanel'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type RightPage = 'privacy' | 'terms'
-type AuthMode = 'signin' | 'signup-email' | 'signup-payment' | 'signup-clerk'
+type AuthMode = 'signup-email' | 'signup-payment' | 'signup-clerk'
 
 const BYPASS_DOMAINS = ['hfgagents.com', 'amhomelife.com', 'unlinsurance.com']
 function isHeartland(email: string) {
@@ -133,24 +133,25 @@ function HomePage() {
           RECRUITERRR<span style={{ color: 'var(--site-orange)' }}>.</span>
         </button>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => setAuthMode('signin')}
+          <a
+            href="/sign-in"
             style={{
               fontFamily: mono, fontSize: 10, letterSpacing: 1.5, padding: '7px 16px',
               background: 'none',
-              border: `1px solid ${authMode === 'signin' ? 'var(--site-ink-3)' : 'var(--site-border)'}`,
+              border: '1px solid var(--site-border)',
               borderRadius: 4, cursor: 'pointer',
-              color: authMode === 'signin' ? 'var(--site-ink)' : 'var(--site-ink-3)',
+              color: 'var(--site-ink-3)', textDecoration: 'none',
+              display: 'inline-flex', alignItems: 'center',
             }}
-          >SIGN IN</button>
+          >SIGN IN</a>
           <button
             onClick={() => setAuthMode('signup-email')}
             style={{
               fontFamily: mono, fontSize: 10, letterSpacing: 1.5, padding: '7px 16px',
-              background: authMode !== 'signin' ? 'var(--site-orange)' : 'none',
-              border: `1px solid ${authMode !== 'signin' ? 'var(--site-orange)' : 'var(--site-border)'}`,
+              background: 'var(--site-orange)',
+              border: '1px solid var(--site-orange)',
               borderRadius: 4, cursor: 'pointer',
-              color: authMode !== 'signin' ? 'white' : 'var(--site-ink-3)',
+              color: 'white',
             }}
           >REQUEST ACCESS</button>
         </div>
@@ -167,28 +168,6 @@ function HomePage() {
           minHeight: 'calc(100vh - 56px - 44px)',
         }}>
           <div style={{ width: '100%', maxWidth: 400 }}>
-
-            {authMode === 'signin' && (
-              <>
-                <div style={{ marginBottom: 40 }}>
-                  <div style={{ fontFamily: bebas, fontSize: 40, letterSpacing: 2, color: 'var(--site-ink)', marginBottom: 6 }}>WELCOME BACK.</div>
-                  <div style={{ fontFamily: mono, fontSize: 10, color: 'var(--site-ink-3)', letterSpacing: 2 }}>OPERATOR ACCESS</div>
-                </div>
-                <a href="/sign-in" style={{
-                  display: 'block', width: '100%', padding: '16px',
-                  background: 'var(--site-orange)', borderRadius: 4, textDecoration: 'none',
-                  fontFamily: bebas, fontSize: 20, letterSpacing: 3, color: 'white',
-                  textAlign: 'center', boxSizing: 'border-box',
-                  boxShadow: '0 2px 12px rgba(232,77,28,0.28)',
-                }}>SIGN IN →</a>
-                <div style={{ marginTop: 24, textAlign: 'center', fontFamily: mono, fontSize: 10, color: 'var(--site-ink-4)', letterSpacing: 1 }}>
-                  Don&apos;t have an account?{' '}
-                  <button onClick={() => setAuthMode('signup-email')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--site-orange)', fontFamily: mono, fontSize: 10, letterSpacing: 1, padding: 0 }}>
-                    Request access →
-                  </button>
-                </div>
-              </>
-            )}
 
             {authMode === 'signup-email' && (
               <div>
@@ -222,9 +201,9 @@ function HomePage() {
                 }}>CONTINUE</button>
                 <div style={{ marginTop: 20, textAlign: 'center', fontFamily: mono, fontSize: 10, color: 'var(--site-ink-4)', letterSpacing: 1 }}>
                   Already have an account?{' '}
-                  <button onClick={() => setAuthMode('signin')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--site-orange)', fontFamily: mono, fontSize: 10, letterSpacing: 1, padding: 0 }}>
+                  <a href="/sign-in" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--site-orange)', fontFamily: mono, fontSize: 10, letterSpacing: 1, padding: 0, textDecoration: 'none' }}>
                     Sign in →
-                  </button>
+                  </a>
                 </div>
               </div>
             )}
