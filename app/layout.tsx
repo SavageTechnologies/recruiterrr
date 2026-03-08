@@ -16,12 +16,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ClerkProvider
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
-      afterSignInUrl="/dashboard"
-      afterSignUpUrl="/dashboard/activate"
-    >
+    <ClerkProvider>
       <html lang="en">
         <head>
           {/* Reads localStorage before paint — prevents flash of wrong theme.
