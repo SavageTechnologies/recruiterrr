@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSignIn, useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import '../../../(site)/site.css'
+import SiteFooter from '../../../../components/site/SiteFooter'
 
 const mono  = "'DM Mono', monospace"
 const bebas = "'Bebas Neue', sans-serif"
@@ -148,16 +149,7 @@ export default function SignInPage() {
         </div>
       </div>
 
-      <footer style={{ background: 'var(--site-white)', borderTop: '1px solid var(--site-border)', padding: '12px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ fontFamily: mono, fontSize: 9, color: 'var(--site-ink-4)', letterSpacing: 1 }}>© 2026 InsuraSafe, LLC. All rights reserved.</div>
-        <div style={{ fontFamily: mono, fontSize: 9, color: 'var(--site-ink-5)', letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
-          ALL SYSTEMS NOMINAL
-          <div style={{ display: 'flex', gap: 4 }}>
-            <div style={{ width: 4, height: 4, background: '#e84d1c', borderRadius: '50%' }} />
-            <div style={{ width: 4, height: 4, background: 'rgba(26,200,100,0.6)', borderRadius: '50%' }} />
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }
