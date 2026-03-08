@@ -1,5 +1,5 @@
 import { SignIn } from '@clerk/nextjs'
-import '../../(site)/site.css'
+import '../../../(site)/site.css'
 
 const mono  = "'DM Mono', monospace"
 const bebas = "'Bebas Neue', sans-serif"

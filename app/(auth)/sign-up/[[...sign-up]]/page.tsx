@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { SignUp } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
-import '../../(site)/site.css'
+import '../../../(site)/site.css'
 
 const mono  = "'DM Mono', monospace"
 const bebas = "'Bebas Neue', sans-serif"
